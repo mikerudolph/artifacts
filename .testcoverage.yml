@@ -1,0 +1,10 @@
+profile: cover.out
+local-prefix: github.com/mikerudolph/artifacts
+threshold:
+  file: 70
+  package: 85
+  total: 85
+exclude:
+  paths:
+    - migrations/.*
+    - cmd/artifacts/main.go

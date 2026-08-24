@@ -1,0 +1,10 @@
+/bin/
+/data/
+/cover.out
+/cover.html
+*.test
+*.out
+.idea/
+.vscode/
+.DS_Store
+vendor/
