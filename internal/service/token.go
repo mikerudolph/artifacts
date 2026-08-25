@@ -2,9 +2,8 @@ package service
 
 import (
 	"context"
-	"time"
 
-	"github.com/mikerudolph/artifacts/internal/auth"
+	"github.com/mikerudolph/artifacts/internal/store/meta"
 	"github.com/mikerudolph/artifacts/internal/types"
 )
 
@@ -36,33 +35,21 @@ func (s *Services) ListTokens(ctx context.Context, account types.AccountID, ns, 
 
 // RevokeToken revokes a repo token by id.
 func (s *Services) RevokeToken(ctx context.Context, account types.AccountID, ns string, id types.TokenID) error {
-	if err := s.meta.Accounts().Ensure(ctx, account); err != nil {
-		return err
-	}
-	_, err := types.ParseNamespaceName(ns)
+	namespace, _, err := s.lookupNS(ctx, account, ns)
 	if err != nil {
 		return err
+	}
+	token, err := s.meta.RepoTokens().GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	repo, err := s.meta.Repos().GetByID(ctx, token.RepoID)
+	if err != nil || repo.NamespaceID != namespace.ID {
+		return meta.ErrNotFound
 	}
 	return s.meta.RepoTokens().Revoke(ctx, id)
 }
 
 func (s *Services) mintAndStore(ctx context.Context, repoID types.RepoID, scope types.Scope, ttlSec int) (types.CreateTokenResult, error) {
-	now := s.now()
-	plain, hash, id, exp, err := auth.MintRepo(scope, time.Duration(ttlSec)*time.Second, now)
-	if err != nil {
-		return types.CreateTokenResult{}, err
-	}
-	_, err = s.meta.RepoTokens().Create(ctx, types.RepoToken{
-		ID:        id,
-		RepoID:    repoID,
-		Hash:      hash,
-		Scope:     scope,
-		State:     types.TokenActive,
-		CreatedAt: now,
-		ExpiresAt: exp,
-	})
-	if err != nil {
-		return types.CreateTokenResult{}, err
-	}
-	return types.CreateTokenResult{ID: id, Plaintext: plain, Scope: scope, ExpiresAt: exp}, nil
+	return s.issuer.Issue(ctx, repoID, scope, ttlSec)
 }

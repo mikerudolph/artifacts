@@ -10,14 +10,20 @@ import (
 	"time"
 
 	"github.com/mikerudolph/artifacts/internal/config"
+	"github.com/mikerudolph/artifacts/internal/jobs"
 	"github.com/mikerudolph/artifacts/internal/service"
 	"github.com/mikerudolph/artifacts/internal/store/meta/postgres"
+	"github.com/mikerudolph/artifacts/internal/store/object/objecttest"
 	"github.com/mikerudolph/artifacts/internal/testkit"
 )
 
 const acctBase = "/client/v4/accounts/local/artifacts"
 
 func testAPI(t *testing.T, mode, token string) http.Handler {
+	return testAPIWithDependencies(t, mode, token, Dependencies{})
+}
+
+func testAPIWithDependencies(t *testing.T, mode, token string, deps Dependencies) http.Handler {
 	t.Helper()
 	dsn := testkit.Postgres(t)
 	if err := postgres.Migrate(dsn); err != nil {
@@ -33,7 +39,27 @@ func testAPI(t *testing.T, mode, token string) http.Handler {
 		}
 	})
 	svc := service.New(st, time.Now, "http://example.test")
-	return New(svc, config.Config{Auth: config.Auth{Mode: mode, APIToken: token}})
+	return NewWithDependencies(svc, config.Config{Auth: config.Auth{Mode: mode, APIToken: token}}, deps)
+}
+
+func testAPIWithJobs(t *testing.T) http.Handler {
+	t.Helper()
+	dsn := testkit.Postgres(t)
+	if err := postgres.Migrate(dsn); err != nil {
+		t.Fatal(err)
+	}
+	st, err := postgres.Open(context.Background(), dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if closer, ok := st.(interface{ Close() }); ok {
+			closer.Close()
+		}
+	})
+	svc := service.New(st, time.Now, "http://example.test")
+	runner := jobs.New(st, objecttest.NewMem(), "http://example.test")
+	return NewWithDependencies(svc, config.Config{Auth: config.Auth{Mode: "none"}}, Dependencies{Jobs: runner})
 }
 
 func doJSON(t *testing.T, h http.Handler, method, path, bearer string, body any) *httptest.ResponseRecorder {

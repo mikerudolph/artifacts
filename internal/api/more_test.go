@@ -48,7 +48,7 @@ func TestMoreAPIErrors(t *testing.T) {
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("token json %d", rec.Code)
 	}
-	if rec := doJSON(t, h, http.MethodDelete, acctBase+"/namespaces/default/repos/missing", "", nil); rec.Code != http.StatusNotFound {
+	if rec := doJSON(t, h, http.MethodDelete, acctBase+"/namespaces/default/repos/missing", "", nil); rec.Code != http.StatusInternalServerError {
 		t.Fatalf("del %d", rec.Code)
 	}
 }

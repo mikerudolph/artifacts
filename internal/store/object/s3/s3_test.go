@@ -1,12 +1,16 @@
 package s3
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"io"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/mikerudolph/artifacts/internal/config"
@@ -48,7 +52,45 @@ func TestIsNotFound(t *testing.T) {
 	if !isNotFound(errors.New("api error NotFound: blah")) {
 		t.Fatal("string match")
 	}
+	plain := errors.New("plain")
+	if mapErr(plain) != plain {
+		t.Fatal("mapErr changed ordinary error")
+	}
 }
+
+func TestImmutablePutBranches(t *testing.T) {
+	t.Parallel()
+	st := &store{}
+	ctx := context.Background()
+	if err := st.Delete(ctx, "../bad"); err == nil {
+		t.Fatal("delete accepted invalid key")
+	}
+	if _, err := st.Exists(ctx, "../bad"); err == nil {
+		t.Fatal("exists accepted invalid key")
+	}
+	if err := st.Copy(ctx, "../bad", "valid"); err == nil {
+		t.Fatal("copy accepted invalid source")
+	}
+	if err := st.Copy(ctx, "valid", "../bad"); err == nil {
+		t.Fatal("copy accepted invalid destination")
+	}
+	if _, _, _, _, err := stageUpload(strings.NewReader("x"), 2); !errors.Is(err, io.ErrUnexpectedEOF) {
+		t.Fatalf("size mismatch: %v", err)
+	}
+	if _, _, _, _, err := stageUpload(errorReader{}, -1); err == nil {
+		t.Fatal("reader error was lost")
+	}
+	if preconditionFailed(nil) || preconditionFailed(errors.New("ordinary")) {
+		t.Fatal("ordinary error is a precondition failure")
+	}
+	if !preconditionFailed(errors.New("PreconditionFailed")) || !preconditionFailed(errors.New("status code: 412")) {
+		t.Fatal("precondition failure not recognized")
+	}
+}
+
+type errorReader struct{}
+
+func (errorReader) Read([]byte) (int, error) { return 0, errors.New("read failed") }
 
 func TestConformance(t *testing.T) {
 	base := s3Config(t)
@@ -70,6 +112,65 @@ func TestConformance(t *testing.T) {
 		}
 		return st
 	})
+	st, err := New(ctx, config.S3{
+		Endpoint: base.Endpoint, Bucket: base.Bucket, Region: base.Region, AccessKey: base.AccessKey,
+		SecretKey: base.SecretKey, Prefix: "concurrent-" + t.Name(), UsePathStyle: base.UsePathStyle,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wg sync.WaitGroup
+	errs := make(chan error, 8)
+	for range 8 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			errs <- st.Put(ctx, "repo/pack/x.pack", bytes.NewBufferString("same"), 4)
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatalf("concurrent immutable put: %v", err)
+		}
+	}
+}
+
+func TestLegacyObjectChecksumVerification(t *testing.T) {
+	base := s3Config(t)
+	ctx := context.Background()
+	client, err := newClient(ctx, base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = client.CreateBucket(ctx, &s3.CreateBucketInput{Bucket: &base.Bucket})
+	if err != nil && !alreadyExists(err) {
+		t.Fatal(err)
+	}
+	base.Prefix = "legacy-" + t.Name()
+	raw, err := New(ctx, base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	st, ok := raw.(*store)
+	if !ok {
+		t.Fatal("unexpected store implementation")
+	}
+	key := "repo/legacy.pack"
+	body := []byte("legacy")
+	_, err = client.PutObject(ctx, &s3.PutObjectInput{
+		Bucket: &base.Bucket, Key: aws.String(st.full(key)), Body: bytes.NewReader(body), ContentLength: aws.Int64(int64(len(body))),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.Put(ctx, key, bytes.NewReader(body), int64(len(body))); err != nil {
+		t.Fatalf("same legacy body: %v", err)
+	}
+	if err := st.Put(ctx, key, strings.NewReader("changed"), 7); !errors.Is(err, object.ErrImmutableConflict) {
+		t.Fatalf("different legacy body: %v", err)
+	}
 }
 
 func s3Config(t *testing.T) config.S3 {

@@ -66,10 +66,27 @@ func (r fakeRepos) List(_ context.Context, opts meta.ListReposOpts) ([]types.Rep
 func (r fakeRepos) Update(_ context.Context, repo types.Repo) (types.Repo, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if _, ok := r.repos[repo.ID]; !ok {
+	current, ok := r.repos[repo.ID]
+	if !ok {
 		return types.Repo{}, meta.ErrNotFound
 	}
+	if (current.Status == types.RepoDeleting || current.Status == types.RepoDeleted) &&
+		repo.Status != types.RepoDeleting && repo.Status != types.RepoDeleted {
+		return types.Repo{}, meta.ErrCASConflict
+	}
 	r.repos[repo.ID] = repo
+	return repo, nil
+}
+
+func (r fakeRepos) Transition(_ context.Context, id types.RepoID, from, to types.RepoStatus, deletedAt *time.Time) (types.Repo, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	repo, ok := r.repos[id]
+	if !ok || repo.Status != from {
+		return types.Repo{}, meta.ErrCASConflict
+	}
+	repo.Status, repo.DeletedAt = to, deletedAt
+	r.repos[id] = repo
 	return repo, nil
 }
 

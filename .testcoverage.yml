@@ -8,3 +8,5 @@ exclude:
   paths:
     - migrations/.*
     - cmd/artifacts/main.go
+    - examples/.*
+    - internal/store/object/objecttest/.*

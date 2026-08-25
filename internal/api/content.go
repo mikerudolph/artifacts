@@ -2,11 +2,9 @@ package api
 
 import (
 	"context"
-	"errors"
 	"strconv"
 	"strings"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/storer"
@@ -14,33 +12,19 @@ import (
 	"github.com/mikerudolph/artifacts/internal/types"
 )
 
-// OpenGit opens a git storer for content routes. Set by process wiring.
-var OpenGit func(account, ns, repo string) (storer.Storer, error)
-
-func init() {
-	contentRoutes = func(r chi.Router) {
-		r.Get("/namespaces/{namespace}/repos/{name}/log", handleLog)
-		r.Get("/namespaces/{namespace}/repos/{name}/commit/{hash}", handleCommit)
-		r.Get("/namespaces/{namespace}/repos/{name}/tree/{hash}", handleTree)
-		r.Get("/namespaces/{namespace}/repos/{name}/blob/{hash}", handleBlob)
-		r.Get("/namespaces/{namespace}/repos/{name}/file", handleFile)
-		r.Get("/namespaces/{namespace}/repos/{name}/raw/{ref}/*", handleRaw)
+func (s *server) readRepo(ctx context.Context, account, ns, name string, visit func(storer.Storer) error) error {
+	if s.deps.ReadGit == nil {
+		return context.Canceled
 	}
-}
-
-func openRepo(ctx context.Context, account, ns, name string) (storer.Storer, error) {
-	if OpenGit == nil {
-		return nil, errors.New("git store not configured")
+	if _, err := s.svc.GetRepo(ctx, types.AccountID(account), ns, name); err != nil {
+		return err
 	}
-	if _, err := active.svc.GetRepo(ctx, types.AccountID(account), ns, name); err != nil {
-		return nil, err
-	}
-	return OpenGit(account, ns, name)
+	return s.deps.ReadGit(ctx, account, ns, name, visit)
 }
 
 func resolveRef(st storer.Storer, ref string) (plumbing.Hash, error) {
 	if ref == "" {
-		ref = types.DefaultBranch
+		ref = "HEAD"
 	}
 	if h := plumbing.NewHash(ref); !h.IsZero() && len(ref) == 40 {
 		if err := st.HasEncodedObject(h); err == nil {

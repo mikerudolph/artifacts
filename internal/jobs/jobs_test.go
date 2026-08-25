@@ -1,21 +1,18 @@
 package jobs
 
 import (
-	"bytes"
 	"context"
-	"os"
-	"path/filepath"
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/mikerudolph/artifacts/internal/store/meta/postgres"
-	"github.com/mikerudolph/artifacts/internal/store/object"
 	"github.com/mikerudolph/artifacts/internal/store/object/objecttest"
 	"github.com/mikerudolph/artifacts/internal/testkit"
 	"github.com/mikerudolph/artifacts/internal/types"
 )
 
-func testRunner(t *testing.T) (*Runner, object.Store) {
+func testRunner(t *testing.T) *Runner {
 	t.Helper()
 	dsn := testkit.Postgres(t)
 	if err := postgres.Migrate(dsn); err != nil {
@@ -31,11 +28,11 @@ func testRunner(t *testing.T) (*Runner, object.Store) {
 		}
 	})
 	objs := objecttest.NewMem()
-	return New(st, objs, "http://example.test"), objs
+	return New(st, objs, "http://example.test")
 }
 
 func TestForkAndDelete(t *testing.T) {
-	r, objs := testRunner(t)
+	r := testRunner(t)
 	ctx := context.Background()
 	if err := r.meta.Accounts().Ensure(ctx, "local"); err != nil {
 		t.Fatal(err)
@@ -48,10 +45,6 @@ func TestForkAndDelete(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	key := object.LooseObjectKey("local", string(src.ID), "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-	if err := objs.Put(ctx, key, bytes.NewReader([]byte("x")), 1); err != nil {
-		t.Fatal(err)
-	}
 	if err := r.meta.Refs().CompareAndSwap(ctx, src.ID, "refs/heads/main", "", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"); err != nil {
 		t.Fatal(err)
 	}
@@ -59,7 +52,7 @@ func TestForkAndDelete(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Objects != 1 || got.Token == "" {
+	if got.Objects != 0 || got.Token == "" {
 		t.Fatalf("%+v", got)
 	}
 	dst, err := r.meta.Repos().GetByName(ctx, ns.ID, "dst")
@@ -79,28 +72,62 @@ func TestForkAndDelete(t *testing.T) {
 }
 
 func TestImportLocalAndErrors(t *testing.T) {
-	r, _ := testRunner(t)
+	r := testRunner(t)
 	ctx := context.Background()
 	if _, err := r.Import(ctx, "local", "default", "x", types.ImportRepoInput{}); err != ErrInvalidURL {
 		t.Fatalf("empty url: %v", err)
 	}
-	src := testkit.TempRepo(t)
-	hooks := t.TempDir()
-	if err := os.WriteFile(filepath.Join(src, "f"), []byte("v"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	testkit.GitAvailable(t)
-	testkit.RunGit(t, src, "-c", "core.hooksPath="+hooks, "-c", "commit.gpgsign=false", "add", "f")
-	testkit.RunGit(t, src, "-c", "core.hooksPath="+hooks, "-c", "commit.gpgsign=false", "commit", "-m", "c")
-	got, err := r.Import(ctx, "local", "default", "mirror", types.ImportRepoInput{URL: "file://" + src, Branch: "main"})
+	r.imports = successfulImport{}
+	got, err := r.Import(ctx, "local", "default", "mirror", types.ImportRepoInput{URL: "https://93.184.216.34/repo.git", Branch: "main"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if got.Remote == "" || got.Token == "" {
 		t.Fatalf("%+v", got)
 	}
-	if _, err := r.Import(ctx, "local", "default", "mirror", types.ImportRepoInput{URL: "file://" + src}); err == nil {
+	if _, err := r.Import(ctx, "local", "default", "mirror", types.ImportRepoInput{URL: "https://93.184.216.34/repo.git"}); err == nil {
 		t.Fatal("expected dup import")
+	}
+}
+
+type successfulImport struct{}
+
+func (successfulImport) ImportControlled(_ context.Context, _ types.Repo, spec types.ImportSpec) (string, error) {
+	return firstNonEmpty(spec.Branch, types.DefaultBranch), nil
+}
+
+type failedImport struct{}
+
+func (failedImport) ImportControlled(context.Context, types.Repo, types.ImportSpec) (string, error) {
+	return "", errors.New("clone failed")
+}
+
+func TestImportFailureIsDurable(t *testing.T) {
+	r := testRunner(t)
+	r.imports = failedImport{}
+	_, err := r.Import(context.Background(), "local", "agents", "failed", types.ImportRepoInput{URL: "https://93.184.216.34/repo.git"})
+	if err == nil {
+		t.Fatal("expected import error")
+	}
+	ns, err := r.meta.Namespaces().GetByName(context.Background(), "local", "agents")
+	if err != nil {
+		t.Fatal(err)
+	}
+	repo, err := r.meta.Repos().GetByName(context.Background(), ns.ID, "failed")
+	if err != nil || repo.Status != types.RepoFailed || repo.Failure == "" {
+		t.Fatalf("repo %+v %v", repo, err)
+	}
+	jobs, err := r.List(context.Background(), repo.ID)
+	if err != nil || len(jobs) != 1 || jobs[0].Status != types.JobFailed {
+		t.Fatalf("jobs %+v %v", jobs, err)
+	}
+}
+
+func TestImportFailsClosedWithoutPublisher(t *testing.T) {
+	runner := testRunner(t)
+	_, err := runner.Import(context.Background(), "local", "default", "closed", types.ImportRepoInput{URL: "https://93.184.216.34/repo.git"})
+	if !errors.Is(err, ErrUpstream) {
+		t.Fatalf("no publisher error %v", err)
 	}
 }
 

@@ -22,6 +22,8 @@ var (
 	ErrNotFound = errors.New("object not found")
 	// ErrInvalidKey means the key is empty or not a relative path.
 	ErrInvalidKey = errors.New("invalid object key")
+	// ErrImmutableConflict means an existing immutable key has different bytes.
+	ErrImmutableConflict = errors.New("immutable object conflict")
 )
 
 // IsNotFound reports whether err is ErrNotFound.

@@ -11,7 +11,7 @@ import (
 
 func (s *server) createRepo(w http.ResponseWriter, r *http.Request) {
 	var in types.CreateRepoInput
-	if err := decodeJSON(r, &in); err != nil {
+	if err := decodeJSON(w, r, &in); err != nil {
 		writeErr(w, types.ErrInvalidName)
 		return
 	}
@@ -64,7 +64,11 @@ func (s *server) listRepos(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) deleteRepo(w http.ResponseWriter, r *http.Request) {
 	acct := types.AccountID(chi.URLParam(r, "account_id"))
-	id, err := s.svc.DeleteRepo(r.Context(), acct, chi.URLParam(r, "namespace"), chi.URLParam(r, "name"))
+	if s.deps.Jobs == nil {
+		writeErr(w, errJobs)
+		return
+	}
+	id, err := s.deps.Jobs.DeleteRepo(r.Context(), acct, chi.URLParam(r, "namespace"), chi.URLParam(r, "name"))
 	if err != nil {
 		writeErr(w, err)
 		return

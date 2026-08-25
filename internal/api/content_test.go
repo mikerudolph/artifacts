@@ -2,8 +2,13 @@ package api
 
 import (
 	"context"
+	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -18,11 +23,9 @@ import (
 )
 
 func TestContentRoutes(t *testing.T) {
-	h := testAPI(t, "none", "")
-	doJSON(t, h, http.MethodPost, acctBase+"/namespaces/default/repos", "", map[string]string{"name": "app"})
 	st, commit, tree, blob := seedContent(t)
-	OpenGit = func(string, string, string) (storer.Storer, error) { return st, nil }
-	t.Cleanup(func() { OpenGit = nil })
+	h := testAPIWithDependencies(t, "none", "", Dependencies{ReadGit: fixedReader(st)})
+	doJSON(t, h, http.MethodPost, acctBase+"/namespaces/default/repos", "", map[string]string{"name": "app"})
 	base := acctBase + "/namespaces/default/repos/app"
 
 	if rec := doJSON(t, h, http.MethodGet, base+"/log?ref=main&limit=5", "", nil); rec.Code != http.StatusOK {
@@ -48,6 +51,10 @@ func TestContentRoutes(t *testing.T) {
 	}
 }
 
+func fixedReader(st storer.Storer) func(context.Context, string, string, string, func(storer.Storer) error) error {
+	return func(_ context.Context, _, _, _ string, visit func(storer.Storer) error) error { return visit(st) }
+}
+
 func rawGet(h http.Handler, path string) *httptest.ResponseRecorder {
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
@@ -55,18 +62,78 @@ func rawGet(h http.Handler, path string) *httptest.ResponseRecorder {
 }
 
 func seedContent(t *testing.T) (storer.Storer, plumbing.Hash, plumbing.Hash, plumbing.Hash) {
+	return seedContentBody(t, "hello")
+}
+
+func seedContentBody(t *testing.T, body string) (storer.Storer, plumbing.Hash, plumbing.Hash, plumbing.Hash) {
 	t.Helper()
 	raw, err := gitstore.Open(objecttest.NewMem(), &contentRefs{data: map[string]string{}}, "local", "repo_1")
 	if err != nil {
 		t.Fatal(err)
 	}
-	bh := putBlobObj(t, raw, "hello")
+	bh := putBlobObj(t, raw, body)
 	th := putTreeObj(t, raw, bh)
 	ch := putCommitObj(t, raw, th)
 	if err := raw.SetReference(plumbing.NewHashReference("refs/heads/main", ch)); err != nil {
 		t.Fatal(err)
 	}
 	return raw, ch, th, bh
+}
+
+func TestStalledBlobResponseReleasesRepositoryRead(t *testing.T) {
+	st, commit, _, blob := seedContentBody(t, strings.Repeat("x", 32<<20))
+	var lock sync.Mutex
+	started := make(chan struct{}, 2)
+	reader := func(_ context.Context, _, _, _ string, visit func(storer.Storer) error) error {
+		lock.Lock()
+		defer lock.Unlock()
+		started <- struct{}{}
+		return visit(st)
+	}
+	h := testAPIWithDependencies(t, "none", "", Dependencies{ReadGit: reader, StreamIdle: 50 * time.Millisecond})
+	doJSON(t, h, http.MethodPost, acctBase+"/namespaces/default/repos", "", map[string]string{"name": "app"})
+	server := httptest.NewServer(h)
+	t.Cleanup(server.Close)
+	parsed, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn, err := net.Dial("tcp", parsed.Host)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = conn.Close() })
+	if tcp, ok := conn.(*net.TCPConn); ok {
+		_ = tcp.SetReadBuffer(1024)
+	}
+	path := acctBase + "/namespaces/default/repos/app/blob/" + blob.String()
+	if _, err := fmt.Fprintf(conn, "GET %s HTTP/1.1\r\nHost: %s\r\n\r\n", path, parsed.Host); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("blob read did not start")
+	}
+	result := make(chan error, 1)
+	go func() {
+		response, err := http.Get(server.URL + acctBase + "/namespaces/default/repos/app/commit/" + commit.String())
+		if err == nil {
+			defer func() { _ = response.Body.Close() }()
+			if response.StatusCode != http.StatusOK {
+				err = fmt.Errorf("commit status %d", response.StatusCode)
+			}
+		}
+		result <- err
+	}()
+	select {
+	case err := <-result:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("stalled response retained repository read lock")
+	}
 }
 
 func putBlobObj(t *testing.T, st storer.Storer, body string) plumbing.Hash {

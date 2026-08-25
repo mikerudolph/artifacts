@@ -2,7 +2,10 @@ package postgres
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/mikerudolph/artifacts/internal/store/meta"
@@ -10,6 +13,14 @@ import (
 )
 
 func (s repoStore) Create(ctx context.Context, repo types.Repo) (types.Repo, error) {
+	var namespaceAccount types.AccountID
+	if err := s.q.QueryRow(ctx, `SELECT account_id FROM namespaces WHERE id=$1`, repo.NamespaceID).Scan(&namespaceAccount); err != nil {
+		return types.Repo{}, wrap(err)
+	}
+	if repo.AccountID != "" && repo.AccountID != namespaceAccount {
+		return types.Repo{}, meta.ErrNotFound
+	}
+	repo.AccountID = namespaceAccount
 	if repo.ID == "" {
 		repo.ID = newRepoID()
 	}
@@ -23,14 +34,21 @@ func (s repoStore) Create(ctx context.Context, repo types.Repo) (types.Repo, err
 		repo.CreatedAt = time.Now().UTC()
 	}
 	repo.UpdatedAt = repo.CreatedAt
+	if repo.StorageVersion == 0 {
+		repo.StorageVersion = 2
+	}
 	err := s.q.QueryRow(ctx, `
-		INSERT INTO repos (id, namespace_id, name, description, default_branch, read_only, source, status, created_at, updated_at, last_push_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
-		RETURNING id, namespace_id, name, description, default_branch, read_only, source, status, created_at, updated_at, last_push_at`,
-		string(repo.ID), string(repo.NamespaceID), string(repo.Name), repo.Description, repo.DefaultBranch,
-		repo.ReadOnly, repo.Source, string(repo.Status), repo.CreatedAt, repo.UpdatedAt, repo.LastPushAt,
-	).Scan(&repo.ID, &repo.NamespaceID, &repo.Name, &repo.Description, &repo.DefaultBranch,
-		&repo.ReadOnly, &repo.Source, &repo.Status, &repo.CreatedAt, &repo.UpdatedAt, &repo.LastPushAt)
+		INSERT INTO repos (id, namespace_id, account_id, name, description, default_branch, read_only, source, status,
+			storage_version, wal_sequence, failure, deleted_at, created_at, updated_at, last_push_at)
+		VALUES ($1,$2,COALESCE(NULLIF($3,''),(SELECT account_id FROM namespaces WHERE id=$2)),$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+		RETURNING id, namespace_id, account_id, name, description, default_branch, read_only, source, status,
+			storage_version, wal_sequence, failure, deleted_at, created_at, updated_at, last_push_at`,
+		string(repo.ID), string(repo.NamespaceID), string(repo.AccountID), string(repo.Name), repo.Description, repo.DefaultBranch,
+		repo.ReadOnly, repo.Source, string(repo.Status), repo.StorageVersion, repo.WALSequence, repo.Failure,
+		repo.DeletedAt, repo.CreatedAt, repo.UpdatedAt, repo.LastPushAt,
+	).Scan(&repo.ID, &repo.NamespaceID, &repo.AccountID, &repo.Name, &repo.Description, &repo.DefaultBranch,
+		&repo.ReadOnly, &repo.Source, &repo.Status, &repo.StorageVersion, &repo.WALSequence,
+		&repo.Failure, &repo.DeletedAt, &repo.CreatedAt, &repo.UpdatedAt, &repo.LastPushAt)
 	if err != nil {
 		return types.Repo{}, wrap(err)
 	}
@@ -48,16 +66,37 @@ func (s repoStore) GetByID(ctx context.Context, id types.RepoID) (types.Repo, er
 func (s repoStore) Update(ctx context.Context, repo types.Repo) (types.Repo, error) {
 	repo.UpdatedAt = time.Now().UTC()
 	err := s.q.QueryRow(ctx, `
-		UPDATE repos SET description=$2, default_branch=$3, read_only=$4, source=$5, status=$6, updated_at=$7, last_push_at=$8
-		WHERE id=$1
-		RETURNING id, namespace_id, name, description, default_branch, read_only, source, status, created_at, updated_at, last_push_at`,
+		UPDATE repos SET description=$2, default_branch=$3, read_only=$4, source=$5, status=$6,
+			updated_at=$7, last_push_at=$8, failure=$9, deleted_at=$10
+		WHERE id=$1 AND NOT (status IN ('deleting','deleted') AND $6 NOT IN ('deleting','deleted'))
+		RETURNING id, namespace_id, account_id, name, description, default_branch, read_only, source, status,
+			storage_version, wal_sequence, failure, deleted_at, created_at, updated_at, last_push_at`,
 		string(repo.ID), repo.Description, repo.DefaultBranch, repo.ReadOnly, repo.Source, string(repo.Status), repo.UpdatedAt, repo.LastPushAt,
-	).Scan(&repo.ID, &repo.NamespaceID, &repo.Name, &repo.Description, &repo.DefaultBranch,
-		&repo.ReadOnly, &repo.Source, &repo.Status, &repo.CreatedAt, &repo.UpdatedAt, &repo.LastPushAt)
+		repo.Failure, repo.DeletedAt,
+	).Scan(&repo.ID, &repo.NamespaceID, &repo.AccountID, &repo.Name, &repo.Description, &repo.DefaultBranch,
+		&repo.ReadOnly, &repo.Source, &repo.Status, &repo.StorageVersion, &repo.WALSequence,
+		&repo.Failure, &repo.DeletedAt, &repo.CreatedAt, &repo.UpdatedAt, &repo.LastPushAt)
 	if err != nil {
+		if meta.IsNotFound(wrap(err)) {
+			return types.Repo{}, meta.ErrCASConflict
+		}
 		return types.Repo{}, wrap(err)
 	}
 	return repo, nil
+}
+
+func (s repoStore) Transition(ctx context.Context, id types.RepoID, from, to types.RepoStatus, deletedAt *time.Time) (types.Repo, error) {
+	var repo types.Repo
+	err := s.q.QueryRow(ctx, `UPDATE repos SET status=$3,deleted_at=$4,updated_at=now() WHERE id=$1 AND status=$2
+		RETURNING id, namespace_id, account_id, name, description, default_branch, read_only, source, status,
+		storage_version, wal_sequence, failure, deleted_at, created_at, updated_at, last_push_at`,
+		id, from, to, deletedAt).Scan(&repo.ID, &repo.NamespaceID, &repo.AccountID, &repo.Name, &repo.Description,
+		&repo.DefaultBranch, &repo.ReadOnly, &repo.Source, &repo.Status, &repo.StorageVersion, &repo.WALSequence,
+		&repo.Failure, &repo.DeletedAt, &repo.CreatedAt, &repo.UpdatedAt, &repo.LastPushAt)
+	if meta.IsNotFound(wrap(err)) {
+		return types.Repo{}, meta.ErrCASConflict
+	}
+	return repo, err
 }
 
 func (s repoStore) Delete(ctx context.Context, id types.RepoID) error {
@@ -78,8 +117,12 @@ func (s repoStore) List(ctx context.Context, opts meta.ListReposOpts) ([]types.R
 		return nil, types.CursorResult{}, types.ErrInvalidSort
 	}
 	search := "%" + opts.Search + "%"
-	q := repoSelect + ` WHERE namespace_id = $1 AND ($2 = '%%' OR name ILIKE $2) ORDER BY ` + order + ` LIMIT $3`
-	rows, err := s.q.Query(ctx, q, string(opts.NamespaceID), search, opts.Page.Limit+1)
+	offset, err := decodeRepoCursor(opts.Page.Cursor)
+	if err != nil {
+		return nil, types.CursorResult{}, err
+	}
+	q := repoSelect + ` WHERE namespace_id = $1 AND status <> 'deleted' AND ($2 = '%%' OR name ILIKE $2) ORDER BY ` + order + ` LIMIT $3 OFFSET $4`
+	rows, err := s.q.Query(ctx, q, string(opts.NamespaceID), search, opts.Page.Limit+1, offset)
 	if err != nil {
 		return nil, types.CursorResult{}, err
 	}
@@ -96,12 +139,32 @@ func (s repoStore) List(ctx context.Context, opts meta.ListReposOpts) ([]types.R
 	if len(out) > opts.Page.Limit {
 		out = out[:opts.Page.Limit]
 		info.Count = opts.Page.Limit
-		info.Cursor = encodeCursor(out[len(out)-1].CreatedAt, string(out[len(out)-1].ID))
+		info.Cursor = encodeRepoCursor(offset + opts.Page.Limit)
 	}
 	return out, info, rows.Err()
 }
 
-const repoSelect = `SELECT id, namespace_id, name, description, default_branch, read_only, source, status, created_at, updated_at, last_push_at FROM repos`
+func encodeRepoCursor(offset int) string {
+	return base64.RawURLEncoding.EncodeToString([]byte("offset:" + strconv.Itoa(offset)))
+}
+
+func decodeRepoCursor(cursor string) (int, error) {
+	if cursor == "" {
+		return 0, nil
+	}
+	raw, err := base64.RawURLEncoding.DecodeString(cursor)
+	if err != nil || !strings.HasPrefix(string(raw), "offset:") {
+		return 0, fmt.Errorf("invalid cursor")
+	}
+	offset, err := strconv.Atoi(strings.TrimPrefix(string(raw), "offset:"))
+	if err != nil || offset < 0 {
+		return 0, fmt.Errorf("invalid cursor")
+	}
+	return offset, nil
+}
+
+const repoSelect = `SELECT id, namespace_id, account_id, name, description, default_branch, read_only, source, status,
+	storage_version, wal_sequence, failure, deleted_at, created_at, updated_at, last_push_at FROM repos`
 
 type rowScanner interface {
 	Scan(dest ...any) error
@@ -117,8 +180,9 @@ func (s repoStore) scanRepo(row rowScanner) (types.Repo, error) {
 
 func scanRepo(row rowScanner) (types.Repo, error) {
 	var repo types.Repo
-	err := row.Scan(&repo.ID, &repo.NamespaceID, &repo.Name, &repo.Description, &repo.DefaultBranch,
-		&repo.ReadOnly, &repo.Source, &repo.Status, &repo.CreatedAt, &repo.UpdatedAt, &repo.LastPushAt)
+	err := row.Scan(&repo.ID, &repo.NamespaceID, &repo.AccountID, &repo.Name, &repo.Description, &repo.DefaultBranch,
+		&repo.ReadOnly, &repo.Source, &repo.Status, &repo.StorageVersion, &repo.WALSequence,
+		&repo.Failure, &repo.DeletedAt, &repo.CreatedAt, &repo.UpdatedAt, &repo.LastPushAt)
 	return repo, err
 }
 

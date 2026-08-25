@@ -46,6 +46,12 @@ func testPutGet(t *testing.T, newStore Factory) {
 	if !bytes.Equal(got, payload) {
 		t.Fatalf("got %q", got)
 	}
+	if err := s.Put(ctx, "acct/repo/objects/ab/cd", bytes.NewReader(payload), int64(len(payload))); err != nil {
+		t.Fatalf("idempotent put: %v", err)
+	}
+	if err := s.Put(ctx, "acct/repo/objects/ab/cd", bytes.NewBufferString("different"), 9); !errors.Is(err, object.ErrImmutableConflict) {
+		t.Fatalf("immutable conflict: %v", err)
+	}
 }
 
 func testMissing(t *testing.T, newStore Factory) {
@@ -84,6 +90,12 @@ func testListCopyDelete(t *testing.T, newStore Factory) {
 	}
 	if err := s.Copy(ctx, "acct/r1/a", "acct/r3/a"); err != nil {
 		t.Fatal(err)
+	}
+	if err := s.Copy(ctx, "acct/r1/a", "acct/r3/a"); err != nil {
+		t.Fatalf("idempotent copy: %v", err)
+	}
+	if err := s.Copy(ctx, "acct/r1/b", "acct/r3/a"); !errors.Is(err, object.ErrImmutableConflict) {
+		t.Fatalf("immutable copy conflict: %v", err)
 	}
 	if err := s.DeletePrefix(ctx, "acct/r1/"); err != nil {
 		t.Fatal(err)

@@ -12,12 +12,19 @@ func RemoteURL(publicURL string, ns types.NamespaceName, repo types.RepoName) st
 	return base + "/git/" + string(ns) + "/" + string(repo) + ".git"
 }
 
-func (s *Services) remote(ns types.NamespaceName, repo types.RepoName) string {
-	return RemoteURL(s.publicURL, ns, repo)
+// TenantRemoteURL includes the account in the v2 Git route.
+func TenantRemoteURL(publicURL string, account types.AccountID, ns types.NamespaceName, repo types.RepoName) string {
+	base := strings.TrimRight(publicURL, "/")
+	return base + "/git/" + string(account) + "/" + string(ns) + "/" + string(repo) + ".git"
 }
 
-func withRemote(repo types.Repo, publicURL string, ns types.NamespaceName) types.Repo {
-	repo.Remote = RemoteURL(publicURL, ns, repo.Name)
+func (s *Services) remote(account types.AccountID, ns types.NamespaceName, repo types.RepoName) string {
+	return TenantRemoteURL(s.publicURL, account, ns, repo)
+}
+
+func withRemote(repo types.Repo, publicURL string, account types.AccountID, ns types.NamespaceName) types.Repo {
+	repo.Remote = TenantRemoteURL(publicURL, account, ns, repo.Name)
+	repo.AccountID = account
 	repo.Namespace = ns
 	return repo
 }

@@ -48,6 +48,12 @@ func (m *Mem) Put(_ context.Context, key string, r io.Reader, _ int64) error {
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if current, ok := m.data[key]; ok {
+		if bytes.Equal(current, b) {
+			return nil
+		}
+		return object.ErrImmutableConflict
+	}
 	m.data[key] = b
 	return nil
 }
@@ -107,6 +113,12 @@ func (m *Mem) Copy(_ context.Context, src, dst string) error {
 	b, ok := m.data[src]
 	if !ok {
 		return object.ErrNotFound
+	}
+	if current, exists := m.data[dst]; exists {
+		if bytes.Equal(current, b) {
+			return nil
+		}
+		return object.ErrImmutableConflict
 	}
 	m.data[dst] = append([]byte(nil), b...)
 	return nil

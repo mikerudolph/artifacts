@@ -2,6 +2,7 @@ package config
 
 import (
 	"testing"
+	"time"
 )
 
 func TestLoadDefaults(t *testing.T) {
@@ -19,7 +20,7 @@ func TestLoadDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.HTTP.Addr != defaultAddr || cfg.HTTP.PublicURL != defaultURL {
+	if cfg.HTTP.Addr != defaultAddr || cfg.HTTP.PublicURL != defaultURL || cfg.HTTP.StreamIdleTimeout != 30*time.Second {
 		t.Fatalf("http %+v", cfg.HTTP)
 	}
 	if cfg.Auth.Mode != authToken || cfg.Auth.APIToken != "secret" {
@@ -30,6 +31,19 @@ func TestLoadDefaults(t *testing.T) {
 	}
 	if cfg.Account.DefaultID != defaultAcct {
 		t.Fatalf("account %+v", cfg.Account)
+	}
+}
+
+func TestLoadStreamIdleTimeout(t *testing.T) {
+	t.Setenv("ARTIFACTS_API_TOKEN", "secret")
+	t.Setenv("ARTIFACTS_STREAM_IDLE_TIMEOUT", "45s")
+	cfg, err := Load()
+	if err != nil || cfg.HTTP.StreamIdleTimeout != 45*time.Second {
+		t.Fatalf("timeout %s: %v", cfg.HTTP.StreamIdleTimeout, err)
+	}
+	t.Setenv("ARTIFACTS_STREAM_IDLE_TIMEOUT", "invalid")
+	if _, err := Load(); err == nil {
+		t.Fatal("invalid stream idle timeout accepted")
 	}
 }
 
@@ -64,14 +78,14 @@ func TestLoadS3AndTrimPublicURL(t *testing.T) {
 func TestLoadValidationErrors(t *testing.T) {
 	t.Parallel()
 	cases := []Config{
-		{Auth: Auth{Mode: "ldap"}, HTTP: HTTP{Addr: ":1", PublicURL: "u"}, Storage: Storage{Backend: "fs", FS: FS{Path: "p"}}, Account: Account{DefaultID: "a"}},
+		{Auth: Auth{Mode: "ldap"}, HTTP: HTTP{Addr: ":1", PublicURL: "u"}, Storage: Storage{Backend: "fs", FS: FS{Path: "p"}}, Cache: Cache{Path: "c"}, Account: Account{DefaultID: "a"}},
+		{Auth: Auth{Mode: authToken}, HTTP: HTTP{Addr: ":1", PublicURL: "u"}, Storage: Storage{Backend: "s3"}, Cache: Cache{Path: "c"}, Account: Account{DefaultID: "a"}},
+		{Auth: Auth{Mode: authToken}, HTTP: HTTP{Addr: ":1", PublicURL: "u"}, Storage: Storage{Backend: "gcs"}, Cache: Cache{Path: "c"}, Account: Account{DefaultID: "a"}},
+		{Auth: Auth{Mode: authToken}, HTTP: HTTP{PublicURL: "u"}, Storage: Storage{Backend: "fs", FS: FS{Path: "p"}}, Cache: Cache{Path: "c"}, Account: Account{DefaultID: "a"}},
+		{Auth: Auth{Mode: authToken}, HTTP: HTTP{Addr: ":1"}, Storage: Storage{Backend: "fs", FS: FS{Path: "p"}}, Cache: Cache{Path: "c"}, Account: Account{DefaultID: "a"}},
+		{Auth: Auth{Mode: authToken}, HTTP: HTTP{Addr: ":1", PublicURL: "u"}, Storage: Storage{Backend: "fs", FS: FS{Path: "p"}}, Cache: Cache{Path: "c"}},
+		{Auth: Auth{Mode: authToken}, HTTP: HTTP{Addr: ":1", PublicURL: "u"}, Storage: Storage{Backend: "fs"}, Cache: Cache{Path: "c"}, Account: Account{DefaultID: "a"}},
 		{Auth: Auth{Mode: authToken}, HTTP: HTTP{Addr: ":1", PublicURL: "u"}, Storage: Storage{Backend: "fs", FS: FS{Path: "p"}}, Account: Account{DefaultID: "a"}},
-		{Auth: Auth{Mode: authNone}, HTTP: HTTP{Addr: ":1", PublicURL: "u"}, Storage: Storage{Backend: "s3"}, Account: Account{DefaultID: "a"}},
-		{Auth: Auth{Mode: authNone}, HTTP: HTTP{Addr: ":1", PublicURL: "u"}, Storage: Storage{Backend: "gcs"}, Account: Account{DefaultID: "a"}},
-		{Auth: Auth{Mode: authNone}, HTTP: HTTP{PublicURL: "u"}, Storage: Storage{Backend: "fs", FS: FS{Path: "p"}}, Account: Account{DefaultID: "a"}},
-		{Auth: Auth{Mode: authNone}, HTTP: HTTP{Addr: ":1"}, Storage: Storage{Backend: "fs", FS: FS{Path: "p"}}, Account: Account{DefaultID: "a"}},
-		{Auth: Auth{Mode: authNone}, HTTP: HTTP{Addr: ":1", PublicURL: "u"}, Storage: Storage{Backend: "fs", FS: FS{Path: "p"}}},
-		{Auth: Auth{Mode: authNone}, HTTP: HTTP{Addr: ":1", PublicURL: "u"}, Storage: Storage{Backend: "fs"}, Account: Account{DefaultID: "a"}},
 	}
 	for i, cfg := range cases {
 		if err := cfg.Validate(); err == nil {
@@ -83,7 +97,10 @@ func TestLoadValidationErrors(t *testing.T) {
 func TestLoadAuthNone(t *testing.T) {
 	t.Setenv("ARTIFACTS_AUTH", "none")
 	t.Setenv("ARTIFACTS_API_TOKEN", "")
-	cfg, err := Load()
+	if _, err := Load(); err == nil {
+		t.Fatal("normal load accepted no-auth mode")
+	}
+	cfg, err := LoadNoAuth()
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -5,31 +5,38 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-git/go-git/v5/plumbing/storer"
+	"github.com/mikerudolph/artifacts/internal/httpstream"
 )
 
-func handleRaw(w http.ResponseWriter, r *http.Request) {
-	st, err := openRepo(r.Context(), chi.URLParam(r, "account_id"), chi.URLParam(r, "namespace"), chi.URLParam(r, "name"))
-	if err != nil {
+func (s *server) handleRaw(w http.ResponseWriter, r *http.Request) {
+	stream := httpstream.New(w, s.deps.StreamIdle)
+	defer stream.Close()
+	output := stream.Writer(w)
+	committed := false
+	err := s.readRepo(r.Context(), chi.URLParam(r, "account_id"), chi.URLParam(r, "namespace"), chi.URLParam(r, "name"),
+		func(st storer.Storer) error {
+			blob, err := fileAt(st, chi.URLParam(r, "ref"), chi.URLParam(r, "*"))
+			if err != nil {
+				return err
+			}
+			rc, err := blob.Reader()
+			if err != nil {
+				return err
+			}
+			defer func() { _ = rc.Close() }()
+			buf := make([]byte, 512)
+			n, _ := io.ReadFull(rc, buf)
+			output.Header().Set("Content-Type", http.DetectContentType(buf[:n]))
+			output.WriteHeader(http.StatusOK)
+			committed = true
+			if _, err = output.Write(buf[:n]); err != nil {
+				return err
+			}
+			_, err = io.Copy(output, rc)
+			return err
+		})
+	if err != nil && !committed {
 		writeErr(w, err)
-		return
 	}
-	path := chi.URLParam(r, "*")
-	blob, err := fileAt(st, chi.URLParam(r, "ref"), path)
-	if err != nil {
-		writeErr(w, err)
-		return
-	}
-	rc, err := blob.Reader()
-	if err != nil {
-		writeErr(w, err)
-		return
-	}
-	defer func() { _ = rc.Close() }()
-	buf := make([]byte, 512)
-	n, _ := io.ReadFull(rc, buf)
-	ct := http.DetectContentType(buf[:n])
-	w.Header().Set("Content-Type", ct)
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(buf[:n])
-	_, _ = io.Copy(w, rc)
 }

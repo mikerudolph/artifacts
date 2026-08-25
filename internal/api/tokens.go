@@ -10,7 +10,7 @@ import (
 
 func (s *server) createToken(w http.ResponseWriter, r *http.Request) {
 	var in types.CreateTokenInput
-	if err := decodeJSON(r, &in); err != nil {
+	if err := decodeJSON(w, r, &in); err != nil {
 		writeErr(w, types.ErrInvalidName)
 		return
 	}

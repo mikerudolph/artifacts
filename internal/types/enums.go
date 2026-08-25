@@ -66,15 +66,18 @@ type RepoStatus string
 
 const (
 	RepoReady     RepoStatus = "ready"
+	RepoCreating  RepoStatus = "creating"
 	RepoImporting RepoStatus = "importing"
 	RepoForking   RepoStatus = "forking"
 	RepoDeleting  RepoStatus = "deleting"
+	RepoFailed    RepoStatus = "failed"
+	RepoDeleted   RepoStatus = "deleted"
 )
 
 // ParseRepoStatus validates a repository status.
 func ParseRepoStatus(s string) (RepoStatus, error) {
 	switch RepoStatus(s) {
-	case RepoReady, RepoImporting, RepoForking, RepoDeleting:
+	case RepoReady, RepoCreating, RepoImporting, RepoForking, RepoDeleting, RepoFailed, RepoDeleted:
 		return RepoStatus(s), nil
 	default:
 		return "", ErrInvalidStatus

@@ -2,6 +2,7 @@ package meta
 
 import (
 	"context"
+	"time"
 
 	"github.com/mikerudolph/artifacts/internal/types"
 )
@@ -16,6 +17,33 @@ type Store interface {
 	APITokens() APITokens
 	Jobs() Jobs
 	RunInTx(ctx context.Context, fn func(Store) error) error
+}
+
+// V2Store adds immutable publication, checkpoint, and snapshot-fork metadata.
+type V2Store interface {
+	Store
+	WAL() WAL
+	Checkpoints() Checkpoints
+	Forks() Forks
+}
+
+// WAL is the Postgres publication authority for immutable pack writes.
+type WAL interface {
+	Publish(ctx context.Context, publication types.Publication) (int64, error)
+	List(ctx context.Context, repoID types.RepoID, after, through int64) ([]types.PackWAL, error)
+}
+
+// Checkpoints persists disposable-cache rebuild anchors.
+type Checkpoints interface {
+	Put(ctx context.Context, checkpoint types.Checkpoint) error
+	Get(ctx context.Context, repoID types.RepoID) (types.Checkpoint, error)
+}
+
+// Forks creates and resolves metadata-only snapshot lineage.
+type Forks interface {
+	CreateSnapshot(ctx context.Context, source types.RepoID, dest types.Repo, defaultOnly bool) (types.Repo, error)
+	Get(ctx context.Context, repoID types.RepoID) (types.ForkLineage, error)
+	Children(ctx context.Context, repoID types.RepoID) ([]types.ForkLineage, error)
 }
 
 // Accounts persists tenants.
@@ -38,6 +66,7 @@ type Repos interface {
 	GetByID(ctx context.Context, id types.RepoID) (types.Repo, error)
 	List(ctx context.Context, opts ListReposOpts) ([]types.Repo, types.CursorResult, error)
 	Update(ctx context.Context, repo types.Repo) (types.Repo, error)
+	Transition(ctx context.Context, id types.RepoID, from, to types.RepoStatus, deletedAt *time.Time) (types.Repo, error)
 	Delete(ctx context.Context, id types.RepoID) error
 }
 

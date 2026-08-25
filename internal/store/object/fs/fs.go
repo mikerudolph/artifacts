@@ -2,6 +2,7 @@ package fs
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"os"
@@ -61,13 +62,58 @@ func (s *store) Put(_ context.Context, key string, r io.Reader, _ int64) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		return err
 	}
-	f, err := os.Create(filepath.Clean(path)) //nolint:gosec // path is ValidateKey'd
+	f, err := os.CreateTemp(filepath.Dir(path), ".artifact-*")
 	if err != nil {
 		return err
 	}
-	defer func() { _ = f.Close() }()
-	_, err = io.Copy(f, r)
+	tmp := f.Name()
+	defer func() { _ = os.Remove(tmp) }()
+	if _, err := io.Copy(f, r); err != nil {
+		_ = f.Close()
+		return err
+	}
+	if err := f.Sync(); err != nil {
+		_ = f.Close()
+		return err
+	}
+	if err := f.Close(); err != nil {
+		return err
+	}
+	if err := os.Link(tmp, filepath.Clean(path)); err != nil { //nolint:gosec // path is ValidateKey'd
+		if os.IsExist(err) && sameFileContent(tmp, path) {
+			return nil
+		}
+		if os.IsExist(err) {
+			return object.ErrImmutableConflict
+		}
+		return err
+	}
+	dir, err := os.Open(filepath.Dir(path))
+	if err == nil {
+		err = dir.Sync()
+		_ = dir.Close()
+	}
 	return err
+}
+
+func sameFileContent(a, b string) bool {
+	one, err := os.Open(filepath.Clean(a)) //nolint:gosec // internal temporary file
+	if err != nil {
+		return false
+	}
+	defer func() { _ = one.Close() }()
+	two, err := os.Open(filepath.Clean(b)) //nolint:gosec // validated store path
+	if err != nil {
+		return false
+	}
+	defer func() { _ = two.Close() }()
+	first, second := sha256.New(), sha256.New()
+	_, err = io.Copy(first, one)
+	if err != nil {
+		return false
+	}
+	_, err = io.Copy(second, two)
+	return err == nil && string(first.Sum(nil)) == string(second.Sum(nil))
 }
 
 func (s *store) Delete(_ context.Context, key string) error {

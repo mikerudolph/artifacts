@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+	"strings"
 	"unicode"
 )
 
@@ -38,6 +39,10 @@ func ParseBranchName(s string) (BranchName, error) {
 		return "", fmt.Errorf("branch name: %w", ErrInvalidName)
 	}
 	if len(s) > maxNameLen {
+		return "", fmt.Errorf("branch name: %w", ErrInvalidName)
+	}
+	if s == "HEAD" || s[0] == '-' || s[len(s)-1] == '.' ||
+		strings.ContainsAny(s, " ~^:?*[\\") || strings.Contains(s, "..") || strings.Contains(s, "@{") || strings.Contains(s, "//") {
 		return "", fmt.Errorf("branch name: %w", ErrInvalidName)
 	}
 	return BranchName(s), nil

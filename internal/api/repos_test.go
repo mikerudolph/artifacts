@@ -6,7 +6,7 @@ import (
 )
 
 func TestRepos(t *testing.T) {
-	h := testAPI(t, "none", "")
+	h := testAPIWithJobs(t)
 	rec := doJSON(t, h, http.MethodPost, acctBase+"/namespaces/default/repos", "", map[string]string{"name": "app"})
 	if rec.Code != http.StatusOK {
 		t.Fatalf("create %d %s", rec.Code, rec.Body.String())

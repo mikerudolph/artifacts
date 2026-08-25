@@ -3,8 +3,6 @@ package api
 import (
 	"net/http"
 	"testing"
-
-	"github.com/go-git/go-git/v5/plumbing/storer"
 )
 
 func TestContentErrors(t *testing.T) {
@@ -15,8 +13,8 @@ func TestContentErrors(t *testing.T) {
 	}
 	doJSON(t, h, http.MethodPost, acctBase+"/namespaces/default/repos", "", map[string]string{"name": "app"})
 	st, _, _, _ := seedContent(t)
-	OpenGit = func(string, string, string) (storer.Storer, error) { return st, nil }
-	t.Cleanup(func() { OpenGit = nil })
+	h = testAPIWithDependencies(t, "none", "", Dependencies{ReadGit: fixedReader(st)})
+	doJSON(t, h, http.MethodPost, acctBase+"/namespaces/default/repos", "", map[string]string{"name": "app"})
 	if rec := doJSON(t, h, http.MethodGet, base+"/commit/"+"0000000000000000000000000000000000000000", "", nil); rec.Code != http.StatusNotFound {
 		t.Fatalf("commit %d", rec.Code)
 	}

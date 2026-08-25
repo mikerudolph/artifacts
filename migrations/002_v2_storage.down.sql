@@ -1,0 +1,13 @@
+ALTER TABLE jobs DROP COLUMN attempts;
+ALTER TABLE jobs DROP COLUMN lease_until;
+ALTER TABLE jobs DROP COLUMN payload;
+DROP TABLE repo_forks;
+DROP TABLE checkpoints;
+DROP TABLE pack_ref_updates;
+DROP TABLE pack_wal;
+DROP INDEX repos_account_idx;
+ALTER TABLE repos DROP COLUMN deleted_at;
+ALTER TABLE repos DROP COLUMN failure;
+ALTER TABLE repos DROP COLUMN wal_sequence;
+ALTER TABLE repos DROP COLUMN storage_version;
+ALTER TABLE repos DROP COLUMN account_id;

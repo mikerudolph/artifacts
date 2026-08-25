@@ -9,24 +9,30 @@ import (
 	"github.com/mikerudolph/artifacts/internal/types"
 )
 
-func handleLog(w http.ResponseWriter, r *http.Request) {
-	st, err := openRepo(r.Context(), chi.URLParam(r, "account_id"), chi.URLParam(r, "namespace"), chi.URLParam(r, "name"))
+func (s *server) handleLog(w http.ResponseWriter, r *http.Request) {
+	var out []types.LogEntry
+	err := s.readRepo(r.Context(), chi.URLParam(r, "account_id"), chi.URLParam(r, "namespace"), chi.URLParam(r, "name"),
+		func(st storer.Storer) error {
+			var err error
+			out, err = readLog(st, r.URL.Query().Get("ref"), queryInt(r.URL.Query().Get("limit"), 20), queryInt(r.URL.Query().Get("offset"), 0))
+			return err
+		})
 	if err != nil {
 		writeErr(w, err)
 		return
 	}
-	h, err := resolveRef(st, r.URL.Query().Get("ref"))
+	writeOK(w, http.StatusOK, out)
+}
+
+func readLog(st storer.Storer, ref string, limit, offset int) ([]types.LogEntry, error) {
+	h, err := resolveRef(st, ref)
 	if err != nil {
-		writeErr(w, err)
-		return
+		return nil, err
 	}
 	c, err := object.GetCommit(st, h)
 	if err != nil {
-		writeErr(w, err)
-		return
+		return nil, err
 	}
-	limit := queryInt(r.URL.Query().Get("limit"), 20)
-	offset := queryInt(r.URL.Query().Get("offset"), 0)
 	var out []types.LogEntry
 	n := 0
 	err = object.NewCommitPreorderIter(c, nil, nil).ForEach(func(cm *object.Commit) error {
@@ -49,8 +55,7 @@ func handleLog(w http.ResponseWriter, r *http.Request) {
 		return nil
 	})
 	if err != nil && err != storer.ErrStop {
-		writeErr(w, err)
-		return
+		return nil, err
 	}
-	writeOK(w, http.StatusOK, out)
+	return out, nil
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 )
 
 const (
@@ -22,14 +23,16 @@ type Config struct {
 	HTTP     HTTP
 	Auth     Auth
 	Storage  Storage
+	Cache    Cache
 	Postgres Postgres
 	Account  Account
 }
 
 // HTTP is the listen address and public git/API base URL.
 type HTTP struct {
-	Addr      string
-	PublicURL string
+	Addr              string
+	PublicURL         string
+	StreamIdleTimeout time.Duration
 }
 
 // Auth is control-plane authentication.
@@ -43,6 +46,11 @@ type Storage struct {
 	Backend string
 	FS      FS
 	S3      S3
+}
+
+// Cache configures disposable local bare Git repositories.
+type Cache struct {
+	Path string
 }
 
 // FS is the local filesystem object backend.
@@ -73,10 +81,24 @@ type Account struct {
 
 // Load reads configuration from the process environment.
 func Load() (Config, error) {
-	cfg := Config{
+	cfg := load()
+	return cfg, cfg.validate(false)
+}
+
+// LoadNoAuth loads configuration for bootstrap and isolated developer commands.
+func LoadNoAuth() (Config, error) {
+	cfg := load()
+	cfg.Auth.Mode = authNone
+	cfg.Auth.APIToken = ""
+	return cfg, cfg.validate(true)
+}
+
+func load() Config {
+	return Config{
 		HTTP: HTTP{
-			Addr:      env("ARTIFACTS_HTTP_ADDR", defaultAddr),
-			PublicURL: strings.TrimRight(env("ARTIFACTS_PUBLIC_URL", defaultURL), "/"),
+			Addr:              env("ARTIFACTS_HTTP_ADDR", defaultAddr),
+			PublicURL:         strings.TrimRight(env("ARTIFACTS_PUBLIC_URL", defaultURL), "/"),
+			StreamIdleTimeout: durationEnv("ARTIFACTS_STREAM_IDLE_TIMEOUT", 30*time.Second),
 		},
 		Auth: Auth{
 			Mode:     env("ARTIFACTS_AUTH", authToken),
@@ -95,21 +117,26 @@ func Load() (Config, error) {
 				UsePathStyle: truthy(os.Getenv("S3_USE_PATH_STYLE")),
 			},
 		},
+		Cache:    Cache{Path: env("ARTIFACTS_CACHE_DIR", "./cache")},
 		Postgres: Postgres{DSN: firstEnv("DATABASE_URL", "ARTIFACTS_DATABASE_URL")},
 		Account:  Account{DefaultID: env("ARTIFACTS_DEFAULT_ACCOUNT", defaultAcct)},
 	}
-	return cfg, cfg.Validate()
 }
 
 // Validate reports configuration that cannot start the server.
 func (c Config) Validate() error {
+	return c.validate(false)
+}
+
+func (c Config) validate(allowNoAuth bool) error {
 	switch c.Auth.Mode {
-	case authToken, authNone:
+	case authToken:
+	case authNone:
+		if !allowNoAuth {
+			return fmt.Errorf("ARTIFACTS_AUTH=none is restricted to artifacts dev")
+		}
 	default:
 		return fmt.Errorf("ARTIFACTS_AUTH must be %q or %q", authToken, authNone)
-	}
-	if c.Auth.Mode == authToken && c.Auth.APIToken == "" {
-		return fmt.Errorf("ARTIFACTS_API_TOKEN is required when ARTIFACTS_AUTH=token")
 	}
 	switch c.Storage.Backend {
 	case backendFS:
@@ -129,6 +156,12 @@ func (c Config) Validate() error {
 	if c.HTTP.PublicURL == "" {
 		return fmt.Errorf("ARTIFACTS_PUBLIC_URL is required")
 	}
+	if c.HTTP.StreamIdleTimeout <= 0 {
+		return fmt.Errorf("ARTIFACTS_STREAM_IDLE_TIMEOUT must be a positive duration")
+	}
+	if c.Cache.Path == "" {
+		return fmt.Errorf("ARTIFACTS_CACHE_DIR is required")
+	}
 	if c.Account.DefaultID == "" {
 		return fmt.Errorf("ARTIFACTS_DEFAULT_ACCOUNT is required")
 	}
@@ -140,6 +173,18 @@ func env(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+func durationEnv(key string, fallback time.Duration) time.Duration {
+	value := os.Getenv(key)
+	if value == "" {
+		return fallback
+	}
+	duration, err := time.ParseDuration(value)
+	if err != nil {
+		return 0
+	}
+	return duration
 }
 
 func firstEnv(keys ...string) string {

@@ -29,6 +29,19 @@ type Runner struct {
 	objects   object.Store
 	publicURL string
 	now       func() time.Time
+	imports   ImportPublisher
+	upgrades  RepositoryUpgrader
+	resolver  ipResolver
+}
+
+// ImportPublisher publishes a remote through the immutable pack WAL.
+type ImportPublisher interface {
+	ImportControlled(context.Context, types.Repo, types.ImportSpec) (string, error)
+}
+
+// RepositoryUpgrader converts legacy storage before snapshotting.
+type RepositoryUpgrader interface {
+	Upgrade(context.Context, types.Repo) (types.Repo, error)
 }
 
 // New constructs a Runner.
@@ -36,8 +49,18 @@ func New(m meta.Store, objects object.Store, publicURL string) *Runner {
 	return &Runner{meta: m, objects: objects, publicURL: publicURL, now: time.Now}
 }
 
-func (r *Runner) remote(ns types.NamespaceName, repo types.RepoName) string {
-	return strings.TrimRight(r.publicURL, "/") + "/git/" + string(ns) + "/" + string(repo) + ".git"
+// NewWithPublisher constructs a runner with durable import publication.
+func NewWithPublisher(m meta.Store, objects object.Store, publicURL string, publisher ImportPublisher) *Runner {
+	r := New(m, objects, publicURL)
+	r.imports = publisher
+	if upgrader, ok := publisher.(RepositoryUpgrader); ok {
+		r.upgrades = upgrader
+	}
+	return r
+}
+
+func (r *Runner) tenantRemote(account types.AccountID, ns types.NamespaceName, repo types.RepoName) string {
+	return strings.TrimRight(r.publicURL, "/") + "/git/" + string(account) + "/" + string(ns) + "/" + string(repo) + ".git"
 }
 
 func (r *Runner) mint(ctx context.Context, repoID types.RepoID) (types.CreateTokenResult, error) {
@@ -77,4 +100,30 @@ func busy(status types.RepoStatus) error {
 		return ErrBusy
 	}
 	return nil
+}
+
+// List returns durable jobs for a repository.
+func (r *Runner) List(ctx context.Context, repo types.RepoID) ([]types.Job, error) {
+	return r.meta.Jobs().ListByRepo(ctx, repo)
+}
+
+func (r *Runner) startJob(ctx context.Context, repo types.RepoID, kind types.JobKind) (types.Job, error) {
+	now := r.now()
+	return r.meta.Jobs().Create(ctx, types.Job{
+		RepoID: repo, Kind: kind, Status: types.JobRunning, Progress: 0, CreatedAt: now, UpdatedAt: now,
+	})
+}
+
+func (r *Runner) finishJob(ctx context.Context, job types.Job, runErr error) error {
+	job.Progress = 100
+	job.Status = types.JobSucceeded
+	if runErr != nil {
+		job.Status = types.JobFailed
+		job.Error = runErr.Error()
+	}
+	_, err := r.meta.Jobs().Update(ctx, job)
+	if runErr != nil {
+		return runErr
+	}
+	return err
 }

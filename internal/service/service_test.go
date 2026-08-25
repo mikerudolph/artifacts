@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -18,6 +19,68 @@ func TestRemoteURL(t *testing.T) {
 	}
 }
 
+type fixedIssuer struct{}
+
+func (fixedIssuer) Issue(context.Context, types.RepoID, types.Scope, int) (types.CreateTokenResult, error) {
+	return types.CreateTokenResult{Plaintext: "fixed"}, nil
+}
+
+type failedIssuer struct{}
+
+func (failedIssuer) Issue(context.Context, types.RepoID, types.Scope, int) (types.CreateTokenResult, error) {
+	return types.CreateTokenResult{}, errors.New("credential store unavailable")
+}
+
+type failedRefStore struct{ *fakeStore }
+
+func (s failedRefStore) Refs() meta.Refs { return failedRefs{Refs: s.fakeStore.Refs()} }
+
+type failedRefs struct{ meta.Refs }
+
+func (failedRefs) CompareAndSwap(context.Context, types.RepoID, string, string, string) error {
+	return errors.New("ref store unavailable")
+}
+
+func TestNewWithIssuer(t *testing.T) {
+	services := NewWithIssuer(newFake(), nil, "http://x", fixedIssuer{})
+	result, err := services.CreateRepo(context.Background(), "local", "default", types.CreateRepoInput{Name: "app"})
+	if err != nil || result.Token != "fixed" {
+		t.Fatalf("%+v %v", result, err)
+	}
+	if NewWithIssuer(newFake(), nil, "http://x", nil).issuer == nil {
+		t.Fatal("default issuer missing")
+	}
+}
+
+func TestCreateCredentialFailureIsNotReady(t *testing.T) {
+	store := newFake()
+	services := NewWithIssuer(store, nil, "http://x", failedIssuer{})
+	if _, err := services.CreateRepo(context.Background(), "local", "default", types.CreateRepoInput{Name: "orphan"}); err == nil {
+		t.Fatal("expected credential failure")
+	}
+	ns, err := store.Namespaces().GetByName(context.Background(), "local", "default")
+	if err != nil {
+		t.Fatal(err)
+	}
+	repo, err := store.Repos().GetByName(context.Background(), ns.ID, "orphan")
+	if err != nil || repo.Status != types.RepoFailed || repo.Failure == "" {
+		t.Fatalf("repo %+v %v", repo, err)
+	}
+}
+
+func TestCreateRefFailureIsNotReady(t *testing.T) {
+	store := newFake()
+	services := New(failedRefStore{fakeStore: store}, nil, "http://x")
+	if _, err := services.CreateRepo(context.Background(), "local", "default", types.CreateRepoInput{Name: "no-head"}); err == nil {
+		t.Fatal("expected ref failure")
+	}
+	ns, _ := store.Namespaces().GetByName(context.Background(), "local", "default")
+	repo, err := store.Repos().GetByName(context.Background(), ns.ID, "no-head")
+	if err != nil || repo.Status != types.RepoFailed {
+		t.Fatalf("repo %+v %v", repo, err)
+	}
+}
+
 func TestCreateRepoImplicitNSAndToken(t *testing.T) {
 	t.Parallel()
 	now := time.Unix(1_700_000_000, 0).UTC()
@@ -27,7 +90,7 @@ func TestCreateRepoImplicitNSAndToken(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Remote != "http://localhost:8080/git/default/starter-repo.git" {
+	if got.Remote != "http://localhost:8080/git/local/default/starter-repo.git" {
 		t.Fatal(got.Remote)
 	}
 	if got.Token == "" || got.DefaultBranch != "main" || got.Description == nil {
@@ -39,6 +102,25 @@ func TestCreateRepoImplicitNSAndToken(t *testing.T) {
 	}
 	if _, err := svc.CreateRepo(ctx, "local", "default", types.CreateRepoInput{Name: "starter-repo"}); !meta.IsAlreadyExists(err) {
 		t.Fatalf("dup: %v", err)
+	}
+}
+
+func TestDefaultBranchUpdateMovesSymbolicHead(t *testing.T) {
+	store := newFake()
+	services := New(store, nil, "http://x")
+	ctx := context.Background()
+	created, err := services.CreateRepo(ctx, "local", "default", types.CreateRepoInput{Name: "branches", DefaultBranch: "develop"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	next := "release"
+	repo, err := services.UpdateRepo(ctx, "local", "default", "branches", types.UpdateRepoInput{DefaultBranch: &next})
+	if err != nil || repo.DefaultBranch != next {
+		t.Fatalf("repo %+v %v", repo, err)
+	}
+	head, err := store.Refs().Get(ctx, created.ID, "HEAD")
+	if err != nil || head.SHA != "ref:refs/heads/release" {
+		t.Fatalf("HEAD %+v %v", head, err)
 	}
 }
 

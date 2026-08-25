@@ -2,21 +2,32 @@ package jobs
 
 import (
 	"context"
+	"errors"
+	"net"
+	"net/url"
 	"strings"
+	"time"
 
-	gogit "github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/plumbing"
-	"github.com/go-git/go-git/v5/plumbing/storer"
 	"github.com/go-git/go-git/v5/plumbing/transport"
-	"github.com/go-git/go-git/v5/storage/memory"
-	gitstore "github.com/mikerudolph/artifacts/internal/store/git"
+	"github.com/mikerudolph/artifacts/internal/netpolicy"
 	"github.com/mikerudolph/artifacts/internal/types"
 )
 
+const (
+	importMaxBytes   = int64(512 << 20)
+	importMaxObjects = 1_000_000
+	importTimeout    = 2 * time.Minute
+)
+
+type ipResolver interface {
+	LookupIP(context.Context, string, string) ([]net.IP, error)
+}
+
 // Import clones a public HTTPS (or file) remote into a new repo.
 func (r *Runner) Import(ctx context.Context, account types.AccountID, ns string, name types.RepoName, in types.ImportRepoInput) (types.CreateRepoResult, error) {
-	if in.URL == "" || strings.Contains(in.URL, " ") {
-		return types.CreateRepoResult{}, ErrInvalidURL
+	target, err := resolveImportURL(ctx, r.resolver, in.URL)
+	if err != nil {
+		return types.CreateRepoResult{}, err
 	}
 	nsName, err := types.ParseNamespaceName(ns)
 	if err != nil {
@@ -41,10 +52,19 @@ func (r *Runner) Import(ctx context.Context, account types.AccountID, ns string,
 	if err != nil {
 		return types.CreateRepoResult{}, err
 	}
-	if err := r.cloneInto(ctx, account, repo, in); err != nil {
-		repo.Status = types.RepoReady
-		_, _ = r.meta.Repos().Update(ctx, repo)
+	job, err := r.startJob(ctx, repo.ID, types.JobImport)
+	if err != nil {
 		return types.CreateRepoResult{}, err
+	}
+	branch, err := r.cloneInto(ctx, repo, in, target)
+	if err != nil {
+		repo.Status = types.RepoFailed
+		repo.Failure = err.Error()
+		_, _ = r.meta.Repos().Update(ctx, repo)
+		return types.CreateRepoResult{}, r.finishJob(ctx, job, err)
+	}
+	if in.Branch == "" {
+		repo.DefaultBranch = branch
 	}
 	repo.Status = types.RepoReady
 	if _, err := r.meta.Repos().Update(ctx, repo); err != nil {
@@ -52,62 +72,97 @@ func (r *Runner) Import(ctx context.Context, account types.AccountID, ns string,
 	}
 	tok, err := r.mint(ctx, repo.ID)
 	if err != nil {
+		return types.CreateRepoResult{}, r.finishJob(ctx, job, err)
+	}
+	if err := r.finishJob(ctx, job, nil); err != nil {
 		return types.CreateRepoResult{}, err
 	}
 	return types.CreateRepoResult{
 		ID: repo.ID, Name: repo.Name, DefaultBranch: repo.DefaultBranch,
-		Remote: r.remote(nsName, repo.Name), Token: tok.Plaintext,
+		Remote: r.tenantRemote(account, nsName, repo.Name), Token: tok.Plaintext,
 	}, nil
 }
 
-func (r *Runner) cloneInto(ctx context.Context, account types.AccountID, repo types.Repo, in types.ImportRepoInput) error {
-	mem := memory.NewStorage()
-	opts := &gogit.CloneOptions{URL: in.URL, Depth: in.Depth}
-	if in.Branch != "" {
-		opts.ReferenceName = plumbing.NewBranchReferenceName(in.Branch)
-		opts.SingleBranch = true
+func (r *Runner) cloneInto(ctx context.Context, repo types.Repo, in types.ImportRepoInput, target importTarget) (string, error) {
+	if r.imports == nil {
+		return "", ErrUpstream
 	}
-	if _, err := gogit.CloneContext(ctx, mem, nil, opts); err != nil {
-		return mapCloneErr(err)
-	}
-	dst, err := gitstore.Open(r.objects, r.meta.Refs(), account, repo.ID)
-	if err != nil {
-		return err
-	}
-	return copyStorer(mem, dst)
+	branch, err := r.imports.ImportControlled(ctx, repo, types.ImportSpec{
+		URL: in.URL, Branch: in.Branch, PinnedAddress: target.address, Depth: in.Depth,
+		MaxBytes: importMaxBytes, MaxObjects: importMaxObjects, Timeout: importTimeout,
+	})
+	return branch, mapCloneErr(err)
 }
 
-func copyStorer(src storer.EncodedObjectStorer, dst storer.Storer) error {
-	iter, err := src.IterEncodedObjects(plumbing.AnyObject)
+type importTarget struct{ address string }
+
+func validateImportURL(ctx context.Context, raw string) error {
+	_, err := resolveImportURL(ctx, nil, raw)
+	return err
+}
+
+func resolveImportURL(ctx context.Context, resolver ipResolver, raw string) (importTarget, error) {
+	host, err := importHostname(raw)
 	if err != nil {
-		return err
+		return importTarget{}, err
 	}
-	defer iter.Close()
-	if err := iter.ForEach(func(obj plumbing.EncodedObject) error {
-		_, err := dst.SetEncodedObject(obj)
-		return err
-	}); err != nil {
-		return err
+	if ip := net.ParseIP(host); ip != nil {
+		if !netpolicy.IsGloballyRoutable(ip) {
+			return importTarget{}, ErrInvalidURL
+		}
+		return importTarget{address: ip.String()}, nil
 	}
-	ri, err := src.(storer.ReferenceStorer).IterReferences()
+	if resolver == nil {
+		resolver = net.DefaultResolver
+	}
+	addrs, err := resolver.LookupIP(ctx, "ip", host)
 	if err != nil {
-		return err
+		return importTarget{}, ErrUpstream
 	}
-	defer ri.Close()
-	return ri.ForEach(func(ref *plumbing.Reference) error {
-		return dst.SetReference(ref)
-	})
+	return selectImportAddress(addrs)
+}
+
+func importHostname(raw string) (string, error) {
+	u, err := url.Parse(raw)
+	if err != nil || u.Scheme != "https" || u.Hostname() == "" || u.User != nil || strings.Contains(raw, " ") {
+		return "", ErrInvalidURL
+	}
+	host := strings.TrimSuffix(strings.ToLower(u.Hostname()), ".")
+	if host == "localhost" {
+		return "", ErrInvalidURL
+	}
+	return host, nil
+}
+
+func selectImportAddress(addrs []net.IP) (importTarget, error) {
+	var selected string
+	for _, ip := range addrs {
+		if !netpolicy.IsGloballyRoutable(ip) {
+			return importTarget{}, ErrInvalidURL
+		}
+		if selected == "" || (ip.To4() != nil && net.ParseIP(selected).To4() == nil) {
+			selected = ip.String()
+		}
+	}
+	if selected == "" {
+		return importTarget{}, ErrUpstream
+	}
+	return importTarget{address: selected}, nil
 }
 
 func mapCloneErr(err error) error {
 	if err == nil {
 		return nil
 	}
-	if err == transport.ErrAuthenticationRequired {
+	msg := strings.ToLower(err.Error())
+	if err == transport.ErrAuthenticationRequired || strings.Contains(msg, "authentication failed") ||
+		strings.Contains(msg, "could not read username") || strings.Contains(msg, "http 401") || strings.Contains(msg, "http 403") {
 		return ErrRemoteAuth
 	}
-	msg := err.Error()
-	if strings.Contains(msg, "repository not found") || strings.Contains(strings.ToLower(msg), "invalid") {
+	if errors.Is(err, context.DeadlineExceeded) || strings.Contains(msg, "import limit exceeded") {
+		return ErrUpstream
+	}
+	if strings.Contains(msg, "repository not found") || strings.Contains(msg, "invalid") {
 		return ErrInvalidURL
 	}
 	return ErrUpstream

@@ -24,7 +24,8 @@ type server struct {
 	git    transport.Transport
 }
 
-// New serves git smart HTTP.
+// New serves the legacy accountless Git route.
+// Deprecated: use NewRepository for tenant-qualified production routes.
 func New(open func(ns, repo string) (storer.Storer, error), tokens TokenLookup) http.Handler {
 	s := &server{
 		open:   open,

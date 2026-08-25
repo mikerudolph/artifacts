@@ -22,7 +22,7 @@ type store struct {
 }
 
 // Open connects to Postgres. Call Migrate first.
-func Open(ctx context.Context, dsn string) (meta.Store, error) {
+func Open(ctx context.Context, dsn string) (meta.V2Store, error) {
 	pool, err := pgxpool.New(ctx, dsn)
 	if err != nil {
 		return nil, err
@@ -41,13 +41,16 @@ func (s *store) Close() {
 	}
 }
 
-func (s *store) Accounts() meta.Accounts     { return accountStore{s} }
-func (s *store) Namespaces() meta.Namespaces { return namespaceStore{s} }
-func (s *store) Repos() meta.Repos           { return repoStore{s} }
-func (s *store) Refs() meta.Refs             { return refStore{s} }
-func (s *store) RepoTokens() meta.RepoTokens { return repoTokenStore{s} }
-func (s *store) APITokens() meta.APITokens   { return apiTokenStore{s} }
-func (s *store) Jobs() meta.Jobs             { return jobStore{s} }
+func (s *store) Accounts() meta.Accounts       { return accountStore{s} }
+func (s *store) Namespaces() meta.Namespaces   { return namespaceStore{s} }
+func (s *store) Repos() meta.Repos             { return repoStore{s} }
+func (s *store) Refs() meta.Refs               { return refStore{s} }
+func (s *store) RepoTokens() meta.RepoTokens   { return repoTokenStore{s} }
+func (s *store) APITokens() meta.APITokens     { return apiTokenStore{s} }
+func (s *store) Jobs() meta.Jobs               { return jobStore{s} }
+func (s *store) WAL() meta.WAL                 { return walStore{s} }
+func (s *store) Checkpoints() meta.Checkpoints { return checkpointStore{s} }
+func (s *store) Forks() meta.Forks             { return forkStore{s} }
 
 type accountStore struct{ *store }
 type namespaceStore struct{ *store }
@@ -56,6 +59,9 @@ type refStore struct{ *store }
 type repoTokenStore struct{ *store }
 type apiTokenStore struct{ *store }
 type jobStore struct{ *store }
+type walStore struct{ *store }
+type checkpointStore struct{ *store }
+type forkStore struct{ *store }
 
 func (s *store) RunInTx(ctx context.Context, fn func(meta.Store) error) error {
 	if s.p == nil {

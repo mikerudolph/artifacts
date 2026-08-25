@@ -20,11 +20,14 @@ func (s repoTokenStore) Create(ctx context.Context, tok types.RepoToken) (types.
 	}
 	err := s.q.QueryRow(ctx, `
 		INSERT INTO repo_tokens (id, repo_id, hash, scope, state, created_at, expires_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7)
+		SELECT $1,$2,$3,$4,$5,$6,$7 FROM repos WHERE id=$2 AND status='ready' FOR UPDATE
 		RETURNING id, repo_id, hash, scope, state, created_at, expires_at`,
 		string(tok.ID), string(tok.RepoID), tok.Hash, string(tok.Scope), string(tok.State), tok.CreatedAt, tok.ExpiresAt,
 	).Scan(&tok.ID, &tok.RepoID, &tok.Hash, &tok.Scope, &tok.State, &tok.CreatedAt, &tok.ExpiresAt)
 	if err != nil {
+		if meta.IsNotFound(wrap(err)) {
+			return types.RepoToken{}, meta.ErrCASConflict
+		}
 		return types.RepoToken{}, wrap(err)
 	}
 	return tok, nil
