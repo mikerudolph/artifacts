@@ -1,135 +1,89 @@
-// Command agent-harness demonstrates REST bootstrap, Git work, and REST readback.
+// Command agent-harness verifies Artifacts through its public REST and Git surfaces.
 package main
 
 import (
-	"bytes"
-	"encoding/base64"
-	"encoding/json"
+	"context"
+	"flag"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"strings"
 	"time"
-
-	"github.com/mikerudolph/artifacts/internal/types"
 )
 
-type harness struct {
-	base   string
-	bearer string
-	client *http.Client
-}
-
-type envelope[T any] struct {
-	Result  T    `json:"result"`
-	Success bool `json:"success"`
-	Errors  []struct {
-		Message string `json:"message"`
-	} `json:"errors"`
+type configuration struct {
+	root    string
+	account string
+	token   string
 }
 
 func main() {
+	os.Exit(run(context.Background(), os.Args[1:], os.Stdout, os.Stderr))
+}
+
+func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
+	if len(args) == 0 {
+		writeUsage(stderr)
+		return 2
+	}
+	cfg, err := loadConfiguration()
+	if err != nil {
+		_, _ = fmt.Fprintln(stderr, err)
+		return 2
+	}
+	client := newHarness(cfg)
+	switch args[0] {
+	case "doctor":
+		if len(args) != 1 {
+			writeUsage(stderr)
+			return 2
+		}
+		result, err := doctor(ctx, client)
+		if err != nil {
+			_, _ = fmt.Fprintf(stderr, "doctor: %s: %v\n", classify(err), err)
+			return 1
+		}
+		_, _ = fmt.Fprintf(stdout, "healthy account=%s target=%s\n", cfg.account, result)
+		return 0
+	case "verify-core":
+		set := flag.NewFlagSet("verify-core", flag.ContinueOnError)
+		set.SetOutput(stderr)
+		evidence := set.String("evidence", "", "evidence output directory")
+		if err := set.Parse(args[1:]); err != nil || *evidence == "" || set.NArg() != 0 {
+			writeUsage(stderr)
+			return 2
+		}
+		report, err := verifyCore(ctx, client, *evidence)
+		if err != nil {
+			_, _ = fmt.Fprintf(stderr, "verify-core: %s: %v\n", report.Classification, err)
+			return 1
+		}
+		_, _ = fmt.Fprintf(stdout, "verified run=%s evidence=%s\n", report.RunID, *evidence)
+		return 0
+	default:
+		writeUsage(stderr)
+		return 2
+	}
+}
+
+func loadConfiguration() (configuration, error) {
 	root := strings.TrimRight(env("ARTIFACTS_URL", "http://127.0.0.1:8080"), "/")
-	account := env("ARTIFACTS_ACCOUNT", "local")
-	h := harness{
-		base:   root + "/client/v4/accounts/" + url.PathEscape(account) + "/artifacts",
-		bearer: os.Getenv("ARTIFACTS_API_TOKEN"), client: &http.Client{Timeout: 30 * time.Second},
+	parsed, err := url.Parse(root)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return configuration{}, fmt.Errorf("invalid ARTIFACTS_URL")
 	}
-	namespace := "agents"
-	repoName := fmt.Sprintf("example-session-%d", time.Now().Unix())
-	created := mustCall[types.CreateRepoResult](h, http.MethodPost, "/namespaces/"+namespace+"/repos", types.CreateRepoInput{
-		Name: types.RepoName(repoName), Description: "example agent session",
-	})
-	fmt.Println("created", created.Remote)
-
-	commit := mustCall[types.CommitResult](h, http.MethodPost, repoPath(namespace, repoName)+"/commits", types.CommitInput{
-		Message: "bootstrap agent", Files: []types.CommitFile{
-			{Path: "README.md", Content: "# Agent session\n"},
-			{Path: "inputs/task.txt", Content: "Summarize the supplied artifacts.\n"},
-		},
-	})
-	fmt.Println("REST commit", commit.SHA)
-	fmt.Printf("initial read: %s", h.readFile(namespace, repoName, "inputs/task.txt"))
-
-	credential := mustCall[types.CreateTokenResult](h, http.MethodPost, "/namespaces/"+namespace+"/credentials", types.CreateTokenInput{
-		Repo: types.RepoName(repoName), Scope: types.ScopeWrite, TTL: 3600,
-	})
-	work, err := os.MkdirTemp("", "artifacts-agent-*")
-	must(err)
-	defer func() { _ = os.RemoveAll(work) }()
-	header := credentialHeader(credential.Plaintext)
-	runGit("", "-c", "protocol.version=1", "-c", "http.extraHeader="+header, "clone", created.Remote, work)
-	must(os.WriteFile(filepath.Join(work, "result.txt"), []byte("agent finished successfully\n"), 0o600))
-	runGit(work, "add", "result.txt")
-	runGit(work, "-c", "user.name=Example Agent", "-c", "user.email=agent@example.local", "commit", "-m", "add result")
-	runGit(work, "-c", "protocol.version=1", "-c", "http.extraHeader="+header, "push", "origin", "HEAD:main")
-	fmt.Printf("Git readback: %s", h.readFile(namespace, repoName, "result.txt"))
+	return configuration{root: root, account: env("ARTIFACTS_ACCOUNT", "local"), token: os.Getenv("ARTIFACTS_API_TOKEN")}, nil
 }
 
-func mustCall[T any](h harness, method, path string, input any) T {
-	var body io.Reader
-	if input != nil {
-		data, err := json.Marshal(input)
-		must(err)
-		body = bytes.NewReader(data)
-	}
-	req, err := http.NewRequest(method, h.base+path, body)
-	must(err)
-	if input != nil {
-		req.Header.Set("Content-Type", "application/json")
-	}
-	if h.bearer != "" {
-		req.Header.Set("Authorization", "Bearer "+h.bearer)
-	}
-	response, err := h.client.Do(req)
-	must(err)
-	defer func() { _ = response.Body.Close() }()
-	data, err := io.ReadAll(response.Body)
-	must(err)
-	var wrapped envelope[T]
-	must(json.Unmarshal(data, &wrapped))
-	if !wrapped.Success {
-		panic(fmt.Sprintf("REST %s %s failed (%d): %s", method, path, response.StatusCode, data))
-	}
-	return wrapped.Result
+func newHarness(cfg configuration) harness {
+	base := cfg.root + "/client/v4/accounts/" + url.PathEscape(cfg.account) + "/artifacts"
+	return harness{cfg: cfg, base: base, client: &http.Client{Timeout: 30 * time.Second}}
 }
 
-func (h harness) readFile(namespace, repo, path string) string {
-	target := h.base + repoPath(namespace, repo) + "/file?ref=main&path=" + url.QueryEscape(path)
-	req, err := http.NewRequest(http.MethodGet, target, nil)
-	must(err)
-	if h.bearer != "" {
-		req.Header.Set("Authorization", "Bearer "+h.bearer)
-	}
-	response, err := h.client.Do(req)
-	must(err)
-	defer func() { _ = response.Body.Close() }()
-	data, err := io.ReadAll(response.Body)
-	must(err)
-	if response.StatusCode != http.StatusOK {
-		panic(fmt.Sprintf("read file failed (%d): %s", response.StatusCode, data))
-	}
-	return string(data)
-}
-
-func repoPath(namespace, repo string) string {
-	return "/namespaces/" + url.PathEscape(namespace) + "/repos/" + url.PathEscape(repo)
-}
-
-func credentialHeader(credential string) string {
-	secret, _, _ := strings.Cut(credential, "?")
-	return "Authorization: Basic " + base64.StdEncoding.EncodeToString([]byte("agent:"+secret))
-}
-
-func runGit(dir string, args ...string) {
-	cmd := exec.Command("git", args...)
-	cmd.Dir = dir
-	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
-	must(cmd.Run())
+func writeUsage(w io.Writer) {
+	_, _ = fmt.Fprintln(w, "usage: agent-harness doctor | verify-core --evidence DIR")
 }
 
 func env(key, fallback string) string {
@@ -137,10 +91,4 @@ func env(key, fallback string) string {
 		return value
 	}
 	return fallback
-}
-
-func must(err error) {
-	if err != nil {
-		panic(err)
-	}
 }
