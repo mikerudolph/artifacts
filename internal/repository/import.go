@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -139,10 +140,18 @@ func boundedGitCommand(ctx context.Context, maxBytes int64, args []string) *exec
 	if maxBytes <= 0 {
 		return exec.CommandContext(ctx, "git", args...)
 	}
-	blocks := (maxBytes + 511) / 512
+	blocks := importFileLimitBlocks(maxBytes, runtime.GOOS)
 	shell := []string{"-c", `ulimit -f "$1" || exit 125; shift; exec "$@"`, "artifacts-import",
 		strconv.FormatInt(blocks, 10), "git"}
 	return exec.CommandContext(ctx, "/bin/sh", append(shell, args...)...) //nolint:gosec // args are validated and passed positionally
+}
+
+func importFileLimitBlocks(maxBytes int64, goos string) int64 {
+	blockBytes := int64(512)
+	if goos == "darwin" {
+		blockBytes = 1024
+	}
+	return (maxBytes + blockBytes - 1) / blockBytes
 }
 
 func importFileLimit(err error) bool {

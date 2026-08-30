@@ -76,6 +76,27 @@ func TestImportHardFileQuota(t *testing.T) {
 	}
 }
 
+func TestImportFileLimitBlocks(t *testing.T) {
+	tests := []struct {
+		name     string
+		maxBytes int64
+		goos     string
+		want     int64
+	}{
+		{name: "linux exact", maxBytes: 1024, goos: "linux", want: 2},
+		{name: "linux rounds up", maxBytes: 1025, goos: "linux", want: 3},
+		{name: "darwin exact", maxBytes: 1024, goos: "darwin", want: 1},
+		{name: "darwin rounds up", maxBytes: 1025, goos: "darwin", want: 2},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := importFileLimitBlocks(test.maxBytes, test.goos); got != test.want {
+				t.Fatalf("blocks = %d, want %d", got, test.want)
+			}
+		})
+	}
+}
+
 func TestControlledImportLimitsAndTimeout(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "oversized"), []byte("12345"), 0o600); err != nil {
