@@ -2,6 +2,8 @@
 
 Artifacts gives every agent and session an isolated, Git-compatible artifact repository. Postgres is the publication authority, object storage holds immutable Git packs, and local bare repositories are disposable caches.
 
+[Documentation](https://mikerudolph.github.io/artifacts/) · [Agent onboarding](docs/onboarding.md) · [Storage architecture](docs/storage.md)
+
 Requirements: Go 1.25+, Docker, Git, and optionally `jq`.
 
 ## Five-minute local start
@@ -75,4 +77,4 @@ make verify
 
 Compaction creates a checkpoint pack. Cache contents under `ARTIFACTS_CACHE_DIR` can be deleted at any time and are reconstructed from snapshot lineage, checkpoints, WAL packs, and Postgres refs.
 
-Read [onboarding](docs/onboarding.md) for the agent/session workflow, [storage architecture](docs/storage.md) for durability details, and [the example harness](examples/agent-harness/main.go) for REST → Git → REST readback.
+Read [the example harness](examples/agent-harness/main.go) for REST → Git → REST readback.

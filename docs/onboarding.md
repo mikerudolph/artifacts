@@ -1,3 +1,8 @@
+---
+title: Agent onboarding
+description: Create isolated repositories and hand work between agents and orchestrators.
+---
+
 # Agent onboarding
 
 Use one repository per agent session or unit of work. Accounts are tenants, namespaces group a team or environment, and repositories isolate history and credentials.

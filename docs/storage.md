@@ -1,3 +1,8 @@
+---
+title: Storage architecture
+description: How Artifacts publishes durable Git data and reconstructs disposable caches.
+---
+
 # Storage architecture
 
 Artifacts v2 is intentionally single-node. Postgres is the only publication authority. There is no gossip, rendezvous ownership, multi-node replication protocol, or object-store compare-and-swap.

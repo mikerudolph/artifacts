@@ -8,3 +8,6 @@
 .vscode/
 .DS_Store
 vendor/
+docs-site/.astro/
+docs-site/dist/
+docs-site/node_modules/
