@@ -100,10 +100,12 @@ func TestE2E(t *testing.T) {
 	if err := postgres.Migrate(dsn); err != nil {
 		t.Fatal(err)
 	}
+	cacheRoot := t.TempDir()
 	cfg := config.Config{
 		HTTP:     config.HTTP{Addr: ":0", PublicURL: "http://example"},
 		Auth:     config.Auth{Mode: "token", APIToken: "control-secret"},
 		Storage:  config.Storage{Backend: "fs", FS: config.FS{Path: t.TempDir()}},
+		Cache:    config.Cache{Path: cacheRoot},
 		Postgres: config.Postgres{DSN: dsn},
 		Account:  config.Account{DefaultID: "local"},
 	}
@@ -154,10 +156,32 @@ func TestE2E(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	assertDevRESTRefs(t, devHandler)
 	exerciseConcurrentReaders(t, srv.URL, remote, devHandler)
+	if err := os.RemoveAll(cacheRoot); err != nil {
+		t.Fatal(err)
+	}
 	assertFileRead(t, srv.URL)
 	deleteRepoTwice(t, srv.URL)
 	assertDeletedLifecycle(t, dsn, env.Result.Token)
+}
+
+func assertDevRESTRefs(t *testing.T, handler http.Handler) {
+	t.Helper()
+	if err := readDevRESTRefs(handler); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func readDevRESTRefs(handler http.Handler) error {
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/client/v4/accounts/local/artifacts/namespaces/default/repos/app/refs", nil)
+	req.Host = "localhost"
+	handler.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		return fmt.Errorf("dev REST refs %d %q", w.Code, w.Body.String())
+	}
+	return nil
 }
 
 func exerciseConcurrentReaders(t *testing.T, root, remote string, dev http.Handler) {
@@ -166,12 +190,15 @@ func exerciseConcurrentReaders(t *testing.T, root, remote string, dev http.Handl
 		func() error { return cloneLargeRepository(t.TempDir(), remote) },
 		func() error { return readLargeREST(root) },
 		func() error {
+			if err := readDevRESTRefs(dev); err != nil {
+				return err
+			}
 			w := httptest.NewRecorder()
 			req := httptest.NewRequest(http.MethodGet, "/local/default/app", nil)
 			req.Host = "localhost"
 			dev.ServeHTTP(w, req)
 			if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "large.bin") {
-				return fmt.Errorf("UI read %d", w.Code)
+				return fmt.Errorf("UI read %d %q", w.Code, w.Body.String())
 			}
 			return nil
 		},

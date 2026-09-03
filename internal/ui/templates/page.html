@@ -1,15 +1,122 @@
 {{define "page.html"}}<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{{if .Repo.Name}}{{.Repo.Name}} · {{end}}Artifacts</title><link rel="stylesheet" href="/assets/style.css"></head>
-<body><header><a class="brand" href="/">Artifacts</a>{{if .Account}}<span>/</span><a href="/{{.Account}}">{{.Account}}</a>{{end}}{{if .Namespace}}<span>/</span><a href="/{{.Account}}/{{.Namespace}}">{{.Namespace}}</a>{{end}}{{if .Repo.Name}}<span>/</span><strong>{{.Repo.Name}}</strong>{{end}}</header>
-<main>{{if .Error}}<div class="error">{{.Error}}</div>{{end}}
-{{if eq .View "landing"}}<section class="hero"><h1>Local artifact repositories</h1><p>Browse code, commits, immutable WAL packs, and repository settings.</p><form action="/local"><button>Open local tenant</button></form></section>{{end}}
-{{if eq .View "namespaces"}}<h1>Namespaces</h1><div class="list">{{range .Namespaces}}<a href="/{{$.Account}}/{{.Name}}"><b>{{.Name}}</b><small>{{.Jurisdiction}}</small></a>{{else}}<p>No namespaces yet.</p>{{end}}</div>{{end}}
-{{if eq .View "repos"}}<h1>{{.Namespace}}</h1><div class="list">{{range .Repos}}<a href="/{{$.Account}}/{{$.Namespace}}/{{.Name}}"><b>{{.Name}}</b><small>{{.Description}}</small></a>{{else}}<p>No repositories yet.</p>{{end}}</div>{{end}}
-{{if .Repo.Name}}<nav class="tabs"><a class="{{if eq .View "code"}}active{{end}}" href="/{{.Account}}/{{.Namespace}}/{{.Repo.Name}}">Code</a><a class="{{if eq .View "commits"}}active{{end}}" href="/{{.Account}}/{{.Namespace}}/{{.Repo.Name}}/commits">Commits</a><a class="{{if eq .View "wal"}}active{{end}}" href="/{{.Account}}/{{.Namespace}}/{{.Repo.Name}}/wal">WAL</a><a class="{{if eq .View "settings"}}active{{end}}" href="/{{.Account}}/{{.Namespace}}/{{.Repo.Name}}/settings">Settings</a></nav>
-<section class="repohead"><div><h1>{{.Repo.Name}}</h1><p>{{.Repo.Description}}</p></div><code>git clone {{.Repo.Remote}}</code></section>{{end}}
-{{if eq .View "code"}}<div class="toolbar"><select aria-label="Branch">{{range .Refs}}{{if hasPrefix .Name "refs/heads/"}}<option>{{trimBranch .Name}}</option>{{end}}{{end}}</select><span>{{len .Tree}} entries</span></div><table><tbody>{{range .Tree}}<tr><td>◇</td><td><b>{{.Name}}</b></td><td><code>{{short .Hash}}</code></td></tr>{{else}}<tr><td>Repository is empty.</td></tr>{{end}}</tbody></table>{{end}}
-{{if eq .View "commits"}}<table><tbody>{{range .Commits}}<tr><td><b>{{.Message}}</b><small>{{.Author.Name}} · {{.Author.When}}</small></td><td><code>{{short .Hash}}</code></td></tr>{{else}}<tr><td>No commits.</td></tr>{{end}}</tbody></table>{{end}}
-{{if eq .View "wal"}}<table><thead><tr><th>Sequence</th><th>Pack</th><th>Size</th><th>Published</th></tr></thead><tbody>{{range .WAL}}<tr><td>{{.Sequence}}</td><td><code>{{.Checksum}}</code></td><td>{{.Size}}</td><td>{{.CreatedAt}}</td></tr>{{else}}<tr><td>No WAL entries.</td></tr>{{end}}</tbody></table>{{end}}
-{{if eq .View "settings"}}<dl><dt>Default branch</dt><dd>{{.Repo.DefaultBranch}}</dd><dt>Read only</dt><dd>{{.Repo.ReadOnly}}</dd><dt>Storage version</dt><dd>{{.Repo.StorageVersion}}</dd><dt>WAL sequence</dt><dd>{{.Repo.WALSequence}}</dd></dl>{{end}}
-</main></body></html>{{end}}
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{{if .Repo.Name}}{{.Repo.Name}} · {{end}}Artifacts</title>
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+<header>
+  <a class="brand" href="/">Artifacts</a>
+  {{if .Account}}<span>/</span><a href="/{{.Account}}">{{.Account}}</a>{{end}}
+  {{if .Namespace}}<span>/</span><a href="/{{.Account}}/{{.Namespace}}">{{.Namespace}}</a>{{end}}
+  {{if .Repo.Name}}<span>/</span><strong>{{.Repo.Name}}</strong>{{end}}
+</header>
+<main>
+  {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
+
+  {{if eq .View "landing"}}
+  <section class="hero">
+    <h1>Local artifact repositories</h1>
+    <p>Browse repository files reconstructed by the REST API from immutable WAL packs.</p>
+    <form action="/local"><button>Open local tenant</button></form>
+  </section>
+  {{end}}
+
+  {{if eq .View "namespaces"}}
+  <h1>Namespaces</h1>
+  <div class="list">
+    {{range .Namespaces}}<a href="/{{$.Account}}/{{.Name}}"><b>{{.Name}}</b><small>{{.Jurisdiction}}</small></a>
+    {{else}}<p>No namespaces yet.</p>{{end}}
+  </div>
+  {{end}}
+
+  {{if eq .View "repos"}}
+  <h1>{{.Namespace}}</h1>
+  <div class="list">
+    {{range .Repos}}<a href="/{{$.Account}}/{{$.Namespace}}/{{.Name}}"><b>{{.Name}}</b><small>{{.Description}}</small></a>
+    {{else}}<p>No repositories yet.</p>{{end}}
+  </div>
+  {{end}}
+
+  {{if .Repo.Name}}
+  <nav class="tabs">
+    <a class="{{if or (eq .View "code") (eq .View "file")}}active{{end}}" href="/{{.Account}}/{{.Namespace}}/{{.Repo.Name}}{{if .Ref}}?ref={{.Ref}}{{end}}">Code</a>
+    <a class="{{if eq .View "commits"}}active{{end}}" href="/{{.Account}}/{{.Namespace}}/{{.Repo.Name}}/commits{{if .Ref}}?ref={{.Ref}}{{end}}">Commits</a>
+    <a class="{{if eq .View "wal"}}active{{end}}" href="/{{.Account}}/{{.Namespace}}/{{.Repo.Name}}/wal">WAL</a>
+    <a class="{{if eq .View "settings"}}active{{end}}" href="/{{.Account}}/{{.Namespace}}/{{.Repo.Name}}/settings">Settings</a>
+  </nav>
+  <section class="repohead">
+    <div><h1>{{.Repo.Name}}</h1><p>{{.Repo.Description}}</p></div>
+    <code>git clone {{.Repo.Remote}}</code>
+  </section>
+  {{end}}
+
+  {{if eq .View "code"}}
+  <div class="toolbar">
+    <form method="get" class="branch-form">
+      <select name="ref" aria-label="Branch">
+        {{range .Branches}}<option value="{{.Name}}" {{if .Selected}}selected{{end}}>{{.Name}}</option>{{end}}
+      </select>
+      <button>View</button>
+    </form>
+    {{if .Commit}}<span>Commit <code>{{short .Commit}}</code></span>{{end}}
+  </div>
+  <div class="pathbar">
+    {{if .ParentURL}}<a href="{{.ParentURL}}">..</a><span>/</span>{{end}}
+    <strong>{{if .Path}}{{.Path}}{{else}}/{{end}}</strong>
+  </div>
+  <table>
+    <thead><tr><th>Name</th><th>Type</th><th>Mode</th></tr></thead>
+    <tbody>
+      {{range .Entries}}<tr><td><a href="{{.Href}}">{{if eq .Type "tree"}}▣{{else}}◇{{end}} {{.Name}}</a></td><td>{{.Type}}</td><td><code>{{.Mode}}</code></td></tr>
+      {{else}}<tr><td colspan="3">Repository or directory is empty.</td></tr>{{end}}
+    </tbody>
+  </table>
+  {{end}}
+
+  {{if eq .View "file"}}
+  <div class="filehead">
+    <div><a href="{{.ParentURL}}">← Back</a><h2>{{.Path}}</h2>{{if .ContentType}}<small>{{.ContentType}}</small>{{end}}</div>
+    <a class="button" href="{{.DownloadURL}}">Download</a>
+  </div>
+  {{if .Previewable}}<pre class="file-content"><code>{{.FileContent}}</code></pre>
+  {{else if .TooLarge}}<div class="notice">This file is larger than the 256 KiB preview limit. Download it to inspect the full content.</div>
+  {{else if not .Error}}<div class="notice">Binary content is not rendered inline. Download the file to inspect it safely.</div>{{end}}
+  {{end}}
+
+  {{if eq .View "commits"}}
+  <div class="toolbar">
+    <form method="get" class="branch-form">
+      <select name="ref" aria-label="Branch">
+        {{range .Branches}}<option value="{{.Name}}" {{if .Selected}}selected{{end}}>{{.Name}}</option>{{end}}
+      </select>
+      <button>View</button>
+    </form>
+  </div>
+  <table><tbody>
+    {{range .Commits}}<tr><td><b>{{.Message}}</b><small>{{.Author.Name}} · {{.Author.When}}</small></td><td><code>{{short .Hash}}</code></td></tr>
+    {{else}}<tr><td>No commits.</td></tr>{{end}}
+  </tbody></table>
+  {{end}}
+
+  {{if eq .View "wal"}}
+  <p class="notice">Storage diagnostic: these immutable packs are materialized by the REST API and are not repository files.</p>
+  <table><thead><tr><th>Sequence</th><th>Pack checksum</th><th>Size</th><th>Published</th></tr></thead><tbody>
+    {{range .WAL}}<tr><td>{{.Sequence}}</td><td><code>{{.Checksum}}</code></td><td>{{.Size}}</td><td>{{.CreatedAt}}</td></tr>
+    {{else}}<tr><td colspan="4">No WAL entries.</td></tr>{{end}}
+  </tbody></table>
+  {{end}}
+
+  {{if eq .View "settings"}}
+  <dl>
+    <dt>Default branch</dt><dd>{{.Repo.DefaultBranch}}</dd>
+    <dt>Read only</dt><dd>{{.Repo.ReadOnly}}</dd>
+    <dt>Storage version</dt><dd>{{.Repo.StorageVersion}}</dd>
+    <dt>WAL sequence</dt><dd>{{.Repo.WALSequence}}</dd>
+  </dl>
+  {{end}}
+</main>
+</body>
+</html>{{end}}

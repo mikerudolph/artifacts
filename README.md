@@ -21,7 +21,7 @@ export ARTIFACTS_STREAM_IDLE_TIMEOUT=30s
 go run ./cmd/artifacts dev
 ```
 
-Open [http://127.0.0.1:8080](http://127.0.0.1:8080). `artifacts dev` serves the browser, REST API, and Git smart HTTP without authentication and only binds to a loopback address.
+Open [http://127.0.0.1:8080](http://127.0.0.1:8080). `artifacts dev` serves the browser, REST API, and Git smart HTTP without authentication and only binds to a loopback address. The browser uses the REST API to navigate branches and directories, preview bounded text files, and download binary or large files. Repository materialization from WAL packs stays on the server.
 
 Create a repository and publish initial files without installing Git:
 
@@ -37,6 +37,9 @@ curl -sS -X POST "$API/namespaces/agents/repos/researcher-session-42/commits" \
   -d '{"message":"initial artifacts","files":[{"path":"README.md","content":"# Session 42\n"},{"path":"results/summary.txt","content":"ready\n"}]}' | jq
 
 curl -sS "$API/namespaces/agents/repos/researcher-session-42/file?ref=main&path=README.md"
+
+# Resolve a branch and list a directory without handling Git object IDs.
+curl -sS "$API/namespaces/agents/repos/researcher-session-42/tree?ref=main&path=results" | jq
 ```
 
 The create response contains a tenant-qualified remote and a short-lived write credential:

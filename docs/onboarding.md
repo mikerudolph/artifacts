@@ -29,6 +29,7 @@ Important routes:
 |---|---|---|
 | POST | `/namespaces/{ns}/repos` | Create repo, symbolic `HEAD`, and initial write credential |
 | POST | `/namespaces/{ns}/repos/{repo}/commits` | Publish up to 100 files / 1 MiB through the pack WAL |
+| GET | `/namespaces/{ns}/repos/{repo}/tree?ref=main&path=dir` | Resolve a ref and list a repository directory |
 | GET | `/namespaces/{ns}/repos/{repo}/file?ref=main&path=x` | Read a file |
 | POST | `/namespaces/{ns}/credentials` | Issue repository credential (`repo`, `scope`, `ttl`) |
 | GET | `/namespaces/{ns}/repos/{repo}/refs` | Inspect published refs |
@@ -36,6 +37,8 @@ Important routes:
 | PATCH | `/namespaces/{ns}/repos/{repo}/settings` | Update description, default branch, or read-only state |
 | POST | `/namespaces/{ns}/repos/{repo}/fork` | Create a same-tenant snapshot fork |
 | POST | `/namespaces/{ns}/repos/{repo}/import` | Import a public HTTPS Git remote |
+
+Tree and file reads reconstruct a missing or stale disposable cache from snapshot lineage, checkpoints, and published WAL packs. Clients receive repository entries or file bytes; they never download or unpack storage WAL objects.
 
 Git remote:
 

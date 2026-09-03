@@ -66,6 +66,7 @@ func NewWithDependencies(svc *service.Services, cfg config.Config, deps Dependen
 		r.Delete("/namespaces/{namespace}/credentials/{id}", s.revokeToken)
 		r.Get("/namespaces/{namespace}/repos/{name}/log", s.handleLog)
 		r.Get("/namespaces/{namespace}/repos/{name}/commit/{hash}", s.handleCommit)
+		r.Get("/namespaces/{namespace}/repos/{name}/tree", s.handleTreeAt)
 		r.Get("/namespaces/{namespace}/repos/{name}/tree/{hash}", s.handleTree)
 		r.Get("/namespaces/{namespace}/repos/{name}/blob/{hash}", s.handleBlob)
 		r.Get("/namespaces/{namespace}/repos/{name}/file", s.handleFile)

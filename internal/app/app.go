@@ -76,7 +76,7 @@ func buildHandler(ctx context.Context, cfg config.Config, dev bool) (http.Handle
 		StreamIdle: cfg.HTTP.StreamIdleTimeout,
 	})
 	git := githttp.NewRepositoryWithIdleTimeout(cache, svc, auth.NewRepoAuthorizer(mdb.RepoTokens(), time.Now), dev, cfg.HTTP.StreamIdleTimeout)
-	browser, err := devBrowser(dev, svc, cache)
+	browser, err := devBrowser(dev, rest)
 	if err != nil {
 		return nil, err
 	}
@@ -110,11 +110,11 @@ func loopbackHost(host string) bool {
 	return ip != nil && ip.IsLoopback()
 }
 
-func devBrowser(dev bool, services *service.Services, cache *repository.Manager) (http.Handler, error) {
+func devBrowser(dev bool, rest http.Handler) (http.Handler, error) {
 	if !dev {
 		return nil, nil
 	}
-	return ui.New(services, cache)
+	return ui.New(rest)
 }
 
 func combinedHandler(rest, git, browser http.Handler, dev bool) http.Handler {
