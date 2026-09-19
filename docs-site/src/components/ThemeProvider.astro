@@ -1,0 +1,8 @@
+<script is:inline>
+  // Tokyo Night is the first-visit theme; an explicit reader preference wins.
+  try {
+    document.documentElement.dataset.theme = localStorage.getItem('starlight-theme') === 'light' ? 'light' : 'dark';
+  } catch {
+    document.documentElement.dataset.theme = 'dark';
+  }
+</script>

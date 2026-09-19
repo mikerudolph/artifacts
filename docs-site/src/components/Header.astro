@@ -1,0 +1,21 @@
+---
+import Search from '@astrojs/starlight/components/Search.astro';
+import ThemeToggle from './ThemeToggle.astro';
+import { Icon } from '@astrojs/starlight/components';
+import BrandMark from './BrandMark.astro';
+import { sections, sectionFor, docsHref } from '../navigation.mjs';
+const current = sectionFor(Astro.locals.starlightRoute.id);
+---
+<div class="docs-header">
+  <a class="brand" href={docsHref()} aria-label="Artifacts documentation home">
+    <BrandMark /><span>artifacts</span><span class="brand-divider">/</span><span class="brand-caption">field manual</span>
+  </a>
+  <nav class="section-nav" aria-label="Documentation sections">
+    {sections.map((section, index) => <a href={docsHref(section.href)} aria-current={current.id === section.id ? 'true' : undefined}><span class="section-index" aria-hidden="true">0{index + 1}</span>{section.label}</a>)}
+  </nav>
+  <div class="header-actions">
+    <Search />
+    <ThemeToggle />
+    <a class="github-link" href="https://github.com/mikerudolph/artifacts" aria-label="Artifacts on GitHub"><Icon name="github" size="1.2rem" /></a>
+  </div>
+</div>

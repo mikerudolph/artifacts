@@ -19,7 +19,7 @@ type Repo struct {
 	Source         string        `json:"source"`
 	ReadOnly       bool          `json:"read_only"`
 	Status         RepoStatus    `json:"-"`
-	StorageVersion int           `json:"storage_version"`
+	StorageVersion int           `json:"-"`
 	WALSequence    int64         `json:"wal_sequence"`
 	Failure        string        `json:"failure,omitempty"`
 	DeletedAt      *time.Time    `json:"deleted_at,omitempty"`

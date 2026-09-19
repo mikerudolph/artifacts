@@ -1,0 +1,10 @@
+---
+interface Props { start: number; end: number; route: string; label: string; color?: string; compact?: boolean; }
+const { start, end, route, label, color = 'blue', compact = false } = Astro.props;
+const half = compact ? 34 : 45;
+---
+<g class="diagram-transit" data-transit={`${start} ${end}`} data-route={route}>
+  <rect x={-half} y="-15" width={half * 2} height="30" rx="5" class={`node node-${color}`} />
+  <path d="M-33-8h8l4 4V8h-12ZM-25-8v4h4" transform={compact ? 'translate(10 0)' : undefined} class={`edge edge-${color}`} />
+  <text x="9" y="4" text-anchor="middle" class={`mono ${color}`}>{label}</text>
+</g>

@@ -2,7 +2,7 @@
 
 Artifacts gives every agent and session an isolated, Git-compatible artifact repository. Postgres is the publication authority, object storage holds immutable Git packs, and local bare repositories are disposable caches.
 
-[Documentation](https://mikerudolph.github.io/artifacts/) · [Agent onboarding](docs/onboarding.md) · [Storage architecture](docs/storage.md)
+[Documentation](https://mikerudolph.github.io/artifacts/) · [Quickstart](docs/getting-started.md) · [Data modeling](docs/core/data-model.md) · [Examples](docs/examples/index.md)
 
 Requirements: Go 1.25+, Docker, Git, and optionally `jq`.
 

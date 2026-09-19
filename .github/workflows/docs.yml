@@ -47,9 +47,9 @@ jobs:
         working-directory: docs-site
         run: npm ci
 
-      - name: Build site
+      - name: Build and validate site
         working-directory: docs-site
-        run: npm run build
+        run: npm run check
 
       - name: Configure GitHub Pages
         if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')

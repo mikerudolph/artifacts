@@ -1,4 +1,7 @@
 ---
+import BrandMark from '../components/BrandMark.astro';
+import '../styles/custom.css';
+import '../styles/orbital.css';
 const home = '/artifacts/';
 ---
 
@@ -9,12 +12,13 @@ const home = '/artifacts/';
     <meta name="viewport" content="width=device-width" />
     <meta name="robots" content="noindex" />
     <title>Page not found | Artifacts</title>
+    <link rel="icon" href="/artifacts/favicon.svg" type="image/svg+xml" />
     <style>
       :root {
         color-scheme: dark;
-        font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-        color: #f8f5ee;
-        background: #151816;
+        font-family: var(--sl-font);
+        color: var(--sl-color-gray-1);
+        background: var(--sl-color-black);
       }
 
       body {
@@ -25,12 +29,20 @@ const home = '/artifacts/';
       }
 
       main {
-        width: min(38rem, calc(100% - 3rem));
+        position: relative;
+        box-sizing: border-box;
+        width: min(42rem, calc(100% - 3rem));
+        border: 1px solid var(--sl-color-gray-5);
+        padding: clamp(1.5rem, 5vw, 3rem);
+        background: radial-gradient(ellipse at top right, #7aa2f717, transparent 70%);
       }
 
-      p:first-child {
-        color: #ff8a5b;
-        font-weight: 700;
+      main::before { content: ''; position: absolute; top: -1px; left: -1px; width: 32px; height: 1px; background: var(--frame-accent); }
+
+      .error-label {
+        color: var(--frame-accent);
+        font-family: var(--sl-font-mono);
+        font-size: .65rem;
         letter-spacing: 0.14em;
         text-transform: uppercase;
       }
@@ -38,39 +50,36 @@ const home = '/artifacts/';
       h1 {
         margin-block: 0.5rem 1rem;
         font-size: clamp(3rem, 10vw, 6rem);
-        letter-spacing: -0.06em;
-        line-height: 0.92;
+        font-family: var(--font-display);
+        font-weight: 500;
+        letter-spacing: .025em;
+        text-transform: uppercase;
+        line-height: 1;
       }
 
       p {
-        color: #bbb7ae;
-        font-size: 1.1rem;
-        line-height: 1.6;
+        color: var(--sl-color-gray-2);
+        font-size: 1rem;
+        line-height: 1.8;
       }
 
       a {
-        display: inline-block;
         margin-top: 1rem;
-        padding: 0.75rem 1rem;
-        border-radius: 0.45rem;
-        color: #151816;
-        background: #ff8a5b;
-        font-weight: 700;
-        text-decoration: none;
       }
 
       a:focus-visible {
-        outline: 3px solid #f8f5ee;
+        outline: 3px solid #bb9af7;
         outline-offset: 4px;
       }
     </style>
   </head>
   <body>
     <main>
-      <p>404 · Repository not found</p>
+      <div style="color: var(--frame-accent); margin-bottom: 2rem"><BrandMark /></div>
+      <p class="error-label">404 / UNCHARTED PATH</p>
       <h1>Lost ref.</h1>
-      <p>This documentation path does not exist or has moved.</p>
-      <a href={home}>Return to the docs</a>
+      <p>This documentation path does not exist or has moved. Head back to the docs to find your next step.</p>
+      <a class="primary-link" href={home}>Return to the docs <span aria-hidden="true">↗</span></a>
     </main>
   </body>
 </html>

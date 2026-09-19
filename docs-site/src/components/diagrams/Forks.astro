@@ -1,0 +1,75 @@
+---
+import Diagram from './Diagram.astro';
+const layouts = [
+  { name: 'desktop', width: 688, height: 360, history: { x: 24, y: 112, w: 244, h: 128 }, source: { x: 340, y: 28, w: 324, h: 124 }, child: { x: 340, y: 220, w: 324, h: 124 }, a: [82, 179], b: [210, 179], c: [398, 105], next: [398, 297], sourceRef: [568, 105], childRef: [568, 297] },
+  { name: 'mobile', width: 344, height: 440, history: { x: 20, y: 20, w: 304, h: 120 }, source: { x: 20, y: 224, w: 144, h: 192 }, child: { x: 180, y: 224, w: 144, h: 192 }, a: [104, 91], b: [240, 91], c: [92, 295], next: [252, 295], sourceRef: [92, 374], childRef: [252, 374] },
+];
+---
+
+<Diagram story="forks">
+  {layouts.map(({ name, width, height, history, source, child, a, b, c, next, sourceRef, childRef }) => {
+    const mobile = name === 'mobile';
+    const arrow = `url(#fork-arrow-${name})`;
+    const sourceToB = mobile ? 'M38 374H10V190Q10 174 26 174H216Q240 174 240 150V109' : 'M514 105H314Q294 105 294 125V155Q294 179 270 179H228';
+    const childToB = mobile ? 'M306 374H334V182Q334 164 316 164H264Q240 164 240 140V109' : 'M514 297H314Q294 297 294 277V203Q294 179 270 179H228';
+    const cToB = mobile ? 'M74 295H10V190Q10 174 26 174H216Q240 174 240 150V109' : 'M380 105H314Q294 105 294 125V155Q294 179 270 179H228';
+    const xToB = mobile ? 'M270 295H334V182Q334 164 316 164H264Q240 164 240 140V109' : 'M380 297H314Q294 297 294 277V203Q294 179 270 179H228';
+    const refEdge = (ref: number[], commit: number[]) => mobile ? `M${ref[0]} ${ref[1] - 18}V${commit[1] + 18}` : `M${ref[0] - 54} ${ref[1]}H${commit[0] + 18}`;
+    return (
+      <svg class={`scene-${name} forks-scene`} viewBox={`0 0 ${width} ${height}`} aria-hidden="true" focusable="false">
+        <defs><marker id={`fork-arrow-${name}`} viewBox="0 0 6 6" refX="5" refY="3" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="m1 1 3 2-3 2" class="edge" /></marker></defs>
+        <rect x={history.x} y={history.y} width={history.w} height={history.h} rx="7" class="panel" />
+        <text x={history.x + 16} y={history.y + 25} class="label">IMMUTABLE HISTORY</text>
+        <text x={history.x + 16} y={history.y + history.h - 14} class="tiny">one shared object history</text>
+        <rect x={source.x} y={source.y} width={source.w} height={source.h} rx="7" class="panel" />
+        <text x={source.x + 16} y={source.y + 25} class="label blue">SOURCE REPO</text>
+        <text x={source.x + 16} y={source.y + 45} class="tiny">{mobile ? 'own credential' : 'own refs + credential'}</text>
+        <rect x={child.x} y={child.y} width={child.w} height={child.h} rx="7" class="panel dashed" data-show="0" />
+        <text x={child.x + child.w / 2} y={child.y + child.h / 2 + 4} text-anchor="middle" class="tiny" data-show="0">future snapshot fork</text>
+        <g data-show="1 2 3" data-enter=".03" data-span=".28" data-offset={mobile ? '0 18' : '0 -24'}>
+          <rect x={child.x} y={child.y} width={child.w} height={child.h} rx="7" class="panel" />
+          <text x={child.x + 16} y={child.y + 25} class="label purple">CHILD REPO</text>
+          <text x={child.x + 16} y={child.y + 45} class="tiny">{mobile ? 'own credential' : 'own refs + credential'}</text>
+        </g>
+        <path d={`M${b[0] - 18} ${b[1]}H${a[0] + 18}`} class="edge edge-purple" marker-end={arrow} data-draw="0.04 0.40" />
+        <path d={sourceToB} class="edge edge-blue" marker-end={arrow} data-show="0 1" data-leave=".62" data-draw="0.08 0.76" />
+        <path d={sourceToB} class="packet" pathLength="100" data-show="0" />
+        <path d={childToB} class="edge edge-purple" marker-end={arrow} data-show="1 2" data-enter="0" data-span=".01" data-leave=".62" data-draw="1.10 1.65" data-reverse />
+        <path d={childToB} class="packet packet-purple" pathLength="100" data-show="1" data-enter=".65" />
+        <g data-show="2 3" data-enter="0" data-span=".01">
+          <path d={cToB} class="edge edge-blue" marker-end={arrow} data-draw="2.03 2.54" data-reverse />
+          <path d={refEdge(sourceRef, c)} class="edge edge-blue" marker-end={arrow} data-draw="2.49 2.82" />
+        </g>
+        <g data-show="3" data-enter="0" data-span=".01">
+          <path d={xToB} class="edge edge-purple" marker-end={arrow} data-draw="3.03 3.54" data-reverse />
+          <path d={refEdge(childRef, next)} class="edge edge-purple" marker-end={arrow} data-draw="3.49 3.82" />
+        </g>
+        <path d={cToB} class="packet" pathLength="100" data-show="2" data-enter=".60" />
+        <path d={xToB} class="packet packet-purple" pathLength="100" data-show="3" data-enter=".60" />
+        {[
+          { p: a, label: 'A', show: '0 1 2 3', color: 'purple' },
+          { p: b, label: 'B', show: '0 1 2 3', color: 'purple' },
+          { p: c, label: 'C', show: '2 3', color: 'blue' },
+          { p: next, label: 'X', show: '3', color: 'purple' },
+        ].map(({ p, label, show, color }) => (
+          <g data-show={show} data-enter=".24" data-span=".34" data-offset={label === 'C' || label === 'X' ? '0 24' : '0 0'} data-pivot={`${p[0]} ${p[1]}`} data-scale={label === 'C' || label === 'X' ? '.55' : '1'}>
+            <circle cx={p[0]} cy={p[1]} r="18" class={`node node-${color}`} />
+            <circle cx={p[0]} cy={p[1]} r="23" class="ring" data-show={label === 'B' ? '1' : label === 'C' ? '2' : label === 'X' ? '3' : ''} data-enter=".46" data-span=".27" data-scale=".78" data-pivot={`${p[0]} ${p[1]}`} />
+            <text x={p[0]} y={p[1] + 4} text-anchor="middle" class={`mono ${color}`}>{label}</text>
+          </g>
+        ))}
+        {[
+          { p: sourceRef, show: '0 1 2 3', color: 'blue' },
+          { p: childRef, show: '1 2 3', color: 'purple' },
+        ].map(({ p, show, color }) => (
+          <g data-show={show} data-enter=".10" data-span=".53" data-solid data-offset={color === 'purple' ? `${sourceRef[0] - childRef[0]} ${sourceRef[1] - childRef[1]}` : '0 0'}>
+            <rect x={p[0] - 54} y={p[1] - 18} width="108" height="36" rx="5" class={`node node-${color}`} />
+            <circle cx={p[0] - 34} cy={p[1]} r="3" fill={`var(--diagram-${color})`} />
+            <text x={p[0] + 6} y={p[1] + 4} text-anchor="middle" class={`mono ${color}`}>main</text>
+          </g>
+        ))}
+        {mobile && <text x="172" y="210" text-anchor="middle" class="tiny" data-show="1 2 3">CAPTURED HISTORY · SEPARATE REFS</text>}
+      </svg>
+    );
+  })}
+</Diagram>

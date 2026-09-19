@@ -32,7 +32,7 @@ func (f fixtureREST) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeFixture(w, []types.Repo{{Name: "app", Description: "agent artifacts"}})
 	case fixtureRepoAPI:
 		writeFixture(w, types.Repo{Name: "app", Description: "<script>repo</script>", DefaultBranch: "main",
-			Remote: "http://local/git/local/default/app.git", StorageVersion: 2, WALSequence: 1})
+			Remote: "http://local/git/local/default/app.git", WALSequence: 1})
 	case fixtureRepoAPI + "/refs":
 		if f.empty {
 			writeFixture(w, []types.Ref{})
@@ -154,7 +154,7 @@ func TestBrowserRepositoryNavigation(t *testing.T) {
 		{path: "/local/default/app/commits", fragments: []string{"initial", "Agent"}},
 		{path: "/local/default/app/commits?ref=feature", fragments: []string{"feature commit"}},
 		{path: "/local/default/app/wal", fragments: []string{"Storage diagnostic", "42", strings.Repeat("e", 64)}},
-		{path: "/local/default/app/settings", fragments: []string{"Storage version", "2", "WAL sequence"}},
+		{path: "/local/default/app/settings", fragments: []string{"Default branch", "Read only", "WAL sequence"}},
 		{path: "/assets/style.css", fragments: []string{"file-content"}},
 	}
 	for _, test := range tests {
@@ -163,6 +163,9 @@ func TestBrowserRepositoryNavigation(t *testing.T) {
 			requireFragments(t, recorder, test.fragments...)
 			if strings.Contains(recorder.Body.String(), "<script>repo") {
 				t.Fatal("repository description was not escaped")
+			}
+			if strings.Contains(recorder.Body.String(), "Storage version") {
+				t.Fatal("repository settings expose an internal storage revision")
 			}
 		})
 	}

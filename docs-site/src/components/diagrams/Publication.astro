@@ -1,0 +1,130 @@
+---
+import Diagram from './Diagram.astro';
+import Transit from './Transit.astro';
+const layouts = [
+  { name: 'desktop', width: 688, height: 358, x: [24, 260, 496], y: [42, 42, 42], w: 168, h: 166, reader: { x: 24, y: 260, w: 640, h: 66 } },
+  { name: 'mobile', width: 344, height: 466, x: [20, 20, 20], y: [12, 134, 256], w: 304, h: 100, reader: { x: 20, y: 386, w: 304, h: 62 } },
+];
+---
+
+<Diagram story="publication">
+  {layouts.map(({ name, width, height, x, y, w, h, reader }) => {
+    const mobile = name === 'mobile';
+    const row1 = mobile ? 58 : 80;
+    const row2 = mobile ? 85 : 115;
+    const upload = mobile ? `M172 ${y[0] + h}V${y[1]}` : `M${x[0] + w} 125H${x[1]}`;
+    const publish = mobile ? `M172 ${y[1] + h}V${y[2]}` : `M${x[1] + w} 125H${x[2]}`;
+    const visible = mobile ? 'M172 356V386' : 'M580 208V238Q580 250 568 250H522V260';
+    return (
+      <svg class={`scene-${name} publication-scene`} viewBox={`0 0 ${width} ${height}`} aria-hidden="true" focusable="false">
+        <defs>
+          <marker id={`pub-arrow-${name}`} viewBox="0 0 6 6" refX="5" refY="3" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="m1 1 3 2-3 2" class="edge" /></marker>
+        </defs>
+        <path d={upload} class="edge" marker-end={`url(#pub-arrow-${name})`} />
+        <path d={publish} class="edge" marker-end={`url(#pub-arrow-${name})`} />
+        <path d={visible} class="edge" marker-end={`url(#pub-arrow-${name})`} />
+        <path d={upload} class="packet" pathLength="100" data-show="1" />
+        <path d={publish} class="packet packet-purple" pathLength="100" data-show="2 3" />
+        <path d={visible} class="packet packet-green" pathLength="100" data-show="3 4" />
+        {!mobile && <>
+          <text x="226" y="111" text-anchor="middle" class="tiny">PUT</text>
+          <text x="462" y="111" text-anchor="middle" class="tiny">TX</text>
+        </>}
+
+        <g transform={`translate(${x[0]} ${y[0]})`}>
+          <rect width={w} height={h} rx="7" class="panel" />
+          <path d={`M0 0H${w}`} class="edge edge-blue" transform="translate(0 0.5)" data-show="0" />
+          <text x="16" y="27" class="title">Local stage</text>
+          {!mobile && <text x="16" y="47" class="small">Validate + repack</text>}
+          <rect x="14" y={row1 - 17} width={w - 28} height="27" rx="4" class="node node-blue" data-draw="0.04 0.50" />
+          <path d={`M25 ${row1 - 10}h8l4 4v12H25Z M33 ${row1 - 10}v4h4`} class="edge edge-blue" data-draw="0.10 0.44" />
+          <text x="47" y={row1 + 1} class="mono blue">8ac1….pack</text>
+          <rect x="14" y={row2 - 17} width={w - 28} height="27" rx="4" class="node" data-draw="0.36 0.88" />
+          <path d={`M25 ${row2 - 10}h8l4 4v12H25Z M33 ${row2 - 10}v4h4`} class="edge" data-draw="0.44 0.82" />
+          <text x="47" y={row2 + 1} class="mono">8ac1….idx</text>
+          {!mobile && <text x="16" y="149" class="tiny">prepared object pair</text>}
+          {mobile && <text x={w - 16} y="27" text-anchor="end" class="tiny blue">PREPARE</text>}
+        </g>
+
+        <g transform={`translate(${x[1]} ${y[1]})`}>
+          <rect width={w} height={h} rx="7" class="panel" />
+          <text x="16" y="27" class="title">Object storage</text>
+          {!mobile && <text x="16" y="47" class="small">Immutable bytes</text>}
+          <rect x="14" y={row1 - 17} width={w - 28} height="27" rx="4" class="panel dashed" />
+          <rect x="14" y={row2 - 17} width={w - 28} height="27" rx="4" class="panel dashed" />
+          <text x={w / 2} y={row1 + 1} text-anchor="middle" class="tiny" data-show="0">awaiting pack</text>
+          <text x={w / 2} y={row2 + 1} text-anchor="middle" class="tiny" data-show="0">awaiting index</text>
+          {[row1, row2].map((row, index) => <g data-show="1 2 3 4" data-enter={index === 0 ? 0.55 : 0.86} data-span="0.12" data-offset="0 6">
+            <rect x="14" y={row - 17} width={w - 28} height="27" rx="4" class="node node-blue" />
+            <text x="25" y={row + 1} class="mono blue">{index === 0 ? '8ac1….pack' : '8ac1….idx'}</text>
+            <path d={`m${w - 34} ${row - 3} 3 3 6-7`} class="check" data-draw={index === 0 ? '1.70 1.85' : '1.96 2.08'} />
+          </g>)}
+          {!mobile && <text x="16" y="149" class="tiny" data-show="0">no new objects</text>}
+          {!mobile && <text x="16" y="149" class="tiny green" data-show="1 2 3 4" data-enter="0.96" data-span="0.06">both files durable</text>}
+          {mobile && <text x={w - 16} y="27" text-anchor="end" class="tiny blue">DURABLE</text>}
+        </g>
+
+        <g transform={`translate(${x[2]} ${y[2]})`}>
+          <rect width={w} height={h} rx="7" class="panel" />
+          <rect width={w} height={h} rx="7" class="node node-purple" data-show="2" />
+          <rect width={w} height={h} rx="7" class="node node-green" data-show="3 4" data-enter="0.26" data-span="0.28" data-draw="3.05 3.52" />
+          <text x="16" y="27" class="title">Postgres</text>
+          {!mobile && <text x="16" y="47" class="small">Publication authority</text>}
+          <g data-show="0 1" data-leave="0.18">
+            <text x="16" y={row1} class="mono">WAL     #41</text>
+            <text x="16" y={row2} class="mono">main → a1b2c3</text>
+          </g>
+          <g data-show="2" data-enter="0.18" data-leave="0.15" data-offset="0 10">
+            <text x="16" y={row1} class="mono purple">expected #41</text>
+            <text x="16" y={row2} class="mono purple">old ref</text>
+            <path d={`m${w - 30} ${row1 - 4} 4 4 7-8`} class="check" data-draw="2.30 2.52" />
+            <path d={`m${w - 30} ${row2 - 4} 4 4 7-8`} class="check" data-draw="2.55 2.78" />
+          </g>
+          <g data-show="3 4" data-enter="0.28" data-span="0.25" data-offset="0 18">
+            <text x="16" y={row1} class="mono green">WAL     #42</text>
+            <text x="16" y={row2} class="mono green">main → d4e5f6</text>
+          </g>
+          {!mobile && <text x="16" y="149" class="tiny" data-show="0 1">unchanged</text>}
+          {!mobile && <text x="16" y="149" class="tiny purple" data-show="2">one transaction</text>}
+          {!mobile && <text x="16" y="149" class="tiny green" data-show="3 4" data-enter="0.40">committed together</text>}
+          {mobile && <text x={w - 16} y="27" text-anchor="end" class="tiny purple" data-show="0 1 2">ATOMIC</text>}
+          {mobile && <text x={w - 16} y="27" text-anchor="end" class="tiny green" data-show="3 4">COMMITTED</text>}
+        </g>
+
+        <g transform={`translate(${reader.x} ${reader.y})`}>
+          <rect width={reader.w} height={reader.h} rx="7" class="panel-raised" />
+          <circle cx="21" cy={reader.h / 2} r="3" fill="var(--diagram-blue)" data-show="0 1 2" data-leave="0.66" />
+          <circle cx="21" cy={reader.h / 2} r="3" fill="var(--diagram-green)" data-show="3 4" data-enter="0.66" />
+          <text x="35" y={mobile ? 26 : 29} class="small">Readers resolve main</text>
+          {!mobile && <text x="35" y="47" class="tiny">REST read / Git fetch</text>}
+          <g data-show="0 1 2" data-leave="0.66">
+            <text x={mobile ? 35 : 274} y={mobile ? 45 : 38} class="mono blue">a1b2c3</text>
+            <text x={reader.w - 16} y={mobile ? 36 : 38} text-anchor="end" class="tiny">OLD VERSION</text>
+          </g>
+          <g data-show="3 4" data-enter="0.66" data-offset="0 9">
+            <text x={mobile ? 35 : 274} y={mobile ? 45 : 38} class="mono green">d4e5f6</text>
+          </g>
+          <g data-show="3" data-enter="0.66">
+            <text x={reader.w - 16} y={mobile ? 36 : 38} text-anchor="end" class="tiny green">NEW VERSION</text>
+          </g>
+          <g data-show="4" data-enter="0.70" data-span=".14" data-offset="0 9">
+            <text x={reader.w - 16} y={mobile ? 36 : 38} text-anchor="end" class="tiny green">SUCCESS ✓</text>
+          </g>
+        </g>
+        {[row1, row2].map((row, index) => {
+          const sx = x[0] + w / 2, sy = y[0] + row - 3;
+          const tx = x[1] + w / 2, ty = y[1] + row - 3;
+          const route = mobile ? `M${sx} ${sy}C${sx + 44} ${sy + 25} ${tx + 44} ${ty - 25} ${tx} ${ty}`
+            : `M${sx} ${sy}C${sx + 90} ${sy - 28} ${tx - 90} ${ty - 28} ${tx} ${ty}`;
+          return <Transit start={index === 0 ? 1.02 : 1.31} end={index === 0 ? 1.57 : 1.88} route={route} label={index === 0 ? '.pack' : '.idx'} />;
+        })}
+        <g class="diagram-transit" data-transit="3.34 3.82" data-route={visible}>
+          <circle r="8" fill="var(--diagram-green)" opacity=".14" />
+          <circle r="3" fill="var(--diagram-green)" />
+        </g>
+        <Transit start={4.05} end={4.70} route={`M${reader.x + (mobile ? 130 : 365)} ${reader.y + (mobile ? 45 : reader.h / 2)}H${reader.x + reader.w - 68}`} label="OK" color="green" />
+        {!mobile && <text x="344" y="347" text-anchor="middle" class="tiny">OBJECT DURABILITY PRECEDES REF VISIBILITY</text>}
+      </svg>
+    );
+  })}
+</Diagram>

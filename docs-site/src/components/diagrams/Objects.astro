@@ -1,0 +1,105 @@
+---
+import Diagram from './Diagram.astro';
+const layouts = [
+  { name: 'desktop', width: 688, height: 374, commitA: [230, 93], commitB: [230, 257], treeA: [389, 93], treeB: [389, 257], old: [575, 57], shared: [575, 175], fresh: [575, 293], ref: [78, 93], nodeW: 112, nodeH: 58 },
+  { name: 'mobile', width: 344, height: 450, commitA: [90, 129], commitB: [254, 129], treeA: [90, 241], treeB: [254, 241], old: [62, 371], shared: [172, 371], fresh: [282, 371], ref: [90, 39], nodeW: 108, nodeH: 58 },
+];
+---
+
+<Diagram story="objects">
+  {layouts.map(({ name, width, height, commitA: a, commitB: b, treeA: ta, treeB: tb, old, shared, fresh, ref, nodeW, nodeH }) => {
+    const mobile = name === 'mobile';
+    const half = nodeW / 2;
+    const arrow = `url(#obj-arrow-${name})`;
+    const treeEdge = (c: number[], t: number[]) => mobile ? `M${c[0]} ${c[1] + 29}V${t[1] - 29}` : `M${c[0] + half} ${c[1]}H${t[0] - half}`;
+    const blobEdge = (t: number[], f: number[]) => mobile
+      ? `M${t[0]} ${t[1] + 29}C${t[0]} ${t[1] + 68} ${f[0]} ${f[1] - 75} ${f[0]} ${f[1] - 27}`
+      : `M${t[0] + half} ${t[1]}C${t[0] + 95} ${t[1]} ${f[0] - 106} ${f[1]} ${f[0] - 72} ${f[1]}`;
+    const parent = mobile ? 'M200 129H144' : 'M230 228V122';
+    return (
+      <svg class={`scene-${name} objects-scene`} viewBox={`0 0 ${width} ${height}`} aria-hidden="true" focusable="false">
+        <defs><marker id={`obj-arrow-${name}`} viewBox="0 0 6 6" refX="5" refY="3" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="m1 1 3 2-3 2" class="edge" /></marker></defs>
+        {!mobile && <>
+          <text x="78" y="25" text-anchor="middle" class="label">REF</text>
+          <text x="230" y="25" text-anchor="middle" class="label">COMMIT</text>
+          <text x="389" y="25" text-anchor="middle" class="label">TREE</text>
+          <text x="575" y="25" text-anchor="middle" class="label">BLOB</text>
+        </>}
+        <g data-show="1 2 3 4" data-enter="0" data-span="0.01">
+          <path d={treeEdge(a, ta)} class="edge" marker-end={arrow} data-draw="1.02 1.38" />
+          <path d={blobEdge(ta, old)} class="edge" marker-end={arrow} data-draw="1.36 1.67" />
+          <path d={blobEdge(ta, shared)} class="edge" marker-end={arrow} data-draw="1.48 1.82" />
+        </g>
+        <g data-show="1" data-enter=".76">
+          <path d={treeEdge(a, ta)} class="packet packet-purple" pathLength="100" />
+          <path d={blobEdge(ta, old)} class="packet packet-cyan" pathLength="100" />
+          <path d={blobEdge(ta, shared)} class="packet packet-cyan" pathLength="100" />
+        </g>
+        <g data-show="2 3 4" data-enter="0" data-span="0.01">
+          <path d={parent} class="edge edge-purple" marker-end={arrow} data-draw="2.70 2.96" />
+          <text x={mobile ? 172 : 217} y={mobile ? 116 : 177} text-anchor={mobile ? 'middle' : 'end'} class="tiny purple" data-show="2 3 4" data-enter="0.78">parent</text>
+          <path d={treeEdge(b, tb)} class="edge edge-purple" marker-end={arrow} data-draw="2.43 2.78" data-reverse />
+          <path d={blobEdge(tb, fresh)} class="edge edge-cyan" marker-end={arrow} data-draw="2.20 2.50" data-reverse />
+          <path d={blobEdge(tb, shared)} class="edge" marker-end={arrow} data-draw="2.45 2.75" />
+        </g>
+        <g data-show="2" data-enter=".78">
+          <path d={treeEdge(b, tb)} class="packet packet-purple" pathLength="100" />
+          <path d={blobEdge(tb, fresh)} class="packet packet-cyan" pathLength="100" />
+        </g>
+        <g data-show="3" data-enter="0" data-span="0.01">
+          <path d={blobEdge(ta, shared)} class="edge edge-green" data-draw="3.02 3.40" />
+          <path d={blobEdge(tb, shared)} class="edge edge-green" data-draw="3.20 3.62" />
+          <path d={blobEdge(ta, shared)} class="packet packet-green" pathLength="100" data-show="3" data-enter=".40" />
+          <path d={blobEdge(tb, shared)} class="packet packet-green" pathLength="100" data-show="3" data-enter=".62" />
+        </g>
+
+        <g class="moving-ref object-ref" data-shift={`4.02 4.53 ${mobile ? 164 : 0} ${mobile ? 0 : 164}`} style={`--ref-x: ${mobile ? 164 : 0}px; --ref-y: ${mobile ? 0 : 164}px;`}>
+          <path d={mobile ? 'M90 57V100' : 'M132 93H174'} class="edge edge-blue" marker-end={arrow} data-draw="0.04 0.60" data-show="0 1 2 3" />
+          <path d={mobile ? 'M90 57V100' : 'M132 93H174'} class="edge edge-blue" marker-end={arrow} data-draw="4.50 4.76" data-show="4" data-enter=".50" data-span=".01" />
+          <path d={mobile ? 'M90 57V100' : 'M132 93H174'} class="packet" pathLength="100" data-show="0 4" data-enter=".76" />
+          <rect x={ref[0] - 54} y={ref[1] - 18} width="108" height="36" rx="5" class="node node-blue" />
+          <circle cx={ref[0] - 34} cy={ref[1]} r="3" fill="var(--diagram-blue)" />
+          <text x={ref[0] + 6} y={ref[1] + 4} text-anchor="middle" class="mono blue">main</text>
+        </g>
+
+        {[{ p: a, label: 'A', show: '0 1 2 3 4' }, { p: b, label: 'B', show: '2 3 4' }].map(({ p, label, show }) => (
+          <g data-show={show} data-enter="0.56" data-span="0.32" data-offset={label === 'B' ? (mobile ? '0 24' : '0 -36') : undefined} data-pivot={`${p[0]} ${p[1]}`} data-scale={label === 'B' ? 0.75 : 1}>
+            <rect x={p[0] - half} y={p[1] - 29} width={nodeW} height={nodeH} rx="6" class="node node-purple" />
+            <circle cx={p[0] - 30} cy={p[1] - 4} r="5" class="object-dot" />
+            <text x={p[0] - 15} y={p[1]} class="mono purple">commit {label}</text>
+            <text x={p[0]} y={p[1] + 18} text-anchor="middle" class="tiny">immutable</text>
+          </g>
+        ))}
+        <g data-show="0 1" data-leave="0.55">
+          <rect x={b[0] - half} y={b[1] - 29} width={nodeW} height={nodeH} rx="6" class="panel dashed" />
+          <text x={b[0]} y={b[1] + 4} text-anchor="middle" class="tiny">next commit</text>
+        </g>
+        {[{ p: ta, show: '1 2 3 4' }, { p: tb, show: '2 3 4' }].map(({ p, show }) => (
+          <g data-show={show} data-enter={show.startsWith('1') ? 0.26 : 0.28} data-span="0.28" data-offset={mobile ? '0 -26' : '-32 0'} data-pivot={`${p[0]} ${p[1]}`} data-scale="0.88">
+            <rect x={p[0] - half} y={p[1] - 29} width={nodeW} height={nodeH} rx="6" class="node node-cyan" />
+            <path d={`M${p[0] - 36} ${p[1] - 8}h9l3 4h12v13h-24Z`} class="edge edge-cyan" />
+            <text x={p[0] + 16} y={p[1] + 3} text-anchor="middle" class="mono cyan">root /</text>
+            <text x={p[0]} y={p[1] + 20} text-anchor="middle" class="tiny">2 entries</text>
+          </g>
+        ))}
+        {[
+          { p: old, file: 'report.md', version: 'original bytes', show: '1 2 3 4', color: 'cyan' },
+          { p: shared, file: 'session.json', version: 'same bytes', show: '1 2 3 4', color: 'green' },
+          { p: fresh, file: 'report.md', version: 'updated bytes', show: '2 3 4', color: 'cyan' },
+        ].map(({ p, file, version, show, color }) => (
+          <g data-show={show} data-enter={file === 'session.json' ? 0.63 : show.startsWith('1') ? 0.48 : 0.02} data-span="0.30" data-offset={mobile ? '0 -24' : '28 0'} data-pivot={`${p[0]} ${p[1]}`} data-scale="0.9">
+            <rect x={p[0] - (mobile ? 50 : 72)} y={p[1] - 27} width={mobile ? 100 : 144} height="54" rx="6" class={`node node-${color}`} />
+            <text x={p[0]} y={p[1] - 3} text-anchor="middle" class={`mono ${color}`}>{file}</text>
+            <text x={p[0]} y={p[1] + 15} text-anchor="middle" class="tiny">{mobile ? version.replace(' bytes', '') : version}</text>
+          </g>
+        ))}
+        <text x={width / 2} y={height - 17} text-anchor="middle" class="tiny" data-show="0 1 2 3" data-leave=".52">NAMES ARE MUTABLE · OBJECTS ARE IMMUTABLE</text>
+        <text x={width / 2} y={height - 17} text-anchor="middle" class="tiny blue" data-show="4" data-enter=".55">main → B · A STILL RESOLVES THE OLD SNAPSHOT</text>
+      </svg>
+    );
+  })}
+</Diagram>
+
+<style is:global>
+  artifact-diagram:not(.is-ready)[data-story='objects'][data-step='4'] .object-ref { transform: translate(var(--ref-x), var(--ref-y)); }
+</style>

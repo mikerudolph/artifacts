@@ -1,0 +1,142 @@
+---
+import { exampleHash } from '../scripts/repository-workflow-state';
+import '../styles/repository-workflow.css';
+
+const scenes = [
+  { name: 'wide', width: 560, height: 462, repo: [156, 212], agent: [336, 152], files: [28, 340], fileWidth: 240,
+    read: 'M206 174C228 64 426 66 426 152', write: 'M440 306C440 366 294 378 222 237' },
+  { name: 'narrow', width: 360, height: 580, repo: [99, 161], agent: [169, 284], files: [20, 460], fileWidth: 320,
+    read: 'M126 112C175 52 260 98 260 284', write: 'M186 363C89 379 48 320 74 214' },
+];
+const steps = [
+  ['Read', 'Read the plan.', 'The agent loads plan.md from the latest snapshot.'],
+  ['Work', 'Do the work.', 'Your agent inspects sources and prepares its next result.'],
+  ['Write', 'Write the result.', 'report.md and state.json travel back to the repository.'],
+  ['Version', 'Keep every version.', 'A new commit advances main. Earlier snapshots stay readable.'],
+];
+---
+
+<repository-workflow class="repository-orbit">
+  <figure aria-label="An agent reads an execution plan from Artifacts, performs work, and writes revised report and state files back as a new commit. Earlier snapshots remain available.">
+    <div class="orbit-instrument-label"><span>THE AGENT WORKFLOW</span><span>ILLUSTRATIVE RUN</span></div>
+    <div class="workflow-stage">
+      {scenes.map(({ name, width, height, repo: [rx, ry], agent: [ax, ay], files: [fx, fy], fileWidth, read, write }) => <svg class={`workflow-scene workflow-${name}`} viewBox={`0 0 ${width} ${height}`} fill="none" aria-hidden="true" focusable="false">
+        <defs>
+          <radialGradient id={`workflow-atmosphere-${name}`}>
+            <stop stop-color="var(--sl-color-accent)" stop-opacity=".17" />
+            <stop offset="1" stop-color="var(--accent-lilac)" stop-opacity="0" />
+          </radialGradient>
+          <linearGradient id={`workflow-layer-${name}`} x1="-66" y1="-20" x2="55" y2="54" gradientUnits="userSpaceOnUse">
+            <stop stop-color="var(--accent-cyan)" stop-opacity=".19" />
+            <stop offset="1" stop-color="var(--sl-color-accent)" stop-opacity=".035" />
+          </linearGradient>
+          <g id={`workflow-plane-${name}`} class="workflow-plane">
+            <path d="M0-34 66 4v22L0 64l-66-38V4Z" fill="var(--surface-code)" />
+            <path d="M0-34 66 4 0 42-66 4Z" fill={`url(#workflow-layer-${name})`} />
+            <path d="m-66 4 66 38 66-38M0 42v22" />
+            <path class="workflow-plane-core" d="m0-15 32 19L0 23-32 4Z" />
+            <path d="M-69 1h6v6h-6ZM63 1h6v6h-6ZM-3-37h6v6h-6Z" fill="var(--frame-accent)" stroke="none" />
+          </g>
+          <g id={`workflow-file-${name}`}><path d="M-5-8h7l4 4V8H-5ZM2-8v5h4M-2 1h5M-2 4h5" /></g>
+        </defs>
+        <ellipse cx={width / 2} cy={height / 2 - 15} rx={width / 2} ry={height / 2 - 10} fill={`url(#workflow-atmosphere-${name})`} />
+        <g class="workflow-starfield">
+          {Array.from({ length: 43 }, (_, i) => <circle cx={16 + (i * 107 + i * i * 13) % (width - 32)} cy={25 + (i * 67 + i * i * 7) % (height - 50)} r={i % 6 === 0 ? 1 : .55} opacity={.12 + (i % 4) * .075} />)}
+        </g>
+        <g class="workflow-orbits" transform={`translate(${rx} ${ry + 20})`}>
+          <ellipse rx="101" ry="113" />
+          <ellipse rx="117" ry="48" transform="rotate(-34)" />
+          <circle r="92" stroke-dasharray="1 9" />
+          <g data-rotate><ellipse rx="101" ry="113" stroke-dasharray="55 620" class="workflow-orbit-active" /></g>
+        </g>
+        <path d={`M14 35V14h21M${width - 35} 14h21v21M14 ${height - 35}v21h21M${width - 35} ${height - 14}h21v-21`} class="workflow-corners" />
+        <path d={read} class="workflow-route workflow-read-route" data-read-route />
+        <path d={read} class="workflow-route-active" pathLength="1" data-read-trace />
+        <path d={write} class="workflow-route workflow-write-route" data-write-route />
+        <path d={write} class="workflow-route-active workflow-return" pathLength="1" data-write-trace />
+        <text x={name === 'wide' ? 365 : 290} y={name === 'wide' ? 64 : 97} class="workflow-route-label" text-anchor="middle">READ</text>
+        <text x={name === 'wide' ? 383 : 77} y={name === 'wide' ? 387 : 400} class="workflow-route-label workflow-return" text-anchor="middle">WRITE BACK</text>
+
+        <g data-packet="read" class="workflow-packet" opacity="0">
+          <rect x="-48" y="-15" width="96" height="30" />
+          <use href={`#workflow-file-${name}`} x="-31" />
+          <text x="-17" y="4">plan.md</text>
+        </g>
+        <g data-packet="report" class="workflow-packet workflow-packet-return" opacity="0">
+          <rect x="-53" y="-15" width="106" height="30" />
+          <use href={`#workflow-file-${name}`} x="-36" />
+          <text x="-22" y="4">report.md</text>
+        </g>
+        <g data-packet="state" class="workflow-packet workflow-packet-return" opacity="0">
+          <rect x="-56" y="-15" width="112" height="30" />
+          <use href={`#workflow-file-${name}`} x="-39" />
+          <text x="-25" y="4">state.json</text>
+        </g>
+        <g transform={`translate(${rx} ${ry})`}>
+          {[2, 1, 0].map(layer => <g data-layer={layer} transform={`translate(0 ${layer * 25})`} opacity={1 - layer * .23}>
+            <use href={`#workflow-plane-${name}`} />
+          </g>)}
+          <g data-new-layer opacity="0"><use href={`#workflow-plane-${name}`} /></g>
+        </g>
+        <g transform={`translate(${name === 'wide' ? 28 : 20} ${name === 'wide' ? 116 : 41})`}>
+          <text class="workflow-entity-title">ARTIFACTS REPOSITORY</text>
+          <text y="23" class="workflow-head"><tspan>main</tspan><tspan dx="8">→</tspan><tspan dx="8" data-head>{exampleHash(0)}</tspan></text>
+        </g>
+        <g class="workflow-history" transform={`translate(${fx + fileWidth - 123} ${fy})`}>
+          <path d="M0-4h13m-5-4 5 4-5 4" />
+          <text x="19" data-previous>{exampleHash(-1)}</text><text x="71" class="workflow-history-note">kept</text>
+        </g>
+
+        <g transform={`translate(${ax} ${ay})`} class="workflow-agent">
+          <path class="workflow-agent-panel" d="M0 0h170v154H0Z" />
+          <path class="workflow-agent-corners" d="M0 14V0h14M156 0h14v14M0 140v14h14M156 154h14v-14" />
+          <path d="M0 43h170" class="workflow-agent-divider" />
+          <g transform="translate(19 23)"><g data-agent-spin><path class="workflow-agent-glyph" d="M0-9 8-4v8L0 9-8 4v-8ZM0-9v18M-8-4 8 4M-8 4 8-4" /></g></g>
+          <text x="38" y="12" class="workflow-agent-kicker">YOUR APPLICATION</text>
+          <text x="38" y="32" class="workflow-agent-title">Research agent</text>
+          <g transform="translate(15 65)">
+            <text class="workflow-task-label">Inspect sources</text>
+            <path d="M0 12h139" class="workflow-task-rail" />
+            <path d="M0 12h139" class="workflow-task-progress" pathLength="1" data-inspect />
+            <path d="m127-4 4 4 8-9" class="workflow-task-check" pathLength="1" data-inspect-check />
+          </g>
+          <g transform="translate(15 103)">
+            <text class="workflow-task-label">Compose report</text>
+            <path d="M0 12h139" class="workflow-task-rail" />
+            <path d="M0 12h139" class="workflow-task-progress workflow-compose" pathLength="1" data-compose />
+            <path d="m127-4 4 4 8-9" class="workflow-task-check" pathLength="1" data-compose-check />
+          </g>
+          <text x="15" y="140" class="workflow-agent-status" data-agent-status>Waiting for plan.md</text>
+        </g>
+        <g transform={`translate(${fx} ${fy})`} class="workflow-files">
+          <text class="workflow-files-heading">RESEARCH-42 / FILES</text>
+          {[
+            ['plan.md', 'plan', exampleHash(0, 1)],
+            ['state.json', 'state', exampleHash(0, 3)],
+            ['report.md', 'report', exampleHash(0, 2)],
+          ].map(([label, field, hash], i) => <g transform={`translate(0 ${19 + i * 29})`}>
+            <path d={`M0 0H${fileWidth}`} class="workflow-file-rule" />
+            <rect y="1" width={fileWidth} height="28" class="workflow-file-flash" data-file-flash={field} opacity="0" />
+            <use href={`#workflow-file-${name}`} x="10" y="16" class="workflow-file-icon" />
+            <text x="26" y="20" class="workflow-file-name">{label}</text>
+            <text x={fileWidth - 7} y="20" text-anchor="end" class="workflow-file-hash" data-file-hash={field}>{hash}</text>
+          </g>)}
+        </g>
+      </svg>)}
+    </div>
+    <figcaption class="workflow-caption">
+      <ol class="workflow-steps" aria-label="Read, work, write, preserve history">
+        {steps.map(([label], i) => <li data-workflow-step={i} data-active={i === 0 ? 'true' : 'false'}><span>0{i + 1}</span>{label}<i aria-hidden="true"></i></li>)}
+      </ol>
+      <div class="workflow-explanation">
+        {steps.map(([, title, description], i) => <p data-workflow-caption={i} hidden={i !== 0}><strong>{title}</strong> {description}</p>)}
+      </div>
+      <p class="workflow-interface-note">Your agent does the work. <span>Artifacts keeps the versions.</span></p>
+      <noscript><p class="workflow-static">The agent reads plan.md, performs its task, and writes report.md and state.json back as a new commit. Earlier snapshots remain available.</p></noscript>
+    </figcaption>
+  </figure>
+</repository-workflow>
+
+<script>
+  import '../scripts/repository-workflow';
+</script>

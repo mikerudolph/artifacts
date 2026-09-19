@@ -1,0 +1,75 @@
+repository-workflow.repository-orbit { display: block; container-type: inline-size; min-width: 0; }
+.repository-orbit > figure { margin: 0; }
+.workflow-stage { position: relative; }
+.workflow-scene { width: 100%; height: auto; display: block; overflow: hidden; }
+.workflow-narrow { display: none; }
+.workflow-scene text { font-family: var(--sl-font-mono); font-size: 11px; fill: var(--sl-color-gray-2); }
+.workflow-starfield { fill: var(--sl-color-gray-1); }
+.workflow-orbits { stroke: var(--frame-faint); stroke-width: .65; }
+.workflow-orbit-active { stroke: var(--frame-accent); opacity: .45; }
+.workflow-corners { stroke: var(--frame-accent); stroke-width: .7; opacity: .4; }
+.workflow-route { stroke: var(--frame-accent); stroke-width: .8; opacity: .24; }
+.workflow-write-route { stroke: var(--accent-lilac); }
+.workflow-route-active { stroke: var(--frame-accent); stroke-width: 1.1; stroke-dasharray: 1; stroke-dashoffset: 1; }
+.workflow-route-active.workflow-return { stroke: var(--accent-lilac); }
+.workflow-scene .workflow-route-label { fill: var(--frame-accent); font-size: 9px; letter-spacing: 1.5px; }
+.workflow-scene .workflow-route-label.workflow-return { fill: var(--accent-lilac); }
+.workflow-plane { stroke: var(--sl-color-accent); stroke-width: .85; stroke-linejoin: round; }
+.workflow-plane-core { stroke: var(--frame-accent); fill: var(--frame-faint); stroke-width: .75; }
+.workflow-scene .workflow-entity-title { font-size: 10px; letter-spacing: 1.1px; fill: var(--frame-accent); }
+.workflow-scene .workflow-head { font-size: 12px; fill: var(--sl-color-gray-1); }
+.workflow-head > tspan:first-child { fill: var(--frame-accent); }
+.workflow-history { stroke: var(--sl-color-gray-4); stroke-width: .7; }
+.workflow-history text { stroke: none; font-size: 10px; fill: var(--sl-color-gray-3); }
+.workflow-scene .workflow-history-note { font-size: 9px; }
+.workflow-agent-panel { fill: var(--surface-code); stroke: var(--sl-color-gray-5); stroke-width: 1; }
+.workflow-agent-corners { stroke: var(--accent-lilac); stroke-width: .9; }
+.workflow-scene .workflow-agent-kicker { fill: var(--accent-lilac); font-size: 7px; letter-spacing: .7px; }
+.workflow-agent-divider { stroke: var(--sl-color-hairline); stroke-width: 1; }
+.workflow-agent-glyph { stroke: var(--accent-lilac); stroke-width: .9; }
+.workflow-scene .workflow-agent-title { font-family: var(--font-display); font-size: 17px; font-weight: 500; fill: var(--sl-color-gray-1); }
+.workflow-task-rail { stroke: var(--sl-color-gray-5); stroke-width: 2; }
+.workflow-task-progress { stroke: var(--frame-accent); stroke-width: 2; stroke-dasharray: 1; stroke-dashoffset: 1; }
+.workflow-compose { stroke: var(--accent-lilac); }
+.workflow-task-check { stroke: var(--accent-green); stroke-width: 1; stroke-dasharray: 1; stroke-dashoffset: 1; }
+.workflow-scene .workflow-agent-status { font-size: 9px; fill: var(--sl-color-gray-3); }
+.workflow-scene .workflow-files-heading { font-size: 9px; letter-spacing: 1px; fill: var(--sl-color-gray-3); }
+.workflow-file-rule { stroke: var(--sl-color-hairline); stroke-width: .8; }
+.workflow-file-icon { stroke: var(--sl-color-gray-3); stroke-width: .8; }
+.workflow-scene .workflow-file-name { fill: var(--sl-color-gray-1); font-size: 12px; }
+.workflow-file-hash { fill: var(--sl-color-gray-3); }
+.workflow-file-flash { fill: var(--frame-accent); }
+.workflow-packet rect { fill: var(--surface-code); stroke: var(--frame-accent); stroke-width: 1; }
+.workflow-packet use { stroke: var(--frame-accent); stroke-width: 1; }
+.workflow-packet text { fill: var(--sl-color-gray-1); font-size: 11px; }
+.workflow-packet-return rect, .workflow-packet-return use { stroke: var(--accent-lilac); }
+.repository-orbit > figure > .workflow-caption { display: block; padding: 0; margin: .35rem 1rem 0; border: 0; }
+.workflow-steps { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: .75rem; }
+.workflow-steps li { position: relative; font-family: var(--font-display); color: var(--sl-color-gray-3); font-size: .9rem; padding: .55rem 0 .85rem; display: flex; align-items: center; gap: .5rem; }
+.workflow-steps li > span { font-family: var(--sl-font-mono); font-size: .51rem; }
+.workflow-steps li[data-active='true'] { color: var(--frame-accent); }
+.workflow-steps li > i { position: absolute; bottom: 0; left: 0; width: 100%; height: 1px; background: var(--sl-color-gray-5); }
+.workflow-steps li > i::after { content: ''; display: block; width: 100%; height: 1px; background: var(--frame-accent); transform: scaleX(0); transform-origin: left; }
+.workflow-steps li[data-active='true'] > i::after { transform: scaleX(var(--workflow-progress, 0)); }
+.workflow-steps li[data-past='true'] > i::after { transform: scaleX(1); opacity: .4; }
+.workflow-explanation { min-height: 5.5rem; padding-top: 1rem; }
+.workflow-explanation p { margin: 0; font-family: var(--sl-font); font-size: .79rem; line-height: 1.75; color: var(--sl-color-gray-2); }
+.workflow-explanation strong { display: block; font-family: var(--font-display); font-size: 1.15rem; font-weight: 500; color: var(--sl-color-gray-1); letter-spacing: .02em; }
+.workflow-interface-note { margin: .3rem 0 0; font-family: var(--sl-font-mono); font-size: .54rem; color: var(--sl-color-gray-3); line-height: 1.9; }
+.workflow-interface-note span { color: var(--frame-accent); }
+.workflow-static { color: var(--sl-color-gray-2); font-size: .8rem; line-height: 1.7; }
+@container (max-width: 420px) {
+  .workflow-wide { display: none; }
+  .workflow-narrow { display: block; }
+  .workflow-scene .workflow-entity-title { font-size: 11px; letter-spacing: .6px; }
+  .workflow-scene .workflow-head, .workflow-scene .workflow-file-name { font-size: 14px; }
+  .workflow-scene .workflow-task-label { font-size: 12px; }
+  .workflow-scene .workflow-files-heading { font-size: 10px; }
+  .workflow-scene .workflow-agent-status { font-size: 10px; }
+  .workflow-scene .workflow-file-hash { font-size: 12px; }
+  .repository-orbit > figure > .workflow-caption { margin-inline: .35rem; }
+  .workflow-steps { gap: .6rem; }
+  .workflow-steps li { gap: .35rem; font-size: .88rem; }
+  .workflow-interface-note { max-width: 32ch; }
+  .workflow-explanation { min-height: 6rem; }
+}

@@ -1,58 +1,14 @@
 ---
-title: Artifacts
-description: Durable, Git-compatible workspaces for agents and sessions.
-template: splash
+title: Artifacts documentation
+description: Build with durable, Git-compatible repositories. Learn the model, publish your first files, and integrate Artifacts into your application.
 hero:
-  title: Durable workspaces for agents
-  tagline: Give every session an isolated Git repository, publish through REST or Git, and keep authoritative history in infrastructure you control.
-  actions:
-    - text: Start building
-      link: ./getting-started/
-      icon: right-arrow
-      variant: primary
-    - text: View on GitHub
-      link: https://github.com/mikerudolph/artifacts
-      icon: github
+  title: Durable files. Native Git.
+tableOfContents: false
+editUrl: false
+prev: false
+next: false
 ---
 
-<div class="artifact-flow">
-  <div>
-    <strong>01 · Isolate</strong>
-    <span>Create one repository for an agent session or unit of work.</span>
-  </div>
-  <div>
-    <strong>02 · Publish</strong>
-    <span>Write with a simple REST call or standard Git smart HTTP.</span>
-  </div>
-  <div>
-    <strong>03 · Hand off</strong>
-    <span>Read results directly or fork an immutable point-in-time snapshot.</span>
-  </div>
-</div>
+import HomeContent from '../docs-site/src/components/HomeContent.astro';
 
-## Built for work that outlives a context window
-
-Artifacts separates durable publication from disposable local state. Postgres owns the refs, object storage holds immutable packs, and local bare repositories can always be reconstructed.
-
-<div class="feature-grid">
-  <div>
-    <h3>Git-compatible</h3>
-    <p>Clone and push with existing Git clients. Repository-scoped credentials keep each handoff contained.</p>
-  </div>
-  <div>
-    <h3>REST-native</h3>
-    <p>Create repositories, publish files, inspect refs, and read results without installing Git.</p>
-  </div>
-  <div>
-    <h3>Snapshot-friendly</h3>
-    <p>Fork metadata at a captured sequence without duplicating object bytes or following later parent changes.</p>
-  </div>
-  <div>
-    <h3>Reconstructable</h3>
-    <p>Rebuild disposable caches from snapshot lineage, checkpoints, immutable WAL packs, and authoritative refs.</p>
-  </div>
-</div>
-
-## One service, two useful interfaces
-
-Use REST when an orchestrator needs a compact control plane. Use Git when an agent or tool already speaks the protocol. Both publish into the same repository history.
+<HomeContent />

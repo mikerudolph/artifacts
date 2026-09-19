@@ -1,0 +1,71 @@
+---
+title: Forks & imports
+description: Start independent work from an existing Artifacts repository, or bring in a public HTTPS Git repository.
+---
+
+import Forks from '../../docs-site/src/components/diagrams/Forks.astro';
+
+Forks capture an existing repository's published state. Imports clone an external repository into a new Artifacts repository. Both return the same repository-and-credential response shape as creation, and both complete their work within the request in the current implementation.
+
+## Create a snapshot fork
+
+With `REPO_API` pointing to your source repository:
+
+```bash
+FORKED=$(curl --fail-with-body -sS -X POST "$REPO_API/fork" \
+  -H "Authorization: Bearer $CONTROL_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"run-43","description":"Continue the research","default_branch_only":true}')
+
+export REMOTE=$(printf '%s' "$FORKED" | jq -er '.result.remote')
+export REPO_TOKEN=$(printf '%s' "$FORKED" | jq -er '.result.token')
+printf '%s' "$FORKED" | jq '.result | del(.token)'
+unset FORKED
+```
+
+The destination name must be new. The fork stays in the **same account and namespace** as the source; the body has no destination-account or namespace field.
+
+| Fork field | Behavior |
+| --- | --- |
+| `name` | Required destination repository name. |
+| `description` | Optional description for the child. |
+| `read_only` | Optional; defaults to `false`. |
+| `default_branch_only` | Optional; defaults to `false`. When true, copies the default branch and symbolic `HEAD` refs only. |
+
+Artifacts captures parent publication sequence and refs in one metadata transaction. The fork shares immutable object data and gets its own repository identity and credential. Later parent writes do not appear in the child; child writes do not update the parent.
+
+<Forks />
+
+This is a point-in-time fork, not a live synchronization relationship. There is no REST merge-back operation. Your application can collect output files, or coordinate a normal Git merge if histories and access permit it.
+
+`default_branch_only` selects refs, not a file filter or a history purge. Forking does not provide a way to share selected public files while hiding all earlier private content. Choose a separate clean repository for a different audience.
+
+Deletion of a parent blocks access to the parent while retaining the data its descendants need. The child can still reconstruct its captured history. See [snapshot storage](/artifacts/storage/#snapshot-forks-and-deletion).
+
+## Import a public Git repository
+
+The import route names the **new destination**. Do not create that destination first. This example imports this project's public repository with a shallow initial clone:
+
+```bash
+IMPORTED=$(curl --fail-with-body -sS -X POST \
+  "$API/namespaces/templates/repos/artifacts-source/import" \
+  -H "Authorization: Bearer $CONTROL_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"url":"https://github.com/mikerudolph/artifacts.git","depth":1}')
+printf '%s' "$IMPORTED" | jq '.result | del(.token)'
+unset IMPORTED
+```
+
+`url` is required. Optional `branch` selects an upstream branch; when omitted the importer discovers the upstream default branch. `depth` limits clone history when greater than zero. `read_only` makes the resulting repository read-only. Retain the returned token through your secret mechanism if a worker needs it; the filtered example above discards it.
+
+Imports accept publicly reachable HTTPS URLs only. They reject embedded username/password information, localhost, and private, loopback, unspecified, or link-local IP destinations. Private upstream authentication and local filesystem imports are not part of the public API.
+
+## Limits and failure recovery
+
+Imports use a two-minute operation timeout, a one-million-object bound, and a 512 MiB size budget. The aggregate checkout-size bound is monitored during cloning and checked before publication; enforcement between checks is best-effort. Deploy with an outer filesystem or container quota and normal outbound network controls.
+
+Import and fork return HTTP `200` on success with `id`, `name`, `default_branch`, `remote`, and `token`. They record jobs but do not return `202` for client polling. A long import may exceed your client or reverse proxy deadline, so set those deadlines deliberately.
+
+On failure, inspect repository lookup and `/jobs` if the destination is reachable. A failed import can reserve the destination name; normal lookup hides failed repositories. For a destination owned by your application, the delete route can tombstone that failed repository, but the tombstone retains its name. Retry with a fresh name after reconciling the failed attempt. There is no in-place retry, restore, or guaranteed name reuse API.
+
+See [snapshot handoffs](/artifacts/examples/snapshot-handoffs/) for a complete application pattern.

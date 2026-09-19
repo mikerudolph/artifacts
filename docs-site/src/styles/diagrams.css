@@ -1,0 +1,136 @@
+/* Native SVG explainers. No raster frames, animation runtime, or remote assets. */
+artifact-diagram {
+  --diagram-blue: var(--sl-color-accent);
+  --diagram-purple: var(--accent-lilac);
+  --diagram-cyan: var(--accent-cyan);
+  --diagram-green: var(--accent-green);
+  --diagram-ink: var(--sl-color-gray-1);
+  --diagram-muted: var(--sl-color-gray-2);
+  --diagram-line: var(--sl-color-gray-5);
+  --diagram-mono: ui-monospace, 'SFMono-Regular', 'SF Mono', Menlo, Consolas, monospace;
+  --step-progress: 0;
+  display: block;
+  container: explainer / inline-size;
+  margin-block: 1.75rem 2rem;
+  color: var(--diagram-ink);
+  font-family: var(--sl-font);
+  line-height: 1.5;
+}
+artifact-diagram *, artifact-diagram *::before, artifact-diagram *::after { box-sizing: border-box; }
+artifact-diagram figure { display: flex; flex-direction: column; margin: 0; overflow: clip; border: 1px solid var(--sl-color-hairline); border-radius: 10px; background: var(--surface-code); }
+artifact-diagram .diagram-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.25rem 1.5rem 1rem; }
+artifact-diagram .diagram-kicker { font-family: var(--diagram-mono); font-size: .6rem; text-transform: uppercase; letter-spacing: .095em; color: var(--diagram-muted); }
+artifact-diagram .diagram-kicker > span { color: var(--diagram-blue); margin-right: .35rem; }
+artifact-diagram .diagram-heading h3 { margin: .4rem 0 0; padding: 0; color: var(--sl-color-white); font-size: 1.05rem; font-weight: 550; letter-spacing: -.025em; line-height: 1.4; }
+artifact-diagram .diagram-motion-label { display: flex; align-items: center; gap: .4rem; color: var(--diagram-muted); font-family: var(--diagram-mono); font-size: .57rem; white-space: nowrap; }
+artifact-diagram .diagram-motion-label i { width: 5px; height: 5px; border-radius: 50%; background: var(--sl-color-gray-4); }
+artifact-diagram[data-playing='true'] .diagram-motion-label i { background: var(--diagram-green); }
+artifact-diagram .diagram-stage { order: 1; padding: 0 .5rem .5rem; }
+artifact-diagram .diagram-stage > svg { display: block; width: 100%; height: auto; overflow: visible; }
+artifact-diagram .diagram-stage > .scene-mobile { display: none; }
+artifact-diagram figcaption { order: 3; border-top: 1px solid var(--sl-color-hairline); background: var(--sl-color-black); }
+artifact-diagram.is-ready figcaption { border-top: 0; }
+artifact-diagram .diagram-controls { order: 2; display: none; gap: 1rem; align-items: center; padding: .7rem 1.5rem 0; border-top: 1px solid var(--sl-color-hairline); background: var(--sl-color-black); }
+artifact-diagram.is-ready .diagram-controls { display: flex; }
+artifact-diagram button { font-family: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+artifact-diagram .diagram-play { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; flex: 0 0 5.5rem; min-height: 2.5rem; padding: .5rem .7rem; border: 1px solid var(--diagram-line); border-radius: 5px; background: var(--surface-raised); color: var(--diagram-ink); font-size: .72rem; }
+artifact-diagram .diagram-play:hover { border-color: var(--diagram-blue); color: var(--sl-color-white); }
+artifact-diagram .pause-symbol { display: none; }
+artifact-diagram[data-paused='false'] .pause-symbol { display: block; }
+artifact-diagram[data-paused='false'] .play-symbol { display: none; }
+artifact-diagram .diagram-steps { display: flex; flex: 1; gap: .65rem; list-style: none; margin: 0; padding: 0; min-width: 0; }
+artifact-diagram .diagram-steps li { flex: 1; margin: 0; min-width: 0; }
+artifact-diagram .diagram-steps button { display: block; width: 100%; min-height: 2.75rem; text-align: start; border: 0; border-radius: 2px; background: transparent; color: var(--diagram-muted); padding: .3rem 0; }
+artifact-diagram .step-track { display: block; height: 2px; margin-bottom: .45rem; background: var(--diagram-line); overflow: hidden; }
+artifact-diagram .step-track > span { display: block; height: 100%; background: var(--diagram-blue); transform: scaleX(0); transform-origin: left; }
+artifact-diagram [aria-current='step'] .step-track { background: color-mix(in srgb, var(--diagram-blue) 35%, var(--surface-code)); }
+artifact-diagram [aria-current='step'] .step-track > span { transform: scaleX(var(--step-progress)); }
+artifact-diagram [data-past='true'] .step-track > span { transform: scaleX(1); background: var(--sl-color-gray-4); }
+artifact-diagram .step-label { display: flex; gap: .35rem; font-size: .65rem; white-space: nowrap; }
+artifact-diagram .step-index { font-family: var(--diagram-mono); font-size: .57rem; opacity: .7; align-self: center; }
+artifact-diagram [aria-current='step'] .step-label, artifact-diagram .diagram-steps button:hover { color: var(--diagram-blue); }
+artifact-diagram .diagram-caption { display: flex; gap: 1.2rem; padding: 1.15rem 1.5rem 1.25rem; min-height: 8.5rem; }
+artifact-diagram .diagram-counter { color: var(--diagram-blue); font-family: var(--diagram-mono); font-size: .7rem; padding-top: .15rem; flex: 0 0 4rem; }
+artifact-diagram .diagram-counter > span + span { color: var(--sl-color-gray-3); }
+artifact-diagram .diagram-caption-stack { min-width: 0; }
+artifact-diagram .diagram-caption strong { display: block; color: var(--sl-color-white); font-weight: 550; font-size: .82rem; }
+artifact-diagram .diagram-caption p { margin: .4rem 0 0; font-size: .76rem; line-height: 1.8; color: var(--diagram-muted); }
+artifact-diagram .diagram-transcript { margin: 0; border-top: 1px solid var(--sl-color-hairline); padding: 0 1.5rem; font-size: .75rem; }
+artifact-diagram .diagram-transcript summary { display: flex; justify-content: space-between; align-items: center; min-height: 2.75rem; cursor: pointer; color: var(--diagram-muted); list-style: none; }
+artifact-diagram .diagram-transcript summary::-webkit-details-marker { display: none; }
+artifact-diagram .diagram-transcript summary:hover { color: var(--diagram-blue); }
+artifact-diagram .diagram-transcript[open] summary > span { transform: rotate(90deg); }
+artifact-diagram .diagram-transcript ol { padding-left: 1.2rem; margin: .25rem 0 1rem; }
+artifact-diagram .diagram-transcript li { margin: .75rem 0; padding-left: .4rem; line-height: 1.85; }
+artifact-diagram .diagram-transcript strong { font-weight: 550; }
+artifact-diagram .diagram-transcript p { margin: 0 0 1.25rem; color: var(--diagram-muted); font-size: .7rem; line-height: 1.8; }
+artifact-diagram .diagram-no-script { padding: 0 1.5rem 1rem; font-size: .75rem; }
+artifact-diagram .diagram-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+
+/* A tiny diagram grammar: panels, object nodes, directed edges, flowing data. */
+artifact-diagram svg { font-family: var(--sl-font); }
+artifact-diagram svg text { fill: var(--diagram-ink); font-size: 13px; }
+artifact-diagram svg .mono { font-family: var(--diagram-mono); font-size: 11px; }
+artifact-diagram svg .label { fill: var(--diagram-muted); font-family: var(--diagram-mono); font-size: 10px; letter-spacing: 1.1px; }
+artifact-diagram svg .small { fill: var(--diagram-muted); font-size: 11px; }
+artifact-diagram svg .tiny { fill: var(--diagram-muted); font-family: var(--diagram-mono); font-size: 10px; }
+artifact-diagram svg .title { fill: var(--sl-color-white); font-size: 14px; font-weight: 550; letter-spacing: -.2px; }
+artifact-diagram svg .blue { fill: var(--diagram-blue); }
+artifact-diagram svg .purple { fill: var(--diagram-purple); }
+artifact-diagram svg .cyan { fill: var(--diagram-cyan); }
+artifact-diagram svg .green { fill: var(--diagram-green); }
+artifact-diagram .panel { fill: var(--surface-code); stroke: var(--diagram-line); stroke-width: 1; }
+artifact-diagram .panel-raised { fill: var(--surface-raised); stroke: var(--diagram-line); stroke-width: 1; }
+artifact-diagram .node { fill: var(--surface-raised); stroke: var(--diagram-line); stroke-width: 1; }
+artifact-diagram .node-blue { stroke: color-mix(in srgb, var(--diagram-blue) 65%, var(--diagram-line)); }
+artifact-diagram .node-purple { stroke: color-mix(in srgb, var(--diagram-purple) 65%, var(--diagram-line)); }
+artifact-diagram .node-cyan { stroke: color-mix(in srgb, var(--diagram-cyan) 65%, var(--diagram-line)); }
+artifact-diagram .node-green { stroke: color-mix(in srgb, var(--diagram-green) 65%, var(--diagram-line)); }
+artifact-diagram .divider, artifact-diagram .edge { fill: none; stroke: var(--diagram-line); stroke-width: 1.25; }
+artifact-diagram .edge { stroke: var(--sl-color-gray-3); stroke-linecap: round; stroke-linejoin: round; }
+artifact-diagram .edge-blue { stroke: var(--diagram-blue); }
+artifact-diagram .edge-purple { stroke: var(--diagram-purple); }
+artifact-diagram .edge-cyan { stroke: var(--diagram-cyan); }
+artifact-diagram .edge-green { stroke: var(--diagram-green); }
+artifact-diagram .dashed { stroke-dasharray: 4 5; }
+artifact-diagram .ghost { opacity: .35; }
+artifact-diagram .packet { fill: none; stroke: var(--diagram-blue); stroke-width: 3; stroke-linecap: round; stroke-dasharray: 4 96; }
+artifact-diagram .packet-purple { stroke: var(--diagram-purple); }
+artifact-diagram .packet-cyan { stroke: var(--diagram-cyan); }
+artifact-diagram .packet-green { stroke: var(--diagram-green); }
+artifact-diagram .check { fill: none; stroke: var(--diagram-green); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+artifact-diagram .object-dot { fill: var(--surface-code); stroke: var(--diagram-purple); stroke-width: 1.5; }
+artifact-diagram .ring { fill: none; stroke: var(--diagram-blue); stroke-width: 1; opacity: .45; }
+artifact-diagram [data-show] { opacity: 0; pointer-events: none; transition: opacity .55s ease; }
+artifact-diagram[data-step='0'] [data-show~='0'],
+artifact-diagram[data-step='1'] [data-show~='1'],
+artifact-diagram[data-step='2'] [data-show~='2'],
+artifact-diagram[data-step='3'] [data-show~='3'],
+artifact-diagram[data-step='4'] [data-show~='4'] { opacity: 1; }
+artifact-diagram.is-ready [data-show], artifact-diagram.is-ready .moving-ref { transition: none; }
+artifact-diagram .diagram-transit { opacity: 0; pointer-events: none; }
+
+@container explainer (max-width: 540px) {
+  artifact-diagram .diagram-stage > .scene-desktop { display: none; }
+  artifact-diagram .diagram-stage > .scene-mobile { display: block; }
+  artifact-diagram svg .mono { font-size: 12.5px; }
+  artifact-diagram svg .tiny { font-size: 11.5px; }
+  artifact-diagram svg .label { font-size: 11px; }
+  artifact-diagram svg .small { font-size: 13px; }
+  artifact-diagram svg .title { font-size: 16px; }
+  artifact-diagram .diagram-heading { padding: 1rem 1rem .6rem; align-items: flex-start; }
+  artifact-diagram .diagram-heading h3 { font-size: 1rem; }
+  artifact-diagram .diagram-motion-label { display: none; }
+  artifact-diagram .diagram-stage { padding: 0 .25rem .5rem; }
+  artifact-diagram .diagram-controls { order: 0; flex-wrap: wrap; gap: .2rem .7rem; padding: .65rem 1rem .2rem; border-bottom: 1px solid var(--sl-color-hairline); margin-block: .4rem .75rem; }
+  artifact-diagram.is-ready figcaption { border-top: 1px solid var(--sl-color-hairline); }
+  artifact-diagram .diagram-play { flex-basis: 4.5rem; min-height: 2.25rem; margin-bottom: .35rem; }
+  artifact-diagram .diagram-steps { flex-basis: 100%; gap: .55rem; }
+  artifact-diagram .step-label { font-size: .62rem; }
+  artifact-diagram .step-index { display: none; }
+  artifact-diagram .diagram-caption { gap: .65rem; padding: .9rem 1rem 1.1rem; min-height: 11.5rem; }
+  artifact-diagram .diagram-counter { flex-basis: 1.3rem; font-size: .65rem; }
+  artifact-diagram .diagram-counter > span + span { display: none; }
+  artifact-diagram .diagram-caption p { font-size: .75rem; }
+  artifact-diagram .diagram-transcript { padding-inline: 1rem; }
+}

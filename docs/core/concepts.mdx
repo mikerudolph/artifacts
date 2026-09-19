@@ -1,0 +1,74 @@
+---
+title: Core concepts
+description: A small set of primitives for storing the work your application produces.
+---
+
+import Objects from '../../docs-site/src/components/diagrams/Objects.astro';
+
+Artifacts is a service for creating and managing **Git-compatible file repositories**. Your backend can create a repository and publish files with HTTP. A worker can clone that same repository with Git, add output, and push. Your backend can then read the published output over HTTP.
+
+You do not need to use agents to use Artifacts. A repository can hold generated reports, a project workspace, a user's memory, or the inputs and outputs of a job. These are application conventions built on the same primitives.
+
+## The address of your data
+
+```text title="A repository and the files inside it"
+account: acme                     tenant / authentication boundary
+└── namespace: research           organizational grouping
+    └── repository: run-42        history / Git credential boundary
+        ├── AGENTS.md             instructions, if you use an agent
+        ├── session.json          your structured application data
+        └── outputs/
+            └── report.md         a native file
+```
+
+| Primitive | What it gives you | What you decide |
+| --- | --- | --- |
+| Account | Tenant-bound REST authentication and repository ownership. | Which application tenant maps to this account. |
+| Namespace | A named group of repositories within an account. | Group by workload, environment, or team. |
+| Repository | An isolated Git history and repository-scoped Git credentials. | The unit of access, collaboration, and retention. |
+| File | Bytes at a path in a committed tree. | Format, schema, validation, and meaning. |
+| Commit | A versioned tree, parent history, message, and author. | What belongs in one publication. |
+| Ref | A name such as `main` that points to a commit. | Which branch is the working or published version. |
+| Snapshot fork | A new repository at a captured parent publication. | When work should diverge with independent access. |
+
+A namespace is an organizational boundary. It does not narrow a control-plane token's account access. A Git credential covers a whole repository, including its readable history; it cannot be restricted to a directory or branch.
+
+## A snapshot is a graph of objects
+
+A branch name is a movable pointer, not a folder and not a permanent version. It resolves to a commit; the commit identifies a root tree; tree entries associate names with file blobs or nested trees. A blob contains bytes, while its path comes from the tree that references it.
+
+<Objects />
+
+Changing a file creates new objects instead of mutating the previous snapshot. Unchanged content can be referenced by both snapshots. Your application should keep a **commit SHA** for reproducible output, and use a **branch name** when it intentionally wants the latest published work. None of this requires your application to manage Git object IDs for individual files.
+
+## One history, two interfaces
+
+Use the **REST API** to create and find repositories, issue credentials, publish small file snapshots, read content, and manage lifecycle. Use **Git smart HTTP** for clone, fetch, and push with existing tools. Both publish into the same history.
+
+```text
+Your backend ── REST commit ──┐
+                             ├── Repository history ── REST read ── Your application
+Your worker  ── Git push ─────┘                      └── Git fetch ── Other workers
+```
+
+A successful REST commit returns a Git commit SHA and a publication sequence. The SHA identifies the content version. The sequence tracks storage publications within that repository; it is not a business event ID or a count of Git commits. One push can contain several commits.
+
+An empty repository has a default branch setting and symbolic `HEAD`, but no commit to read yet. Publish its first files before requesting a tree or file.
+
+## What your application owns
+
+Artifacts does not interpret `session.json`, enforce your JSON schema, schedule workers, query your business records, or index file contents for search. Your application provides those behaviors.
+
+A useful division is to keep permissions, task state, billing, and searchable records in your application database, with a link to the Artifacts account, namespace, repository ID/name, and relevant commit SHA. Put versioned inputs, manifests, and output files in the repository. A manifest can make a repository understandable on its own, but consistency between that manifest and your database is your application's responsibility.
+
+## What makes a publication durable
+
+Postgres owns published refs and repository metadata. Object storage holds immutable Git packs. A local bare repository is a cache that the server can reconstruct.
+
+Artifacts stores the object data before publishing the refs in a Postgres transaction. After an acknowledged publication, readers can resolve that version through either interface. Consumers work with files and Git objects; cache reconstruction and WAL packs stay on the server.
+
+The current implementation is single-node. Plan your deployment around one service node, Postgres, and durable object storage. See [storage architecture](/artifacts/storage/) for the detailed contract.
+
+## Choose the next step
+
+If you have not made a commit yet, follow the [quickstart](/artifacts/getting-started/). Once that works, [model your data](/artifacts/core/data-model/) before choosing your repository layout. That decision determines who can read the work, how writers coordinate, and how long you keep it.

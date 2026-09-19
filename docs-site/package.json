@@ -4,12 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "astro build",
+    "check": "npm run build && node scripts/check-links.mjs && node scripts/check-diagrams.mjs && node --test scripts/diagram-*.test.mjs",
+    "brand:render": "node scripts/render-brand.mjs",
+    "build": "astro sync --force && astro build",
     "dev": "astro dev",
     "preview": "astro preview"
   },
   "dependencies": {
     "@astrojs/starlight": "0.42.0",
+    "@fontsource/barlow-semi-condensed": "5.3.0",
     "astro": "7.3.1",
     "sharp": "0.35.4"
   }

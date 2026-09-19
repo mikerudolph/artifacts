@@ -1,15 +1,30 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import { sections } from './src/navigation.mjs';
 
 export default defineConfig({
   site: 'https://mikerudolph.github.io',
   base: '/artifacts',
+  redirects: { '/onboarding': '/artifacts/examples/agent-sessions/' },
   integrations: [
     starlight({
       title: 'Artifacts',
-      description: 'Git-compatible artifact repositories built for agents and sessions.',
+      description: 'Durable, Git-compatible file repositories for your applications and agents.',
       disable404Route: true,
-      customCss: ['./src/styles/custom.css'],
+      favicon: '/favicon.svg',
+      customCss: ['./src/styles/custom.css', './src/styles/orbital.css'],
+      components: {
+        Header: './src/components/Header.astro',
+        Sidebar: './src/components/Sidebar.astro',
+        PageTitle: './src/components/PageTitle.astro',
+        Hero: './src/components/Hero.astro',
+        Footer: './src/components/Footer.astro',
+        ThemeProvider: './src/components/ThemeProvider.astro',
+      },
+      expressiveCode: {
+        themes: ['tokyo-night', 'github-light'],
+        styleOverrides: { borderRadius: '2px', codeFontSize: '0.8125rem', codeLineHeight: '1.8' },
+      },
       head: [
         {
           tag: 'meta',
@@ -40,23 +55,7 @@ export default defineConfig({
           href: 'https://github.com/mikerudolph/artifacts',
         },
       ],
-      sidebar: [
-        {
-          label: 'Start here',
-          items: [
-            { label: 'Overview', slug: '' },
-            { label: 'Get started', slug: 'getting-started' },
-          ],
-        },
-        {
-          label: 'Guides',
-          items: [{ label: 'Agent onboarding', slug: 'onboarding' }],
-        },
-        {
-          label: 'Architecture',
-          items: [{ label: 'Storage', slug: 'storage' }],
-        },
-      ],
+      sidebar: sections.map(({ label, groups }) => ({ label, items: groups })),
     }),
   ],
 });

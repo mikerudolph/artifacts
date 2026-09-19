@@ -28,9 +28,21 @@ func TestRepos(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("get %d", rec.Code)
 	}
+	var repository map[string]any
+	decodeResult(t, rec, &repository)
+	if _, exists := repository["storage_version"]; exists {
+		t.Fatal("repository response exposes an internal storage revision")
+	}
 	rec = doJSON(t, h, http.MethodGet, acctBase+"/namespaces/default/repos?limit=10&sort=name&direction=asc&search=ap", "", nil)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("list %d", rec.Code)
+	}
+	var repositories []map[string]any
+	decodeResult(t, rec, &repositories)
+	for _, repository := range repositories {
+		if _, exists := repository["storage_version"]; exists {
+			t.Fatal("repository listing exposes an internal storage revision")
+		}
 	}
 	rec = doJSON(t, h, http.MethodDelete, acctBase+"/namespaces/default/repos/app", "", nil)
 	if rec.Code != http.StatusAccepted {

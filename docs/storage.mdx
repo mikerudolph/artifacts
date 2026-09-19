@@ -1,13 +1,26 @@
 ---
 title: Storage architecture
-description: How Artifacts publishes durable Git data and reconstructs disposable caches.
+description: Understand the publication contract, disposable caches, and the data that must survive a service restart.
 ---
 
-# Storage architecture
+import Publication from '../docs-site/src/components/diagrams/Publication.astro';
+import Storage from '../docs-site/src/components/diagrams/Storage.astro';
 
-Artifacts v2 is intentionally single-node. Postgres is the only publication authority. There is no gossip, rendezvous ownership, multi-node replication protocol, or object-store compare-and-swap.
+Artifacts is intentionally single-node. Postgres is the publication authority, object storage holds immutable Git packs, and local bare repositories are reconstructable caches. Both REST commits and Git pushes use this same storage contract.
+
+| Layer | Holds | Recovery responsibility |
+| --- | --- | --- |
+| Postgres | Repository ownership, refs, credentials, publication records, checkpoints, and fork lineage. | Durable state; back it up. |
+| Object storage (`fs` or `s3`) | Immutable pack and index bytes. | Durable state; preserve every object needed by published refs and descendants. |
+| Local cache | Materialized bare Git repositories. | Disposable; the server rebuilds it when missing, stale, or corrupt. |
+
+Your application can rely on a successful publication having durable objects before its refs become visible. It should store commit SHAs for exact versions and read files through REST or Git. WAL sequence numbers and object keys are storage diagnostics, not an application data model.
+
+There is no gossip, distributed ownership, multi-node replication protocol, or object-store compare-and-swap in the current design.
 
 ## Write path
+
+<Publication />
 
 1. Git receive data is bounded and staged on disk in the repository cache.
 2. Git validates and indexes the received objects.
@@ -19,6 +32,8 @@ Artifacts v2 is intentionally single-node. Postgres is the only publication auth
 Object durability therefore precedes ref visibility. A failed multi-ref compare rolls back every ref and the WAL record. Uploaded but unpublished blobs are harmless garbage and can be collected later.
 
 ## Cache and checkpoints
+
+<Storage />
 
 Bare repositories under `ARTIFACTS_CACHE_DIR/{account}/{repo_id}` are disposable. A keyed process mutex and an OS file lock shared across processes serialize rebuild, Git RPC, receive, REST commit, and compaction for one repository. Each cache records the Postgres WAL sequence it represents and is checked with `git fsck`; missing, stale, or corrupt caches are evicted and reconstructed.
 
@@ -39,6 +54,12 @@ Deletion moves a repository through `deleting` to `deleted`, which blocks Git an
 
 ## Legacy data
 
-Migration 001 remains unchanged. Migration 002 adds tenant ownership on repositories, storage version and WAL sequence, failure/deletion state, immutable pack/ref-update tables, checkpoints, fork lineage, and job lease fields. The legacy loose-object storer remains readable for migration/import compatibility; all normal v2 publication uses immutable packs.
+Migration 001 remains unchanged. Migration 002 adds tenant ownership on repositories, WAL sequence, failure/deletion state, immutable pack/ref-update tables, checkpoints, fork lineage, and job lease fields. The legacy loose-object storer remains readable for migration/import compatibility; all normal publication uses immutable packs.
 
 HTTPS imports apply a hard per-file operating-system quota and stream object counting. The aggregate checkout-size cap is monitored during clone and checked again before publication; it is best-effort between monitor intervals, so deployments should retain an outer filesystem or container quota as defense in depth.
+
+## Integrator implications
+
+A cold file read may take longer while the server reconstructs a cache; clients still receive ordinary file bytes. A transaction protects publication of refs, but it cannot merge two applications' competing snapshots or coordinate your external database transaction. Those belong in your [integration workflow](/artifacts/core/integration/).
+
+Deleting a repository means access revocation and a retained tombstone. It does not promise physical erasure or name reuse. Plan retention with [repository boundaries](/artifacts/core/data-model/) and configure durable storage using the [configuration reference](/artifacts/core/configuration/).

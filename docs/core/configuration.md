@@ -1,0 +1,81 @@
+---
+title: Configuration
+description: Run the service with explicit authentication, durable storage, and a reachable Git origin.
+---
+
+Artifacts currently runs as a single service node with Postgres metadata and either filesystem or S3-compatible object storage. The server also requires the Git executable. Start with the [quickstart](/artifacts/getting-started/) for local use and [authentication](/artifacts/core/authentication/) for token setup.
+
+## Service commands
+
+| Command | Purpose |
+| --- | --- |
+| `go run ./cmd/artifacts dev` | Local unauthenticated REST, Git, and web UI; loopback only. |
+| `go run ./cmd/artifacts dev --addr 127.0.0.1:8081` | Local mode at a different loopback address. Overrides listen/public URL configuration. |
+| `go run ./cmd/artifacts serve` | Authenticated REST and Git. The development web UI is not mounted. |
+| `go run ./cmd/artifacts token create --account acme` | Mint a hashed, account-bound control-plane token. |
+| `go run ./cmd/artifacts migrate` | Run database migrations explicitly. Startup also runs them. |
+| `go run ./cmd/artifacts compact --account acme --namespace research --repo run-42` | Write a checkpoint pack for the repository. |
+
+For a built executable, use `go build -o ./bin/artifacts ./cmd/artifacts` and replace `go run ./cmd/artifacts` with `./bin/artifacts`.
+
+## Database, HTTP, and authentication
+
+| Environment variable | Default / behavior |
+| --- | --- |
+| `DATABASE_URL` | Postgres DSN. Falls back to `ARTIFACTS_DATABASE_URL`. Configure it explicitly. |
+| `ARTIFACTS_HTTP_ADDR` | `:8080` in `serve` mode. Set `127.0.0.1:8080` to keep the listener local. |
+| `ARTIFACTS_PUBLIC_URL` | `http://localhost:8080`. Public origin used in returned Git remotes; set to your externally reachable HTTPS origin. |
+| `ARTIFACTS_STREAM_IDLE_TIMEOUT` | `30s`. Positive duration measuring inactivity within Git/REST transfers. |
+| `ARTIFACTS_AUTH` | `token`. `none` is restricted to `dev`; `serve` rejects it. |
+| `ARTIFACTS_DEFAULT_ACCOUNT` | `local`. Default tenant for environment-token bootstrap. |
+| `ARTIFACTS_API_TOKEN` | Optional bootstrap control token; startup stores its hash for the default account. CLI-created tokens are preferable when provisioning named tenants. |
+
+`token create` can bootstrap an account without disabling authentication and runs migrations as needed. Supply its output to the client that needs REST access. The service validates against stored hashes; you do not need to set `ARTIFACTS_API_TOKEN` when using a CLI-created token.
+
+For a remote deployment, terminate TLS at your ingress or reverse proxy and set `ARTIFACTS_PUBLIC_URL` to that HTTPS origin. Configure proxy body-size and timeout limits to accommodate the operations you use. Do not expose `dev` mode through a public proxy; it bypasses authentication and also enforces a local Host header.
+
+## Filesystem object storage
+
+```bash
+export ARTIFACTS_STORAGE=fs
+export ARTIFACTS_DATA_DIR=/var/lib/artifacts/objects
+export ARTIFACTS_CACHE_DIR=/var/cache/artifacts/repos
+```
+
+| Variable | Default | Durability |
+| --- | --- | --- |
+| `ARTIFACTS_STORAGE` | `fs` | Selects `fs` or `s3`. |
+| `ARTIFACTS_DATA_DIR` | `./data` | Durable immutable objects for `fs`. Keep on persistent storage. |
+| `ARTIFACTS_CACHE_DIR` | `./cache` | Disposable local bare repositories, reconstructable from durable state. |
+
+Create and provision these example directories according to your service user's permissions. Do not confuse the object directory with the cache: removing the former can destroy repository history. Give cache storage enough space for reconstruction, staging, repacking, and active Git operations.
+
+## S3-compatible object storage
+
+```bash
+export ARTIFACTS_STORAGE=s3
+export S3_BUCKET=artifacts
+export S3_REGION=us-east-1
+export ARTIFACTS_CACHE_DIR=/var/cache/artifacts/repos
+# Supply AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY through your secret manager.
+```
+
+| Variable | Behavior |
+| --- | --- |
+| `S3_BUCKET` | Required with `ARTIFACTS_STORAGE=s3`. |
+| `S3_ENDPOINT` | Optional custom endpoint; falls back to `AWS_ENDPOINT_URL`. |
+| `S3_REGION` | Falls back to `AWS_REGION`, then `us-east-1`. |
+| `AWS_ACCESS_KEY_ID` | Access key; falls back to `S3_ACCESS_KEY`. |
+| `AWS_SECRET_ACCESS_KEY` | Secret key; falls back to `S3_SECRET_KEY`. |
+| `S3_PREFIX` | Optional object key prefix. |
+| `S3_USE_PATH_STYLE` | Enables path-style addressing with `1`, `true`, `yes`, or `on`; useful for compatible local services. |
+
+Provision the bucket and access policy before starting the service. Keep object storage private; clients use Artifacts REST or Git, not direct bucket access. Changing the backend, bucket, or prefix does not migrate existing object bytes.
+
+## Operate and recover
+
+Back up **both Postgres and durable object storage**. They hold complementary parts of the publication contract: refs and metadata in Postgres, immutable packs in storage. A disposable cache alone is not a backup. Coordinate recovery so every ref in the restored database has its referenced pack data.
+
+Compaction writes a checkpoint to speed reconstruction. It does not physically purge retained history or implement garbage collection. Snapshot descendants can still depend on a deleted parent's objects, so independent age-based object deletion can break them.
+
+The current implementation does not provide a multi-node replication protocol, distributed ownership, automatic retention scheduler, or physical erasure API. Read [storage architecture](/artifacts/storage/) before changing deployment topology or deleting stored data.
