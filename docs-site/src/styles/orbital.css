@@ -115,7 +115,9 @@ starlight-toc a[aria-current='true'] { color: var(--frame-accent); }
 .home-hero::before {
   content: ''; position: absolute; z-index: -1; inset: -2.25rem -2.75rem 0; pointer-events: none;
   background: radial-gradient(ellipse at 82% 39%, color-mix(in srgb, var(--sl-color-accent) 13%, transparent), transparent 54%), linear-gradient(160deg, transparent 45%, color-mix(in srgb, var(--accent-lilac) 4%, transparent) 65%, transparent 80%);
-  mask-image: radial-gradient(ellipse 75% 75% at 65% 35%, #000 30%, transparent 100%);
+  /* The off-center radial mask alone is still opaque at the inline edges. */
+  mask-image: radial-gradient(ellipse 75% 75% at 65% 35%, #000 30%, transparent 100%), linear-gradient(to right, transparent, #000 12%, #000 76%, transparent);
+  mask-composite: intersect;
 }
 .hero-copy { position: relative; z-index: 1; }
 .hero-copy .eyebrow { font-size: .58rem; letter-spacing: .12em; gap: .75rem; }
