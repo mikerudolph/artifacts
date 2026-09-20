@@ -17,6 +17,8 @@ Use REST and ordinary Git clients against the same history—for generated docum
 - **Branch out.** Fork a repository at a captured version for independent work.
 - **Follow changes.** Resume a publication feed from a saved cursor.
 
+For container deployment, database initialization, and production operations, see the [deployment guide](docs/core/deployment.md).
+
 ## Try it locally
 
 You need Go 1.25+, Docker with Compose, Git, `curl`, and `jq`.

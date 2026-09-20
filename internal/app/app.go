@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -37,23 +38,23 @@ func buildHandler(ctx context.Context, cfg config.Config, dev bool) (http.Handle
 	} else if cfg.Auth.Mode == "none" {
 		return nil, fmt.Errorf("no-auth mode is restricted to artifacts dev")
 	}
-	if err := postgres.Migrate(cfg.Postgres.DSN); err != nil {
-		return nil, err
-	}
-	mdb, err := postgres.Open(ctx, cfg.Postgres.DSN)
+	mdb, err := openMetadata(ctx, cfg.Postgres)
 	if err != nil {
 		return nil, err
 	}
+	built := false
+	defer func() {
+		if !built {
+			closeMetadata(mdb)
+		}
+	}()
+	checkSchema := mdb.(interface{ CheckSchema(context.Context) error }).CheckSchema
 	objs, err := openObjects(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
 	svc := service.New(mdb, nil, cfg.HTTP.PublicURL)
-	cachePath := cfg.Cache.Path
-	if cachePath == "" {
-		cachePath = cfg.Storage.FS.Path + ".cache"
-	}
-	cache, err := repository.New(mdb, objs, cachePath)
+	cache, err := openCache(mdb, objs, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +85,17 @@ func buildHandler(ctx context.Context, cfg config.Config, dev bool) (http.Handle
 	if dev {
 		h = devHostGuard(h)
 	}
-	return &maintainedHandler{Handler: h, manager: cache}, nil
+	built = true
+	return &maintainedHandler{Handler: h, manager: cache, shutdownTimeout: cfg.HTTP.ShutdownTimeout,
+		close: func() { closeMetadata(mdb) },
+		ready: func(ctx context.Context) error {
+			if err := checkSchema(ctx); err != nil {
+				return err
+			}
+			_, err := objs.Exists(ctx, "health/readiness")
+			return err
+		},
+	}, nil
 }
 
 func devHostGuard(next http.Handler) http.Handler {
@@ -131,21 +142,6 @@ func combinedHandler(rest, git, browser http.Handler, dev bool) http.Handler {
 	})
 }
 
-func ensureAPIToken(ctx context.Context, metadata meta.Store, account types.AccountID, plaintext string) error {
-	if err := metadata.Accounts().Ensure(ctx, account); err != nil {
-		return err
-	}
-	_, err := metadata.APITokens().GetByHash(ctx, auth.HashAPI(plaintext))
-	if err == nil {
-		return nil
-	}
-	if !meta.IsNotFound(err) {
-		return err
-	}
-	_, err = metadata.APITokens().Create(ctx, types.APIToken{AccountID: account, Hash: auth.HashAPI(plaintext)})
-	return err
-}
-
 func openObjects(ctx context.Context, cfg config.Config) (object.Store, error) {
 	if cfg.Storage.Backend == "s3" {
 		return objs3.New(ctx, cfg.Storage.S3)
@@ -177,7 +173,39 @@ Usage:
   artifacts serve
   artifacts dev [--addr 127.0.0.1:8080]
   artifacts migrate
+  artifacts bootstrap --account ACCOUNT
   artifacts token create --account ACCOUNT
   artifacts compact --account ACCOUNT --namespace NAMESPACE --repo REPO
 `)
+}
+
+func openMetadata(ctx context.Context, cfg config.Postgres) (meta.V2Store, error) {
+	if !cfg.SkipMigrations {
+		if err := postgres.Migrate(cfg.DSN); err != nil {
+			return nil, err
+		}
+	}
+	mdb, err := postgres.Open(ctx, cfg.DSN)
+	if err != nil {
+		return nil, err
+	}
+	if err := mdb.(interface{ CheckSchema(context.Context) error }).CheckSchema(ctx); err != nil {
+		closeMetadata(mdb)
+		return nil, err
+	}
+	return mdb, nil
+}
+
+func openCache(mdb meta.V2Store, objs object.Store, cfg config.Config) (*repository.Manager, error) {
+	path := cfg.Cache.Path
+	if path == "" {
+		path = cfg.Storage.FS.Path + ".cache"
+	}
+	if err := writableDirectory(path); err != nil {
+		return nil, err
+	}
+	if err := writableDirectory(os.TempDir()); err != nil {
+		return nil, err
+	}
+	return repository.New(mdb, objs, path)
 }

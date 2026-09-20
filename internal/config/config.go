@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -31,6 +32,7 @@ type HTTP struct {
 	Addr              string
 	PublicURL         string
 	StreamIdleTimeout time.Duration
+	ShutdownTimeout   time.Duration
 }
 
 type Auth struct {
@@ -63,7 +65,8 @@ type S3 struct {
 }
 
 type Postgres struct {
-	DSN string
+	DSN            string
+	SkipMigrations bool
 }
 
 type Account struct {
@@ -71,23 +74,38 @@ type Account struct {
 }
 
 func Load() (Config, error) {
-	cfg := load()
+	cfg, err := load()
+	if err != nil {
+		return cfg, err
+	}
 	return cfg, cfg.validate(false)
 }
 
 func LoadNoAuth() (Config, error) {
-	cfg := load()
+	cfg, err := load()
+	if err != nil {
+		return cfg, err
+	}
 	cfg.Auth.Mode = authNone
 	cfg.Auth.APIToken = ""
 	return cfg, cfg.validate(true)
 }
 
-func load() Config {
+func load() (Config, error) {
+	skip, err := strconv.ParseBool(env("ARTIFACTS_SKIP_MIGRATIONS", "false"))
+	if err != nil {
+		return Config{}, fmt.Errorf("ARTIFACTS_SKIP_MIGRATIONS must be true or false")
+	}
+	shutdown := durationEnv("ARTIFACTS_SHUTDOWN_TIMEOUT", 30*time.Second)
+	if shutdown <= 0 {
+		return Config{}, fmt.Errorf("ARTIFACTS_SHUTDOWN_TIMEOUT must be a positive duration")
+	}
 	return Config{
 		HTTP: HTTP{
 			Addr:              env("ARTIFACTS_HTTP_ADDR", defaultAddr),
 			PublicURL:         strings.TrimRight(env("ARTIFACTS_PUBLIC_URL", defaultURL), "/"),
 			StreamIdleTimeout: durationEnv("ARTIFACTS_STREAM_IDLE_TIMEOUT", 30*time.Second),
+			ShutdownTimeout:   shutdown,
 		},
 		Auth: Auth{
 			Mode:     env("ARTIFACTS_AUTH", authToken),
@@ -107,9 +125,9 @@ func load() Config {
 			},
 		},
 		Cache:    Cache{Path: env("ARTIFACTS_CACHE_DIR", "./cache")},
-		Postgres: Postgres{DSN: firstEnv("DATABASE_URL", "ARTIFACTS_DATABASE_URL")},
+		Postgres: Postgres{DSN: firstEnv("DATABASE_URL", "ARTIFACTS_DATABASE_URL"), SkipMigrations: skip},
 		Account:  Account{DefaultID: env("ARTIFACTS_DEFAULT_ACCOUNT", defaultAcct)},
-	}
+	}, nil
 }
 
 func (c Config) Validate() error {
@@ -138,20 +156,30 @@ func (c Config) validate(allowNoAuth bool) error {
 	default:
 		return fmt.Errorf("ARTIFACTS_STORAGE must be %q or %q", backendFS, backendS3)
 	}
-	if c.HTTP.Addr == "" {
-		return fmt.Errorf("ARTIFACTS_HTTP_ADDR is required")
-	}
-	if c.HTTP.PublicURL == "" {
-		return fmt.Errorf("ARTIFACTS_PUBLIC_URL is required")
-	}
-	if c.HTTP.StreamIdleTimeout <= 0 {
-		return fmt.Errorf("ARTIFACTS_STREAM_IDLE_TIMEOUT must be a positive duration")
+	if err := c.HTTP.validate(); err != nil {
+		return err
 	}
 	if c.Cache.Path == "" {
 		return fmt.Errorf("ARTIFACTS_CACHE_DIR is required")
 	}
 	if c.Account.DefaultID == "" {
 		return fmt.Errorf("ARTIFACTS_DEFAULT_ACCOUNT is required")
+	}
+	return nil
+}
+
+func (h HTTP) validate() error {
+	if h.Addr == "" {
+		return fmt.Errorf("ARTIFACTS_HTTP_ADDR is required")
+	}
+	if h.PublicURL == "" {
+		return fmt.Errorf("ARTIFACTS_PUBLIC_URL is required")
+	}
+	if h.ShutdownTimeout < 0 {
+		return fmt.Errorf("ARTIFACTS_SHUTDOWN_TIMEOUT must be a positive duration")
+	}
+	if h.StreamIdleTimeout <= 0 {
+		return fmt.Errorf("ARTIFACTS_STREAM_IDLE_TIMEOUT must be a positive duration")
 	}
 	return nil
 }
@@ -191,4 +219,12 @@ func truthy(v string) bool {
 	default:
 		return false
 	}
+}
+
+func LoadDatabase() (Postgres, error) {
+	dsn := firstEnv("DATABASE_URL", "ARTIFACTS_DATABASE_URL")
+	if dsn == "" {
+		return Postgres{}, fmt.Errorf("DATABASE_URL is required")
+	}
+	return Postgres{DSN: dsn}, nil
 }

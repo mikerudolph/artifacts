@@ -21,6 +21,7 @@ export const sections = [
         { label: 'REST API reference', slug: 'core/api-reference' },
         { label: 'Errors & limits', slug: 'core/errors-and-limits' },
         { label: 'Configuration', slug: 'core/configuration' },
+        { label: 'Production deployment', slug: 'core/deployment' },
         { label: 'Storage architecture', slug: 'storage' },
       ] },
     ],

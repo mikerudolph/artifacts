@@ -3,10 +3,18 @@ package main
 import (
 	"context"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/mikerudolph/artifacts/internal/app"
 )
 
 func main() {
-	os.Exit(app.Run(context.Background(), os.Args[1:], os.Stdout, os.Stderr))
+	os.Exit(run())
+}
+
+func run() int {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	return app.Run(ctx, os.Args[1:], os.Stdout, os.Stderr)
 }

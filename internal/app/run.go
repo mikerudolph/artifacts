@@ -30,6 +30,8 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		return runDev(ctx, args[1:], stderr)
 	case "compact":
 		return runCompact(ctx, args[1:], stderr)
+	case "bootstrap":
+		return runBootstrap(ctx, args[1:], stdout, stderr)
 	case "migrate":
 		return runMigrate(stderr)
 	case "token":
@@ -55,15 +57,13 @@ func runServe(ctx context.Context, stderr io.Writer) int {
 }
 
 func listen(ctx context.Context, addr string, h http.Handler, stderr io.Writer) int {
-	stop := startMaintenance(ctx, h)
-	defer stop()
-	_, _ = fmt.Fprintf(stderr, "listening on %s\n", addr)
-	srv := newHTTPServer(addr, h)
-	if err := srv.ListenAndServe(); err != nil {
+	listener, err := net.Listen("tcp", addr)
+	if err != nil {
+		closeHandler(h)
 		_, _ = fmt.Fprintln(stderr, err)
 		return 1
 	}
-	return 0
+	return serveListener(ctx, listener, h, stderr)
 }
 
 func newHTTPServer(addr string, h http.Handler) *http.Server {
@@ -100,25 +100,20 @@ func runDev(ctx context.Context, args []string, stderr io.Writer) int {
 }
 
 func listenDev(ctx context.Context, addr string, h http.Handler, stderr io.Writer) int {
-	stop := startMaintenance(ctx, h)
-	defer stop()
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
+		closeHandler(h)
 		_, _ = fmt.Fprintln(stderr, err)
 		return 1
 	}
 	defer func() { _ = listener.Close() }()
 	tcp, ok := listener.Addr().(*net.TCPAddr)
 	if !ok || !tcp.IP.IsLoopback() {
+		closeHandler(h)
 		_, _ = fmt.Fprintln(stderr, "development listener did not resolve to loopback")
 		return 2
 	}
-	_, _ = fmt.Fprintf(stderr, "listening on %s\n", listener.Addr())
-	if err := newHTTPServer("", h).Serve(listener); err != nil {
-		_, _ = fmt.Fprintln(stderr, err)
-		return 1
-	}
-	return 0
+	return serveListener(ctx, listener, h, stderr)
 }
 
 func loopbackAddress(addr string) bool {
@@ -134,12 +129,12 @@ func loopbackAddress(addr string) bool {
 }
 
 func runMigrate(stderr io.Writer) int {
-	cfg, err := config.Load()
+	cfg, err := config.LoadDatabase()
 	if err != nil {
 		_, _ = fmt.Fprintln(stderr, err)
 		return 1
 	}
-	if err := postgres.Migrate(cfg.Postgres.DSN); err != nil {
+	if err := postgres.Migrate(cfg.DSN); err != nil {
 		_, _ = fmt.Fprintln(stderr, err)
 		return 1
 	}
@@ -171,15 +166,18 @@ func runToken(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 		_, _ = fmt.Fprintln(stderr, err)
 		return 1
 	}
-	if err := postgres.Migrate(cfg.Postgres.DSN); err != nil {
-		_, _ = fmt.Fprintln(stderr, err)
-		return 1
+	if !cfg.Postgres.SkipMigrations {
+		if err := postgres.Migrate(cfg.Postgres.DSN); err != nil {
+			_, _ = fmt.Fprintln(stderr, err)
+			return 1
+		}
 	}
 	metadata, err := postgres.Open(ctx, cfg.Postgres.DSN)
 	if err != nil {
 		_, _ = fmt.Fprintln(stderr, err)
 		return 1
 	}
+	defer closeMetadata(metadata)
 	acct := types.AccountID(*account)
 	if err := metadata.Accounts().Ensure(ctx, acct); err != nil {
 		_, _ = fmt.Fprintln(stderr, err)
@@ -212,15 +210,18 @@ func runCompact(ctx context.Context, args []string, stderr io.Writer) int {
 		_, _ = fmt.Fprintln(stderr, err)
 		return 1
 	}
-	if err := postgres.Migrate(cfg.Postgres.DSN); err != nil {
-		_, _ = fmt.Fprintln(stderr, err)
-		return 1
+	if !cfg.Postgres.SkipMigrations {
+		if err := postgres.Migrate(cfg.Postgres.DSN); err != nil {
+			_, _ = fmt.Fprintln(stderr, err)
+			return 1
+		}
 	}
 	metadata, err := postgres.Open(ctx, cfg.Postgres.DSN)
 	if err != nil {
 		_, _ = fmt.Fprintln(stderr, err)
 		return 1
 	}
+	defer closeMetadata(metadata)
 	objects, err := openObjects(ctx, cfg)
 	if err != nil {
 		_, _ = fmt.Fprintln(stderr, err)

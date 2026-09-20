@@ -1,0 +1,161 @@
+{
+  "passed": true,
+  "checks": [
+    {
+      "name": "setup command bootstrap",
+      "passed": true
+    },
+    {
+      "name": "setup output redacts credentials",
+      "passed": true
+    },
+    {
+      "name": "setup command migrate",
+      "passed": true
+    },
+    {
+      "name": "setup output redacts credentials",
+      "passed": true
+    },
+    {
+      "name": "setup command migrate",
+      "passed": true
+    },
+    {
+      "name": "setup output redacts credentials",
+      "passed": true
+    },
+    {
+      "name": "setup command bootstrap",
+      "passed": true
+    },
+    {
+      "name": "setup output redacts credentials",
+      "passed": true
+    },
+    {
+      "name": "setup command bootstrap",
+      "passed": true
+    },
+    {
+      "name": "setup output redacts credentials",
+      "passed": true
+    },
+    {
+      "name": "setup command bootstrap",
+      "passed": true
+    },
+    {
+      "name": "setup output redacts credentials",
+      "passed": true
+    },
+    {
+      "name": "bootstrap retries preserve one token and rejected account rolls back",
+      "passed": true
+    },
+    {
+      "name": "runtime role cannot create schema objects",
+      "passed": true
+    },
+    {
+      "name": "node 0 non-root and read-only",
+      "passed": true
+    },
+    {
+      "name": "node 1 non-root and read-only",
+      "passed": true
+    },
+    {
+      "name": "unauthenticated liveness",
+      "passed": true
+    },
+    {
+      "name": "database outage removes readiness",
+      "passed": true
+    },
+    {
+      "name": "database outage preserves liveness",
+      "passed": true
+    },
+    {
+      "name": "readiness recovers",
+      "passed": true
+    },
+    {
+      "name": "object storage outage removes readiness",
+      "passed": true
+    },
+    {
+      "name": "object storage outage preserves liveness",
+      "passed": true
+    },
+    {
+      "name": "object storage readiness recovers",
+      "passed": true
+    },
+    {
+      "name": "container core workflow and cleanup",
+      "passed": true
+    },
+    {
+      "name": "evidence integrity git.log",
+      "passed": true
+    },
+    {
+      "name": "other instance reads REST publication",
+      "passed": true
+    },
+    {
+      "name": "node 0 reads node 1 Git publication",
+      "passed": true
+    },
+    {
+      "name": "competing expected-head writes have one winner",
+      "passed": true
+    },
+    {
+      "name": "cross-instance idempotency returns same publication",
+      "passed": true
+    },
+    {
+      "name": "failed and replayed writes do not add publications",
+      "passed": true
+    },
+    {
+      "name": "SIGTERM exits cleanly",
+      "passed": true
+    },
+    {
+      "name": "surviving instance reads acknowledged history",
+      "passed": true
+    },
+    {
+      "name": "node 0 non-root and read-only",
+      "passed": true
+    },
+    {
+      "name": "cold restarted instance reads durable history",
+      "passed": true
+    },
+    {
+      "name": "cross-instance retry survives restart",
+      "passed": true
+    },
+    {
+      "name": "repository cleanup visible on node 0",
+      "passed": true
+    },
+    {
+      "name": "SIGTERM exits cleanly",
+      "passed": true
+    },
+    {
+      "name": "SIGTERM exits cleanly",
+      "passed": true
+    },
+    {
+      "name": "owned containers, network, and scratch removed",
+      "passed": true
+    }
+  ]
+}

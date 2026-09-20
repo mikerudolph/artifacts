@@ -125,3 +125,28 @@ func TestTruthyAndFirstEnv(t *testing.T) {
 		t.Fatal("path style")
 	}
 }
+
+func TestDeploymentConfiguration(t *testing.T) {
+	t.Setenv("ARTIFACTS_SKIP_MIGRATIONS", "true")
+	t.Setenv("ARTIFACTS_SHUTDOWN_TIMEOUT", "15s")
+	cfg, err := Load()
+	if err != nil || !cfg.Postgres.SkipMigrations || cfg.HTTP.ShutdownTimeout != 15*time.Second {
+		t.Fatal("deployment configuration", err)
+	}
+	t.Setenv("ARTIFACTS_SKIP_MIGRATIONS", "invalid")
+	if _, err := Load(); err == nil {
+		t.Fatal("accepted invalid boolean")
+	}
+	t.Setenv("ARTIFACTS_SKIP_MIGRATIONS", "false")
+	for _, value := range []string{"invalid", "0s", "-1s"} {
+		t.Setenv("ARTIFACTS_SHUTDOWN_TIMEOUT", value)
+		if _, err := LoadNoAuth(); err == nil {
+			t.Fatal("accepted invalid shutdown timeout")
+		}
+	}
+	t.Setenv("DATABASE_URL", "")
+	t.Setenv("ARTIFACTS_DATABASE_URL", "database")
+	if cfg, err := LoadDatabase(); err != nil || cfg.DSN != "database" {
+		t.Fatal("database fallback", err)
+	}
+}

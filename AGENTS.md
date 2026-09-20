@@ -77,6 +77,14 @@ Supersedes: D8 for serving instances running the same release with independent l
 
 Validation must cover independent-cache reconstruction during publication, competing writes, cross-instance idempotency, forks, compaction, revocation, deletion, and real REST/Git traffic. Mixed-release rolling upgrades, metadata reads from asynchronous replicas, automatic recovery of interrupted imports, and legacy storage conversion across instances are outside this topology. Convert legacy repositories before adding serving instances. No throughput or zero-downtime claim follows from concurrency correctness.
 
+### D13 (2026-09-20): Separate production migration, bootstrap, and serving
+
+Amends: D12 only for database and token provisioning. Use the same image for explicit schema migration, repeatable account/token bootstrap, and serving. Bootstrap consumes an injected secret, atomically ensures its account binding, rejects reuse across accounts, and never emits the secret. Automatic serving migrations remain the default for existing deployments; production can skip them and require an already-current schema, allowing a runtime database role without schema ownership.
+
+The image runs as a non-root user with explicit writable cache and scratch paths. Health probes are unauthenticated and return no dependency details: liveness checks the HTTP process, readiness checks current schema and readable object storage within a bounded deadline. Readiness does not prove write permissions. On termination, serving stops accepting work and drains active requests up to a configured timeout before cancellation. This does not establish mixed-release rolling-upgrade compatibility or guarantee that every in-flight operation completes.
+
+Validation must use the built image against an empty database, repeat migration/bootstrap, verify account binding and secret redaction, run two containers with read-only root filesystems, prove REST/Git interoperability and recovery, and exercise bounded shutdown.
+
 ## Working rules
 
 1. Trace the current behavior and relevant tests before editing. Keep existing user work intact. Carry authorized work through implementation and verification; surface material ambiguity without stopping independent work.

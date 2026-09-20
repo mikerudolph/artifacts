@@ -12,8 +12,9 @@ Artifacts runs with Postgres metadata and either filesystem or S3-compatible obj
 | `go run ./cmd/artifacts dev` | Local unauthenticated REST, Git, and web UI; loopback only. |
 | `go run ./cmd/artifacts dev --addr 127.0.0.1:8081` | Local mode at a different loopback address. Overrides listen/public URL configuration. |
 | `go run ./cmd/artifacts serve` | Authenticated REST and Git. The development web UI is not mounted. |
+| `go run ./cmd/artifacts bootstrap --account acme` | Ensure an account and injected control token after migration. |
 | `go run ./cmd/artifacts token create --account acme` | Mint a hashed, account-bound control-plane token. |
-| `go run ./cmd/artifacts migrate` | Run database migrations explicitly. Startup also runs them. |
+| `go run ./cmd/artifacts migrate` | Run database migrations explicitly. Startup also runs them unless explicitly disabled. |
 | `go run ./cmd/artifacts compact --account acme --namespace research --repo run-42` | Write a checkpoint pack for the repository. |
 
 For a built executable, use `go build -o ./bin/artifacts ./cmd/artifacts` and replace `go run ./cmd/artifacts` with `./bin/artifacts`.
@@ -23,12 +24,18 @@ For a built executable, use `go build -o ./bin/artifacts ./cmd/artifacts` and re
 | Environment variable | Default / behavior |
 | --- | --- |
 | `DATABASE_URL` | Postgres DSN. Falls back to `ARTIFACTS_DATABASE_URL`. Configure it explicitly. |
+| `ARTIFACTS_SKIP_MIGRATIONS` | `false`. Set `true` to skip automatic migrations; serving requires a current schema. |
+| `ARTIFACTS_SHUTDOWN_TIMEOUT` | `30s`. Positive deadline for draining active requests on SIGTERM. |
+| `ARTIFACTS_BOOTSTRAP_TOKEN` | Secret consumed only by `bootstrap`; never printed. |
+| `ARTIFACTS_BOOTSTRAP_TOKEN_FILE` | Alternative mounted secret file for `bootstrap`; do not set both sources. |
 | `ARTIFACTS_HTTP_ADDR` | `:8080` in `serve` mode. Set `127.0.0.1:8080` to keep the listener local. |
 | `ARTIFACTS_PUBLIC_URL` | `http://localhost:8080`. Public origin used in returned Git remotes; set to your externally reachable HTTPS origin. |
 | `ARTIFACTS_STREAM_IDLE_TIMEOUT` | `30s`. Positive duration measuring inactivity within Git/REST transfers. |
 | `ARTIFACTS_AUTH` | `token`. `none` is restricted to `dev`; `serve` rejects it. |
 | `ARTIFACTS_DEFAULT_ACCOUNT` | `local`. Default tenant for environment-token bootstrap. |
-| `ARTIFACTS_API_TOKEN` | Optional bootstrap control token; startup stores its hash for the default account. CLI-created tokens are preferable when provisioning named tenants. |
+| `ARTIFACTS_API_TOKEN` | Optional bootstrap control token; startup stores its hash for the default account. Use the explicit bootstrap command for production provisioning. |
+
+See [production deployment](/artifacts/core/deployment/) for image setup, database roles, health probes, and graceful shutdown.
 
 `token create` can bootstrap an account without disabling authentication and runs migrations as needed. Supply its output to the client that needs REST access. The service validates against stored hashes; you do not need to set `ARTIFACTS_API_TOKEN` when using a CLI-created token.
 
