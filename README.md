@@ -1,85 +1,124 @@
 # Artifacts
 
-Artifacts gives every agent and session an isolated, Git-compatible artifact repository. Postgres is the publication authority, object storage holds immutable Git packs, and local bare repositories are disposable caches.
+**Versioned files for your applications.**
 
-[Documentation](https://mikerudolph.github.io/artifacts/) · [Quickstart](docs/getting-started.md) · [Data modeling](docs/core/data-model.md) · [Examples](docs/examples/index.md)
+Artifacts gives your application Git-compatible repositories through a REST API. Create a repository, update files, read any committed version, and give a worker access to just the repository it needs.
 
-Requirements: Go 1.25+, Docker, Git, and optionally `jq`.
+Use REST and ordinary Git clients against the same history—for generated documents, agent workspaces, or application-managed files.
 
-## Five-minute local start
+[Documentation](https://mikerudolph.github.io/artifacts/) · [API reference](docs/core/api-reference.md) · [Examples](docs/examples/index.md)
+
+## What you can do
+
+- **Save changes through REST.** Update selected files without overwriting the rest of the repository.
+- **Work with Git.** Clone, commit, and push with ordinary Git clients.
+- **Read an exact version.** Use a commit SHA to retrieve files from that point in history.
+- **Delegate work.** Issue expiring, repository-scoped read or write credentials.
+- **Branch out.** Fork a repository at a captured version for independent work.
+- **Follow changes.** Resume a publication feed from a saved cursor.
+
+## Try it locally
+
+You need Go 1.25+, Docker with Compose, Git, `curl`, and `jq`.
+
+In your first terminal:
 
 ```bash
-docker compose up -d postgres
+git clone https://github.com/mikerudolph/artifacts.git
+cd artifacts
+docker compose up -d --wait postgres
 
 export DATABASE_URL='postgres://artifacts:artifacts@localhost:5432/artifacts?sslmode=disable'
 export ARTIFACTS_STORAGE=fs
 export ARTIFACTS_DATA_DIR=./data
 export ARTIFACTS_CACHE_DIR=./cache
-# Optional: maximum inactivity within a Git or REST transfer (default 30s).
-export ARTIFACTS_STREAM_IDLE_TIMEOUT=30s
 
 go run ./cmd/artifacts dev
 ```
 
-Open [http://127.0.0.1:8080](http://127.0.0.1:8080). `artifacts dev` serves the browser, REST API, and Git smart HTTP without authentication and only binds to a loopback address. The browser uses the REST API to navigate branches and directories, preview bounded text files, and download binary or large files. Repository materialization from WAL packs stays on the server.
+Leave the server running. Migrations run automatically. Development mode serves REST, Git, and the browser at [127.0.0.1:8080](http://127.0.0.1:8080), without authentication and bound to loopback only.
 
-Create a repository and publish initial files without installing Git:
+## Create, write, and read
+
+In a second terminal, create a repository for one research run:
 
 ```bash
-export API=http://127.0.0.1:8080/client/v4/accounts/local/artifacts
+API=http://127.0.0.1:8080/client/v4/accounts/local/artifacts
+REPO="research-$(date +%s)"
+REPO_API="$API/namespaces/demo/repos/$REPO"
 
-curl -sS -X POST "$API/namespaces/agents/repos" \
+REMOTE=$(curl --fail-with-body -sS -X POST "$API/namespaces/demo/repos" \
   -H 'Content-Type: application/json' \
-  -d '{"name":"researcher-session-42","description":"session artifacts"}' | jq
-
-curl -sS -X POST "$API/namespaces/agents/repos/researcher-session-42/commits" \
-  -H 'Content-Type: application/json' \
-  -d '{"message":"initial artifacts","files":[{"path":"README.md","content":"# Session 42\n"},{"path":"results/summary.txt","content":"ready\n"}]}' | jq
-
-curl -sS "$API/namespaces/agents/repos/researcher-session-42/file?ref=main&path=README.md"
-
-# Resolve a branch and list a directory without handling Git object IDs.
-curl -sS "$API/namespaces/agents/repos/researcher-session-42/tree?ref=main&path=results" | jq
+  -d "$(jq -n --arg name "$REPO" '{name: $name, issue_credential: false}')" \
+  | jq -er '.result.remote')
 ```
 
-REST commits update selected files and preserve untouched paths. Use `deletes` for removal, `expected_head` for concurrency checks, and `Idempotency-Key` for safe publication retries. For full-tree replacement, explicitly set `replace: true`.
+The namespace `demo` is created automatically. Publish a file:
 
-The create response contains a tenant-qualified remote and a short-lived REST-content/Git write credential (including its ID and expiry in `credential`):
+```bash
+curl --fail-with-body -sS -X POST "$REPO_API/commits" \
+  -H 'Content-Type: application/json' \
+  -d '{"message":"Start research","files":[{"path":"report.md","content":"Research started.\n"}]}' \
+  | jq '.result.sha'
+```
+
+The response contains a normal Git commit SHA. Read the file back:
+
+```bash
+curl --fail-with-body -sS --get "$REPO_API/file" \
+  --data-urlencode 'ref=main' --data-urlencode 'path=report.md'
+```
 
 ```text
-http://127.0.0.1:8080/git/local/agents/researcher-session-42.git
-art_v1_<secret>?expires=<unix>
+Research started.
 ```
 
-In normal `serve` mode Git requires that repository credential. It is bound to exactly one repository; the stored tenant, repository, scope, state, and expiry are checked for every operation.
+## Continue with Git
+
+In the same terminal, clone that repository, edit the file, and push:
 
 ```bash
-git -c http.extraHeader="Authorization: Bearer $REPO_TOKEN" clone "$REMOTE"
+WORK_DIR=$(mktemp -d)
+git clone "$REMOTE" "$WORK_DIR/repo"
+printf 'Research complete.\n' > "$WORK_DIR/repo/report.md"
+git -C "$WORK_DIR/repo" add report.md
+git -C "$WORK_DIR/repo" -c user.name='Demo' \
+  -c user.email='demo@example.com' commit -m 'Complete research'
+git -C "$WORK_DIR/repo" push origin main
+
+SHA=$(git -C "$WORK_DIR/repo" rev-parse HEAD)
+curl --fail-with-body -sS --get "$REPO_API/file" \
+  --data-urlencode "ref=$SHA" --data-urlencode 'path=report.md'
 ```
 
-## Production-style authentication
-
-Create a tenant-bound, hashed control-plane token:
-
-```bash
-export DATABASE_URL='postgres://artifacts:artifacts@localhost:5432/artifacts?sslmode=disable'
-export ARTIFACTS_AUTH=none
-CONTROL_TOKEN=$(go run ./cmd/artifacts token create --account local)
-
-export ARTIFACTS_AUTH=token
-go run ./cmd/artifacts serve
+```text
+Research complete.
 ```
 
-Send `Authorization: Bearer $CONTROL_TOKEN` to REST. Control-plane tokens are stored only as SHA-256 hashes. Repository credentials use the `/credentials` routes (the prior `/tokens` names remain aliases).
+Your application wrote through REST, a worker updated the file through Git, and REST read the exact result. Both interfaces share one history.
 
-## Operations
+See the [full quickstart](docs/getting-started.md) for directory browsing, cleanup, and troubleshooting.
+
+## Connect your application
+
+Run `artifacts serve` with [authentication configured](docs/core/authentication.md) for a deployed service. Control-plane credentials manage account resources; repository credentials give workers access to one repository's content and Git operations.
+
+When publishing files, use `expected_head` to detect concurrent changes and `Idempotency-Key` to safely retry commits. Untouched files are preserved; deletions and full replacement are explicit. See [writing files](docs/core/writing-files.md) for the request formats.
+
+Start with [application integration](docs/core/integration.md) and [data modeling](docs/core/data-model.md), or explore the [working examples](docs/examples/index.md).
+
+## How it works
+
+Artifacts runs as one serving node backed by Postgres and durable filesystem or S3-compatible object storage. Postgres records published history; object storage holds immutable Git data. Local Git caches can be rebuilt. Writes upload incremental packs, and background maintenance creates checkpoints.
+
+See [storage architecture](docs/storage.mdx) and [configuration](docs/core/configuration.md) for deployment and operational details.
+
+## Developing Artifacts
+
+With Docker running, run the verification suite from the repository root:
 
 ```bash
-go run ./cmd/artifacts migrate
-go run ./cmd/artifacts compact --account local --namespace agents --repo researcher-session-42
 make verify
 ```
 
-Writes upload incremental packs. The serving process checks once a minute for repositories with 32 publications since their checkpoint and compacts up to eight per pass. The command above also creates a checkpoint on demand. Old packs are retained for forks and publication history. REST content reads use cached indexes and remote byte ranges, with a full-cache fallback for objects over 8 MiB. Applications can resume committed changes through the [publication event feed](docs/core/api-reference.md#publication-events). Cache contents under `ARTIFACTS_CACHE_DIR` can be deleted at any time and are reconstructed from snapshot lineage, checkpoints, WAL packs, and Postgres refs.
-
-Read [the example harness](examples/agent-harness/main.go) for REST → Git → REST readback.
+This runs formatting, vet, lint, race tests, coverage checks, and Go file-size checks. Read [AGENTS.md](AGENTS.md) for contributor guidance and [GOALS.md](GOALS.md) for product direction.
