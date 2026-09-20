@@ -13,7 +13,7 @@ export default defineConfig({
   integrations: [
     starlight({
       title: 'Artifacts',
-      description: 'Durable, Git-compatible file repositories for your applications and agents.',
+      description: 'Versioned files for your applications. Publish through REST or Git and retrieve an exact version.',
       disable404Route: true,
       favicon: '/favicon.svg',
       customCss: ['./src/styles/custom.css', './src/styles/orbital.css'],
@@ -40,12 +40,16 @@ export default defineConfig({
         },
         {
           tag: 'meta',
-          attrs: { property: 'og:image:alt', content: 'Artifacts documentation' },
+          attrs: { property: 'og:image:alt', content: 'Artifacts — Versioned files for your applications. Publish through REST or Git. Retrieve an exact version.' },
         },
         {
           tag: 'meta',
           attrs: { name: 'twitter:card', content: 'summary_large_image' },
         },
+        { tag: 'meta', attrs: { property: 'og:image:width', content: '1200' } },
+        { tag: 'meta', attrs: { property: 'og:image:height', content: '630' } },
+        { tag: 'meta', attrs: { name: 'twitter:image', content: 'https://mikerudolph.github.io/artifacts/og.png' } },
+        { tag: 'meta', attrs: { name: 'twitter:image:alt', content: 'Artifacts — Versioned files for your applications. Publish through REST or Git. Retrieve an exact version.' } },
       ],
       editLink: {
         baseUrl: 'https://github.com/mikerudolph/artifacts/edit/main/docs/',

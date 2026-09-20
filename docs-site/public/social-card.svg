@@ -1,38 +1,41 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
-  <defs><radialGradient id="atmosphere"><stop stop-color="#7aa2f7" stop-opacity=".18"/><stop offset="1" stop-color="#7aa2f7" stop-opacity="0"/></radialGradient></defs>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title description">
+  <title id="title">Artifacts — Versioned files for your applications.</title>
+  <desc id="description">Create repositories, publish through REST or Git, and retrieve an exact version. A blue stack of snapshots sits beside the headline on a dark background.</desc>
+  <defs>
+    <radialGradient id="atmosphere"><stop stop-color="#7aa2f7" stop-opacity=".18"/><stop offset="1" stop-color="#7aa2f7" stop-opacity="0"/></radialGradient>
+    <linearGradient id="surface" x2="1" y2="1"><stop stop-color="#7dcfff" stop-opacity=".2"/><stop offset="1" stop-color="#7aa2f7" stop-opacity=".04"/></linearGradient>
+  </defs>
   <rect width="1200" height="630" fill="#0c111d"/>
-  <ellipse cx="936" cy="302" rx="390" ry="290" fill="url(#atmosphere)"/>
-  <path d="M0 104H1200M0 540H1200" stroke="#29364d"/>
-  <path d="M64 104H126M64 540H126" stroke="#7dcfff"/>
-  <g fill="#7dcfff" transform="translate(64 34)">
+  <ellipse cx="955" cy="330" rx="370" ry="310" fill="url(#atmosphere)"/>
+  <g fill="#7dcfff" transform="translate(64 51)">
     <path d="m0 22 18 10 18-10v9L18 41 0 31z" opacity=".36"/>
     <path d="m0 11 18 10 18-10v9L18 30 0 20z" opacity=".65"/>
     <path d="m18-5 18 10-18 10L0 5z"/>
   </g>
   <g font-family="Arial, Helvetica, sans-serif">
-    <text x="119" y="65" fill="#e8edfc" font-size="29" font-weight="600" letter-spacing="4">ARTIFACTS</text>
-    <text x="1042" y="60" fill="#7c8bac" font-size="11" font-family="monospace" letter-spacing="1.5">FIELD MANUAL</text>
-    <text x="64" y="175" fill="#7dcfff" font-family="monospace" font-size="12" letter-spacing="2">A / 01</text>
-    <text x="149" y="175" fill="#9caac5" font-family="monospace" font-size="12" letter-spacing="2">DEVELOPER DOCUMENTATION</text>
-    <text x="59" y="278" fill="#e8edfc" font-size="78" font-weight="500" textLength="568" lengthAdjust="spacingAndGlyphs">DURABLE FILES.</text>
-    <text x="59" y="370" fill="#7dcfff" font-size="78" font-weight="500" textLength="465" lengthAdjust="spacingAndGlyphs">NATIVE GIT.</text>
-    <text x="64" y="439" fill="#9caac5" font-size="22">Your work. Every version. One repository.</text>
-    <text x="64" y="492" fill="#7c8bac" font-family="monospace" font-size="11" letter-spacing="1">YOUR INFRASTRUCTURE · STANDARD GIT · A SIMPLE API</text>
-    <text x="64" y="589" fill="#9caac5" font-family="monospace" font-size="14">01 / CORE DOCUMENTATION</text>
-    <text x="397" y="589" fill="#9caac5" font-family="monospace" font-size="14">02 / EXAMPLES</text>
-    <text x="656" y="589" fill="#9caac5" font-family="monospace" font-size="14">03 / DEVELOPER TOOLS</text>
+    <text x="119" y="81" fill="#e8edfc" font-size="30" font-weight="600" letter-spacing="4">ARTIFACTS</text>
+    <g font-size="68" font-weight="600" letter-spacing="-2">
+      <text x="60" y="225" fill="#e8edfc">Versioned files.</text>
+      <text x="60" y="307" fill="#7dcfff">For your</text>
+      <text x="60" y="389" fill="#7dcfff">applications.</text>
+    </g>
+    <g fill="#a9b5ce" font-size="26">
+      <text x="64" y="475">Publish through REST or Git.</text>
+      <text x="64" y="516">Retrieve an exact version.</text>
+    </g>
   </g>
-  <g fill="none" stroke="#7dcfff" stroke-opacity=".2">
-    <circle cx="924" cy="315" r="178"/><circle cx="924" cy="315" r="147" stroke-dasharray="1 9"/>
-    <ellipse cx="924" cy="315" rx="228" ry="72" transform="rotate(-32 924 315)"/>
-    <path d="M720 148h20m-20 0v20M1130 148h-20m20 0v20M720 482h20m-20 0v-20M1130 482h-20m20 0v-20"/>
+  <g fill="none" stroke="#7dcfff" stroke-opacity=".18">
+    <circle cx="955" cy="316" r="152"/>
+    <ellipse cx="955" cy="316" rx="205" ry="65" transform="rotate(-32 955 316)"/>
   </g>
-  <g fill="#7dcfff"><circle cx="786" cy="203" r="3"/><circle cx="1080" cy="398" r="3"/><circle cx="1117" cy="229" r="1"/><circle cx="756" cy="400" r="1"/><circle cx="1002" cy="166" r="1"/><circle cx="822" cy="471" r="1"/></g>
-  <g transform="translate(844 239)" stroke="#7aa2f7" fill="#7aa2f7" fill-opacity=".1">
-    <path d="m0 105 80 46 80-46v30l-80 46L0 135z"/><path d="m0 105 80 46 80-46M80 151v30" fill="none"/>
-    <path d="m0 66 80 46 80-46v30l-80 46L0 96z"/><path d="m0 66 80 46 80-46M80 112v30" fill="none"/>
-    <path d="m80-19 80 46v30l-80 46L0 57V27z" fill="#0d1523" fill-opacity="1"/>
-    <path d="m80-19 80 46-80 46L0 27z" stroke="#7dcfff"/><path d="M80 73v30" fill="none"/>
-    <path d="m80 5 39 22-39 22-39-22z" stroke="#7dcfff"/>
+  <g transform="translate(855 233)" stroke="#7aa2f7" stroke-width="2" fill="#111c2d">
+    <path d="m0 130 100 57 100-57v32l-100 57L0 162z"/>
+    <path d="m0 130 100 57 100-57M100 187v32" fill="none"/>
+    <path d="m0 84 100 57 100-57v32l-100 57L0 116z"/>
+    <path d="m0 84 100 57 100-57M100 141v32" fill="none"/>
+    <path d="m100-19 100 57v32l-100 57L0 70V38z"/>
+    <path d="m100-19 100 57-100 57L0 38z" fill="url(#surface)" stroke="#7dcfff"/>
+    <path d="M100 95v32" fill="none"/>
+    <path d="m100 10 49 28-49 28-49-28z" fill="none" stroke="#7dcfff"/>
   </g>
 </svg>
