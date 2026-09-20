@@ -1,0 +1,15 @@
+2026/09/20 00:32:41 node=0 method=GET path=/client/v4/accounts/local/artifacts/namespaces
+2026/09/20 00:32:41 node=1 method=GET path=/client/v4/accounts/local/artifacts/namespaces
+2026/09/20 00:32:41 node=0 method=POST path=/client/v4/accounts/local/artifacts/namespaces/agent-c70442ead37d/repos
+2026/09/20 00:32:41 node=1 method=POST path=/client/v4/accounts/local/artifacts/namespaces/agent-c70442ead37d/repos/core-c70442ead37d/commits
+2026/09/20 00:32:42 node=0 method=GET path=/client/v4/accounts/local/artifacts/namespaces/agent-c70442ead37d/repos/core-c70442ead37d/file
+2026/09/20 00:32:42 node=1 method=POST path=/client/v4/accounts/local/artifacts/namespaces/agent-c70442ead37d/credentials
+2026/09/20 00:32:42 node=0 method=GET path=/git/local/agent-c70442ead37d/core-c70442ead37d.git/info/refs
+2026/09/20 00:32:42 node=1 method=POST path=/git/local/agent-c70442ead37d/core-c70442ead37d.git/git-upload-pack
+2026/09/20 00:32:42 node=0 method=GET path=/git/local/agent-c70442ead37d/core-c70442ead37d.git/info/refs
+2026/09/20 00:32:42 node=1 method=POST path=/git/local/agent-c70442ead37d/core-c70442ead37d.git/git-receive-pack
+2026/09/20 00:32:42 node=0 method=GET path=/client/v4/accounts/local/artifacts/namespaces/agent-c70442ead37d/repos/core-c70442ead37d/file
+2026/09/20 00:32:42 node=1 method=GET path=/client/v4/accounts/local/artifacts/namespaces/agent-c70442ead37d/repos/core-c70442ead37d/refs
+2026/09/20 00:32:42 node=0 method=GET path=/client/v4/accounts/local/artifacts/namespaces/agent-c70442ead37d/repos/core-c70442ead37d/wal
+2026/09/20 00:32:42 node=1 method=DELETE path=/client/v4/accounts/local/artifacts/namespaces/agent-c70442ead37d/repos/core-c70442ead37d
+2026/09/20 00:32:42 node=0 method=GET path=/client/v4/accounts/local/artifacts/namespaces/agent-c70442ead37d/repos/core-c70442ead37d

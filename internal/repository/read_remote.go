@@ -51,35 +51,21 @@ func (m *Manager) ReadContent(ctx context.Context, repo types.Repo, visit func(s
 		}
 		packs = append(packs, packread.Pack{Key: pack.PackKey, Index: index})
 	}
-	return visit(packread.New(ctx, ranges, packs, refs, m.diskObjectReader(ctx, repo, path)))
+	return visit(packread.New(ctx, ranges, packs, refs, m.diskObjectReader(ctx, repo, path, refs)))
 }
 
 func (m *Manager) contentSnapshot(ctx context.Context, repo types.Repo) (types.Repo, []*plumbing.Reference, error) {
-	for attempt := 0; attempt < 3; attempt++ {
-		current, err := m.currentRepo(ctx, repo)
-		if err != nil {
-			return repo, nil, err
-		}
-		refs, err := m.meta.Refs().List(ctx, repo.ID)
-		if err != nil {
-			return repo, nil, err
-		}
-		after, err := m.currentRepo(ctx, repo)
-		if err != nil {
-			return repo, nil, err
-		}
-		if current.WALSequence != after.WALSequence || current.DefaultBranch != after.DefaultBranch {
-			continue
-		}
-		out := []*plumbing.Reference{plumbing.NewSymbolicReference(plumbing.HEAD, plumbing.NewBranchReferenceName(current.DefaultBranch))}
-		for _, ref := range refs {
-			if ref.Name != "HEAD" && !strings.HasPrefix(ref.SHA, "ref:") {
-				out = append(out, plumbing.NewHashReference(plumbing.ReferenceName(ref.Name), plumbing.NewHash(ref.SHA)))
-			}
-		}
-		return current, out, nil
+	current, refs, err := m.snapshot(ctx, repo)
+	if err != nil {
+		return repo, nil, err
 	}
-	return repo, nil, meta.ErrCASConflict
+	out := []*plumbing.Reference{plumbing.NewSymbolicReference(plumbing.HEAD, plumbing.NewBranchReferenceName(current.DefaultBranch))}
+	for _, ref := range refs {
+		if ref.Name != "HEAD" && !strings.HasPrefix(ref.SHA, "ref:") {
+			out = append(out, plumbing.NewHashReference(plumbing.ReferenceName(ref.Name), plumbing.NewHash(ref.SHA)))
+		}
+	}
+	return current, out, nil
 }
 
 func (m *Manager) packHistory(ctx context.Context, repo types.RepoID, through int64) ([]types.PackWAL, error) {
@@ -149,11 +135,17 @@ func (m *Manager) parentPacks(ctx context.Context, repo types.RepoID) ([]types.P
 	return m.packHistory(ctx, line.ParentRepoID, line.ParentSequence)
 }
 
-func (m *Manager) diskObjectReader(ctx context.Context, repo types.Repo, path string) func(plumbing.ObjectType, plumbing.Hash) (plumbing.EncodedObject, error) {
+func (m *Manager) diskObjectReader(ctx context.Context, repo types.Repo, path string, refs []*plumbing.Reference) func(plumbing.ObjectType, plumbing.Hash) (plumbing.EncodedObject, error) {
 	var disk storer.Storer
 	return func(kind plumbing.ObjectType, hash plumbing.Hash) (plumbing.EncodedObject, error) {
 		if disk == nil {
-			if err := m.ensure(ctx, repo, path); err != nil {
+			var captured []types.Ref
+			for _, ref := range refs {
+				if ref.Type() == plumbing.HashReference {
+					captured = append(captured, types.Ref{RepoID: repo.ID, Name: ref.Name().String(), SHA: ref.Hash().String()})
+				}
+			}
+			if err := m.ensureSnapshot(ctx, repo, captured, path); err != nil {
 				return nil, err
 			}
 			opened, err := gogit.PlainOpen(path)

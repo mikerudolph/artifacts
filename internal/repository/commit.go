@@ -35,7 +35,7 @@ func (m *Manager) Commit(ctx context.Context, repo types.Repo, input types.Commi
 }
 
 func (m *Manager) commitLocked(ctx context.Context, repo types.Repo, input types.CommitInput, path string) (types.CommitResult, error) {
-	repo, err := m.commitRepo(ctx, repo, input)
+	repo, refs, err := m.commitSnapshot(ctx, repo, input)
 	if err != nil {
 		return types.CommitResult{}, err
 	}
@@ -43,7 +43,7 @@ func (m *Manager) commitLocked(ctx context.Context, repo types.Repo, input types
 	if err != nil {
 		return types.CommitResult{}, err
 	}
-	if err := m.ensure(ctx, repo, path); err != nil {
+	if err := m.ensureSnapshot(ctx, repo, refs, path); err != nil {
 		return types.CommitResult{}, err
 	}
 	work, err := os.MkdirTemp(m.root, ".rest-commit-*")
@@ -89,20 +89,6 @@ func (m *Manager) commitLocked(ctx context.Context, repo types.Repo, input types
 		_ = os.RemoveAll(path)
 	}
 	return types.CommitResult{SHA: sha, Sequence: sequence}, nil
-}
-
-func (m *Manager) commitRepo(ctx context.Context, repo types.Repo, input types.CommitInput) (types.Repo, error) {
-	if m.meta.Repos() != nil {
-		current, err := m.meta.Repos().GetByID(ctx, repo.ID)
-		if err != nil {
-			return types.Repo{}, err
-		}
-		repo = current
-	}
-	if repo.ReadOnly && (repo.WALSequence != 0 || input.RepositoryCredential) {
-		return types.Repo{}, types.ErrForbidden
-	}
-	return repo, nil
 }
 
 func commitParent(ctx context.Context, repo types.Repo, input types.CommitInput, path, old string) (string, error) {
@@ -175,11 +161,18 @@ func (m *Manager) Compact(ctx context.Context, repo types.Repo) error {
 		return err
 	}
 	defer unlock()
-	repo, err = m.currentRepo(ctx, repo)
-	if err != nil {
-		return err
+	if coordinator, ok := m.meta.(meta.CompactionCoordinator); ok {
+		return coordinator.RunCompaction(ctx, repo.ID, func(tx meta.V2Store) error {
+			inner := &Manager{meta: tx, objects: m.objects, root: m.root}
+			return inner.compactLocked(ctx, repo, path)
+		})
 	}
-	if err := m.ensure(ctx, repo, path); err != nil {
+	return m.compactLocked(ctx, repo, path)
+}
+
+func (m *Manager) compactLocked(ctx context.Context, repo types.Repo, path string) error {
+	repo, err := m.prepare(ctx, repo, path)
+	if err != nil {
 		return err
 	}
 	pack, err := m.packAndUpload(ctx, repo, path)

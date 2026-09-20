@@ -23,11 +23,8 @@ func (m *Manager) Receive(ctx context.Context, repo types.Repo, input io.Reader,
 		return nil, err
 	}
 	defer unlock()
-	repo, err = m.currentRepo(ctx, repo)
+	repo, err = m.prepare(ctx, repo, path)
 	if err != nil {
-		return nil, err
-	}
-	if err := m.ensure(ctx, repo, path); err != nil {
 		return nil, err
 	}
 	before, err := listRefs(ctx, path)

@@ -67,7 +67,7 @@ Postgres owns published refs and repository metadata. Object storage holds immut
 
 Artifacts stores the object data before publishing the refs in a Postgres transaction. After an acknowledged publication, readers can resolve that version through either interface. Consumers work with files and Git objects; cache reconstruction and WAL packs stay on the server.
 
-The current implementation is single-node. Plan your deployment around one service node, Postgres, and durable object storage. See [storage architecture](/artifacts/storage/) for the detailed contract.
+Run one or more instances of the same release against a shared Postgres writer and durable object storage. Multiple instances use the same S3-compatible bucket and prefix with independent local caches. See [storage architecture](/artifacts/storage/) for the detailed contract.
 
 ## Choose the next step
 

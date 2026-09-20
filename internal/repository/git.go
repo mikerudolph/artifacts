@@ -18,11 +18,8 @@ func (m *Manager) RPC(ctx context.Context, repo types.Repo, service string, inpu
 		return err
 	}
 	defer unlock()
-	repo, err = m.currentRepo(ctx, repo)
+	_, err = m.prepare(ctx, repo, path)
 	if err != nil {
-		return err
-	}
-	if err := m.ensure(ctx, repo, path); err != nil {
 		return err
 	}
 	if service != "upload-pack" && (service != "receive-pack" || input != nil) {

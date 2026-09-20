@@ -13,6 +13,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/mikerudolph/artifacts/internal/httpstream"
+	"github.com/mikerudolph/artifacts/internal/store/meta"
 	"github.com/mikerudolph/artifacts/internal/types"
 )
 
@@ -138,7 +139,11 @@ func (s *repositoryServer) serveRPC(w http.ResponseWriter, r *http.Request, writ
 		service = "receive-pack"
 		body, err := s.backend.Receive(rpcContext, repo, input, r.Header.Get("Git-Protocol"))
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			status := http.StatusInternalServerError
+			if meta.IsCASConflict(err) {
+				status = http.StatusConflict
+			}
+			http.Error(w, err.Error(), status)
 			return
 		}
 		w.Header().Set("Content-Type", "application/x-git-"+service+"-result")

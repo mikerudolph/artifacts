@@ -40,7 +40,7 @@ Some empty collections currently serialize as `result: null` rather than `[]`. F
 | `GET` | `/namespaces` | `200` · namespace array with cursor `result_info`. |
 | `GET` | `/namespaces/{ns}` | `200` · namespace object. |
 
-Create body: `namespace` (required string), `jurisdiction` (optional `eu` or `us`). Namespace objects contain `namespace`, optional `jurisdiction`, `created_at`, and `updated_at`. Jurisdiction is metadata in this single-node implementation, not placement enforcement.
+Create body: `namespace` (required string), `jurisdiction` (optional `eu` or `us`). Namespace objects contain `namespace`, optional `jurisdiction`, `created_at`, and `updated_at`. Jurisdiction is metadata in this implementation, not placement enforcement.
 
 List query: `limit` (default 50, maximum 200) and `cursor`. There are no namespace update or delete routes. Repository creation implicitly ensures its namespace.
 

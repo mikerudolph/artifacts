@@ -3,7 +3,7 @@ title: Configuration
 description: Run the service with explicit authentication, durable storage, and a reachable Git origin.
 ---
 
-Artifacts currently runs as a single service node with Postgres metadata and either filesystem or S3-compatible object storage. The server also requires the Git executable. Start with the [quickstart](/artifacts/getting-started/) for local use and [authentication](/artifacts/core/authentication/) for token setup.
+Artifacts runs with Postgres metadata and either filesystem or S3-compatible object storage. Multiple serving instances use one shared Postgres writer endpoint, the same S3-compatible bucket and prefix, and independent local cache directories. The server also requires the Git executable. Start with the [quickstart](/artifacts/getting-started/) for local use and [authentication](/artifacts/core/authentication/) for token setup.
 
 ## Service commands
 
@@ -72,10 +72,24 @@ export ARTIFACTS_CACHE_DIR=/var/cache/artifacts/repos
 
 Provision the bucket and access policy before starting the service. Keep object storage private; clients use Artifacts REST or Git, not direct bucket access. Changing the backend, bucket, or prefix does not migrate existing object bytes.
 
+## Multiple serving instances
+
+Run the same release behind a load balancer with a common `ARTIFACTS_PUBLIC_URL`. REST and Git requests can reach either instance without session affinity. Configure all instances with the same Postgres writer endpoint, S3 bucket, prefix, and account/authentication configuration. Provision control-plane tokens with `token create` before starting the instances; token records and revocations are shared through Postgres.
+
+Give each instance independent writable cache and temporary storage. Cache loss is recoverable, but reconstruction, Git operations, and compaction can require substantial local disk space. Do not use separate filesystem object directories as if they were shared durable storage. Route metadata reads and writes to the database writer, not asynchronously replicated read endpoints.
+
+Competing writes may return conflicts even on different branches because publication checks a repository-wide sequence. REST returns HTTP 409; Git may reject a stale ref or receive HTTP 409 if publication loses the race. Fetch or read the current state and reconcile before submitting a new write. For an uncertain REST outcome, retry the original supported operation with its original idempotency key before deciding whether to create a new operation.
+
+Background compaction uses a nonblocking Postgres advisory transaction lock per repository. Another instance skips overlapping compaction; ordinary publication does not take that maintenance lock. Compaction holds a database connection while it runs, so size connection pools and database capacity for all instances. Local concurrency and transfer limits apply per process rather than globally.
+
+Convert legacy storage-version-1 repositories on a single instance before scaling out. Mixed-release rolling upgrades and zero-downtime upgrades are not established by this topology: stop old instances, run migrations with the new release, then start the new instances. Interrupted imports are not automatically resumed by another instance.
+
+See [multi-instance verification](https://github.com/mikerudolph/artifacts/blob/main/reviews/multi-instance.md) for the exercised workload and its limits.
+
 ## Operate and recover
 
 Back up **both Postgres and durable object storage**. They hold complementary parts of the publication contract: refs and metadata in Postgres, immutable packs in storage. A disposable cache alone is not a backup. Coordinate recovery so every ref in the restored database has its referenced pack data.
 
 Compaction writes a checkpoint to speed reconstruction. It does not physically purge retained history or implement garbage collection. Snapshot descendants can still depend on a deleted parent's objects, so independent age-based object deletion can break them.
 
-The current implementation does not provide a multi-node replication protocol, distributed ownership, automatic retention scheduler, or physical erasure API. Read [storage architecture](/artifacts/storage/) before changing deployment topology or deleting stored data.
+The current implementation does not provide mixed-release upgrade guarantees, metadata reads from database replicas, automatic recovery of interrupted imports, an automatic retention scheduler, or a physical erasure API. Read [storage architecture](/artifacts/storage/) before changing deployment topology or deleting stored data.

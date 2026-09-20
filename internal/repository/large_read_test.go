@@ -50,7 +50,11 @@ func TestLargeContentReadUsesDiskFallback(t *testing.T) {
 	if objects.fullPacks == 0 {
 		t.Fatal("large read did not use disk cache")
 	}
-	reader := m.diskObjectReader(ctx, repo, path)
+	_, refs, err := m.contentSnapshot(ctx, repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reader := m.diskObjectReader(ctx, repo, path, refs)
 	for range 2 {
 		if _, err := reader(plumbing.CommitObject, plumbing.NewHash(sha)); err != nil {
 			t.Fatal(err)

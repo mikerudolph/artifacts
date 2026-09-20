@@ -87,3 +87,9 @@ Revocation prevents subsequent Git access but does not remove a worker's existin
 | Transfer terminates after inactivity | Client/network progress and `ARTIFACTS_STREAM_IDLE_TIMEOUT`. |
 
 Avoid HTTP tracing that includes authorization headers. The [verification harness](/artifacts/developer-tools/local-development/#verify-the-public-workflow) captures sanitized Git evidence for the complete interoperability workflow.
+
+## Concurrent serving instances
+
+Git discovery and RPC requests can reach different instances of the same release when they share the Postgres writer and S3 storage. Each instance reconstructs a consistent local repository snapshot. Concurrent pushes retain expected-ref and repository-sequence checks; the server does not merge competing commits automatically.
+
+A stale ref can be rejected by Git. A publication that loses a race after local Git processing returns HTTP 409 and does not acknowledge the buffered Git success response. Fetch the current refs and reconcile the local work before pushing again. An uncertain transport outcome still requires checking the remote history. Conflicts can also occur between concurrent updates to different branches.

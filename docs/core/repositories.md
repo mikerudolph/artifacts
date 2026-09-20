@@ -42,7 +42,7 @@ curl --fail-with-body -sS -X POST "$API/namespaces" \
   -d '{"namespace":"research"}' | jq
 ```
 
-The optional `jurisdiction` accepts `eu` or `us`. In the current single-node implementation this is metadata; it does not select a storage region or enforce data residency. There is no namespace update or delete route.
+The optional `jurisdiction` accepts `eu` or `us`. In the current implementation this is metadata; it does not select a storage region or enforce data residency. There is no namespace update or delete route.
 
 ## Find your repositories
 

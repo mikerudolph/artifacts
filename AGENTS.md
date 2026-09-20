@@ -71,6 +71,12 @@ The numbered register and its supporting decision files are append-only. Change 
 
 After an authorized push, inspect the CI runs for that exact commit and wait for the relevant checks to finish before reporting completion. Local verification and remote CI are separate evidence; a cached dependency can let local checks pass while a fresh runner fails. If remote results cannot be inspected, explicitly report CI as unverified. Investigate existing failures before attributing them to the new change, and carry authorized fixes through a successful remote run. This addresses the missed MinIO image-pull failures in [CI run 8](https://github.com/mikerudolph/artifacts/actions/runs/35480748626).
 
+### D12 (2026-09-20): Coordinate independent serving instances through Postgres
+
+Supersedes: D8 for serving instances running the same release with independent local caches, one shared Postgres writer endpoint, and the same durable S3-compatible bucket and prefix. Postgres remains the publication authority (D1). Capture repository metadata and refs in one database statement before reconstructing a cache; immutable history is bounded by that captured publication. Competing publications retain repository-wide sequence and expected-ref checks, with explicit conflicts rather than automatic merges. Coordinate compaction through a database advisory transaction lock, without serializing publication behind maintenance. This permits horizontal serving without shared cache disks or a new ownership service.
+
+Validation must cover independent-cache reconstruction during publication, competing writes, cross-instance idempotency, forks, compaction, revocation, deletion, and real REST/Git traffic. Mixed-release rolling upgrades, metadata reads from asynchronous replicas, automatic recovery of interrupted imports, and legacy storage conversion across instances are outside this topology. Convert legacy repositories before adding serving instances. No throughput or zero-downtime claim follows from concurrency correctness.
+
 ## Working rules
 
 1. Trace the current behavior and relevant tests before editing. Keep existing user work intact. Carry authorized work through implementation and verification; surface material ambiguity without stopping independent work.

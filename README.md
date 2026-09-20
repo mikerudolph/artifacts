@@ -109,7 +109,7 @@ Start with [application integration](docs/core/integration.md) and [data modelin
 
 ## How it works
 
-Artifacts runs as one serving node backed by Postgres and durable filesystem or S3-compatible object storage. Postgres records published history; object storage holds immutable Git data. Local Git caches can be rebuilt. Writes upload incremental packs, and background maintenance creates checkpoints.
+Artifacts runs as one or more serving instances backed by a shared Postgres writer and durable object storage. Multiple instances use the same S3-compatible bucket and prefix, with an independent local cache for each instance; a single instance can also use durable filesystem storage. Postgres records published history; object storage holds immutable Git data. Local Git caches can be rebuilt. Writes upload incremental packs, and background maintenance creates checkpoints.
 
 See [storage architecture](docs/storage.mdx) and [configuration](docs/core/configuration.md) for deployment and operational details.
 

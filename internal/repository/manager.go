@@ -132,13 +132,11 @@ func within(root, path string) bool {
 }
 
 func (m *Manager) ensure(ctx context.Context, repo types.Repo, path string) error {
-	if repo.StorageVersion == 1 {
-		current, err := m.meta.Repos().GetByID(ctx, repo.ID)
-		if err != nil {
-			return err
-		}
-		repo = current
-	}
+	_, err := m.prepare(ctx, repo, path)
+	return err
+}
+
+func (m *Manager) ensureSnapshot(ctx context.Context, repo types.Repo, refs []types.Ref, path string) error {
 	sequence, branch, err := readCacheState(path)
 	if err == nil && sequence == repo.WALSequence && branch == repo.DefaultBranch && gitHealthy(ctx, path) {
 		return nil
@@ -153,20 +151,20 @@ func (m *Manager) ensure(ctx context.Context, repo types.Repo, path string) erro
 		return err
 	}
 	if repo.StorageVersion == 1 {
-		return m.convertLegacy(ctx, repo, path)
+		return m.convertLegacy(ctx, repo, refs, path)
 	}
 	if err := m.installHistory(ctx, repo.ID, repo.WALSequence, path); err != nil {
 		_ = os.RemoveAll(path)
 		return err
 	}
-	if err := m.installRefs(ctx, repo, path); err != nil {
+	if err := installRefs(ctx, repo, refs, path); err != nil {
 		_ = os.RemoveAll(path)
 		return err
 	}
 	return writeCacheState(path, repo.WALSequence, repo.DefaultBranch)
 }
 
-func (m *Manager) convertLegacy(ctx context.Context, repo types.Repo, path string) error {
+func (m *Manager) convertLegacy(ctx context.Context, repo types.Repo, refs []types.Ref, path string) error {
 	legacy, err := gitstore.Open(m.objects, m.meta.Refs(), repo.AccountID, repo.ID)
 	if err != nil {
 		return err
@@ -186,7 +184,7 @@ func (m *Manager) convertLegacy(ctx context.Context, repo types.Repo, path strin
 	}); err != nil {
 		return err
 	}
-	if err := m.installRefs(ctx, repo, path); err != nil {
+	if err := installRefs(ctx, repo, refs, path); err != nil {
 		return err
 	}
 	pack, err := m.packAndUpload(ctx, repo, path)

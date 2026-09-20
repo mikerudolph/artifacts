@@ -178,11 +178,12 @@ func (s repoStore) scanRepo(row rowScanner) (types.Repo, error) {
 	return repo, nil
 }
 
-func scanRepo(row rowScanner) (types.Repo, error) {
+func scanRepo(row rowScanner, extra ...any) (types.Repo, error) {
 	var repo types.Repo
-	err := row.Scan(&repo.ID, &repo.NamespaceID, &repo.AccountID, &repo.Name, &repo.Description, &repo.DefaultBranch,
+	dest := []any{&repo.ID, &repo.NamespaceID, &repo.AccountID, &repo.Name, &repo.Description, &repo.DefaultBranch,
 		&repo.ReadOnly, &repo.Source, &repo.Status, &repo.StorageVersion, &repo.WALSequence,
-		&repo.Failure, &repo.DeletedAt, &repo.CreatedAt, &repo.UpdatedAt, &repo.LastPushAt)
+		&repo.Failure, &repo.DeletedAt, &repo.CreatedAt, &repo.UpdatedAt, &repo.LastPushAt}
+	err := row.Scan(append(dest, extra...)...)
 	return repo, err
 }
 

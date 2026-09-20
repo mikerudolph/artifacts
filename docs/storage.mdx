@@ -6,7 +6,7 @@ description: Understand the publication contract, disposable caches, and the dat
 import Publication from '../docs-site/src/components/diagrams/Publication.astro';
 import Storage from '../docs-site/src/components/diagrams/Storage.astro';
 
-Artifacts is intentionally single-node. Postgres is the publication authority, object storage holds immutable Git packs, and local bare repositories are reconstructable caches. Both REST commits and Git pushes use this same storage contract.
+Artifacts supports independent serving instances backed by one shared Postgres writer and the same S3-compatible bucket and prefix. Postgres is the publication authority, object storage holds immutable Git packs, and each instance has its own reconstructable local cache. Both REST commits and Git pushes use this same storage contract.
 
 | Layer | Holds | Recovery responsibility |
 | --- | --- | --- |
@@ -16,7 +16,7 @@ Artifacts is intentionally single-node. Postgres is the publication authority, o
 
 Your application can rely on a successful publication having durable objects before its refs become visible. It should store commit SHAs for exact versions and read files through REST or Git. WAL sequence numbers and object keys are storage diagnostics, not an application data model.
 
-There is no gossip, distributed ownership, multi-node replication protocol, or object-store compare-and-swap in the current design.
+Instances coordinate publication through Postgres transactions. They do not replicate local caches or require repository ownership, leader election, or object-store compare-and-swap for publication.
 
 ## Write path
 
@@ -24,7 +24,7 @@ There is no gossip, distributed ownership, multi-node replication protocol, or o
 
 1. Git receive data is bounded and staged on disk in the repository cache.
 2. Git validates and indexes the received objects.
-3. The cache is repacked into one immutable `.pack` and `.idx` pair.
+3. New reachable objects are packed into a self-contained incremental `.pack` and `.idx` pair.
 4. Both blobs are uploaded under tenant/repository content-addressed keys.
 5. One Postgres transaction locks the repository, checks its status/read-only flag and expected WAL sequence, validates every expected old ref, inserts the WAL row and ref-update rows, and publishes all refs.
 6. Only after that transaction commits is success returned to Git.
@@ -35,16 +35,18 @@ Object durability therefore precedes ref visibility. A failed multi-ref compare 
 
 <Storage />
 
-Bare repositories under `ARTIFACTS_CACHE_DIR/{account}/{repo_id}` are disposable. A keyed process mutex and an OS file lock shared across processes serialize rebuild, Git RPC, receive, REST commit, and compaction for one repository. Each cache records the Postgres WAL sequence it represents and is checked with `git fsck`; missing, stale, or corrupt caches are evicted and reconstructed.
+Bare repositories under `ARTIFACTS_CACHE_DIR/{account}/{repo_id}` are disposable. A keyed process mutex and an OS file lock serialize rebuild, Git RPC, receive, REST commit, and compaction for one repository within a cache directory. Independent instances use separate cache directories. Each cache records the Postgres WAL sequence it represents and is checked with `git fsck`; missing, stale, or corrupt caches are evicted and reconstructed.
+
+Before reconstruction, the server reads repository metadata and refs in one SQL statement, including inside an idempotent commit transaction. This fixes the publication boundary before any object download. A concurrent writer can advance the database while reconstruction continues; the reader still uses the captured refs and only history through the captured sequence. Content range reads and large-object disk fallback use that same snapshot. Checkpoints newer than the captured boundary are ignored; retained immutable history and fork lineage remain usable.
 
 Rebuild order is:
 
 1. parent snapshot lineage, limited to the captured parent sequence;
 2. the newest usable checkpoint;
 3. later immutable WAL packs;
-4. current refs from Postgres and the repository's symbolic default-branch `HEAD`.
+4. refs and the symbolic default-branch `HEAD` from the same captured database snapshot as the repository sequence.
 
-`artifacts compact --account A --namespace N --repo R` writes the current full pack as a checkpoint. Removing the cache directory does not remove durable repository data.
+`artifacts compact --account A --namespace N --repo R` writes the current full pack as a checkpoint. Removing the cache directory does not remove durable repository data. Compaction across instances is coordinated by a per-repository Postgres advisory transaction lock; it does not lock out publications. A checkpoint created from an older snapshot cannot replace a newer checkpoint. Each instance still pays its own cache reconstruction and Git materialization costs.
 
 ## Snapshot forks and deletion
 

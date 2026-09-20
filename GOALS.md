@@ -49,7 +49,7 @@ These are acceptance criteria, not a claim that every possible workload or failu
 
 Artifacts stores versioned files. Applications own their business records, schemas, search indexes, worker scheduling, billing, and user authorization. A publication event does not mean a business task succeeded.
 
-The current deployment is one serving node, Postgres, and durable filesystem or S3-compatible object storage. Multi-node serving requires its own design and verification; it is not an implied capability of disposable caches.
+The deployment model is one or more serving instances backed by a shared Postgres writer and durable object storage. Multiple instances run the same release with independent local caches and a shared S3-compatible bucket and prefix. Single-instance deployments can also use durable filesystem storage. See the configuration guide for topology and upgrade limits.
 
 The web UI supports inspection and development. Developer interfaces remain the priority. SDK and local-setup improvements are deferred until explicitly brought back into scope. Webhook delivery is not part of the current polling event feed.
 

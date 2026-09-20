@@ -78,11 +78,7 @@ func (m *Manager) download(ctx context.Context, key, dest string) error {
 	return os.Rename(name, dest)
 }
 
-func (m *Manager) installRefs(ctx context.Context, repo types.Repo, path string) error {
-	refs, err := m.meta.Refs().List(ctx, repo.ID)
-	if err != nil {
-		return err
-	}
+func installRefs(ctx context.Context, repo types.Repo, refs []types.Ref, path string) error {
 	var script strings.Builder
 	script.WriteString("start\n")
 	for _, ref := range refs {
@@ -95,6 +91,6 @@ func (m *Manager) installRefs(ctx context.Context, repo types.Repo, path string)
 	if _, err := runGit(ctx, strings.NewReader(script.String()), "--git-dir="+path, "update-ref", "--stdin"); err != nil {
 		return err
 	}
-	_, err = runGit(ctx, nil, "--git-dir="+path, "symbolic-ref", "HEAD", "refs/heads/"+repo.DefaultBranch)
+	_, err := runGit(ctx, nil, "--git-dir="+path, "symbolic-ref", "HEAD", "refs/heads/"+repo.DefaultBranch)
 	return err
 }

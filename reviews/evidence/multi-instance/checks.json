@@ -1,0 +1,89 @@
+{
+  "passed": true,
+  "checks": [
+    {
+      "name": "round-robin core workflow and cleanup",
+      "passed": true
+    },
+    {
+      "name": "evidence integrity git.log",
+      "passed": true
+    },
+    {
+      "name": "other instance reads REST publication",
+      "passed": true
+    },
+    {
+      "name": "node 0 reads node 1 Git publication",
+      "passed": true
+    },
+    {
+      "name": "competing expected-head writes have one winner",
+      "passed": true
+    },
+    {
+      "name": "cross-instance idempotency returns same publication",
+      "passed": true
+    },
+    {
+      "name": "failed and replayed writes do not add publications",
+      "passed": true
+    },
+    {
+      "name": "compaction creates no publication event",
+      "passed": true
+    },
+    {
+      "name": "fork retains captured parent version",
+      "passed": true
+    },
+    {
+      "name": "surviving instance reads acknowledged history",
+      "passed": true
+    },
+    {
+      "name": "cold restarted instance reads checkpoint",
+      "passed": true
+    },
+    {
+      "name": "cross-instance retry survives restart",
+      "passed": true
+    },
+    {
+      "name": "competing Git pushes have one winner",
+      "passed": true
+    },
+    {
+      "name": "both instances read the winning Git push",
+      "passed": true
+    },
+    {
+      "name": "revocation on node 1 blocks node 0 REST",
+      "passed": true
+    },
+    {
+      "name": "revocation blocks Git on node 0",
+      "passed": true
+    },
+    {
+      "name": "deletion hides repository on node 1",
+      "passed": true
+    },
+    {
+      "name": "fork survives parent deletion",
+      "passed": true
+    },
+    {
+      "name": "fork cleanup visible on node 0",
+      "passed": true
+    },
+    {
+      "name": "round-robin requests reached both instances",
+      "passed": true
+    },
+    {
+      "name": "owned processes, containers, and scratch removed",
+      "passed": true
+    }
+  ]
+}
