@@ -67,6 +67,10 @@ Never write prose comments in implementation files, tests, examples, or document
 
 The numbered register and its supporting decision files are append-only. Change direction by appending an amendment or superseding decision, never by rewriting an earlier record. This preserves the reasoning available to future contributors and makes architectural changes visible in review. The next decision after this baseline is D11.
 
+### D11 (2026-09-19): Verify the pushed revision in CI
+
+After an authorized push, inspect the CI runs for that exact commit and wait for the relevant checks to finish before reporting completion. Local verification and remote CI are separate evidence; a cached dependency can let local checks pass while a fresh runner fails. If remote results cannot be inspected, explicitly report CI as unverified. Investigate existing failures before attributing them to the new change, and carry authorized fixes through a successful remote run. This addresses the missed MinIO image-pull failures in [CI run 8](https://github.com/mikerudolph/artifacts/actions/runs/35480748626).
+
 ## Working rules
 
 1. Trace the current behavior and relevant tests before editing. Keep existing user work intact. Carry authorized work through implementation and verification; surface material ambiguity without stopping independent work.
