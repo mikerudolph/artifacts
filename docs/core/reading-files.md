@@ -3,7 +3,7 @@ title: Read files & history
 description: Resolve a version, browse its tree, and retrieve exact file bytes without cloning a repository.
 ---
 
-Your application can read Git-published content directly through REST. The server reconstructs a missing or stale repository cache as needed; clients never fetch or unpack storage WAL objects.
+Your application can read Git-published content directly through REST.
 
 The examples use `REPO_API` for an existing repository's REST URL and `CONTROL_TOKEN` for its account. Set them as in [manage repositories](/artifacts/core/repositories/).
 
@@ -88,6 +88,6 @@ The log lists commit hashes, messages, authors, and committers. It defaults to 2
 
 An empty repository has no commit to resolve. Missing refs, directories, and files return `404`, as does normal lookup of a deleted repository. A missing file is not the same as a successful response containing zero bytes.
 
-Cold reads can take longer because the server materializes the repository. Set client deadlines appropriate to your workload. For raw streams, also detect an interrupted response rather than treating partial bytes as a complete file. If your file manifest records a length and digest, verify both before accepting the output.
+Cold reads can take longer when the server needs to retrieve uncached data. Set client deadlines appropriate to your workload. For raw streams, also detect an interrupted response rather than treating partial bytes as a complete file. If your file manifest records a length and digest, verify both before accepting the output.
 
 See [API reference](/artifacts/core/api-reference/#content-and-history) for the complete read surface.

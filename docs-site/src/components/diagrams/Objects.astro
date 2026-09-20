@@ -6,7 +6,7 @@ const layouts = [
 ];
 ---
 
-<Diagram story="objects">
+<Diagram story="objects" playbackControl={false}>
   {layouts.map(({ name, width, height, commitA: a, commitB: b, treeA: ta, treeB: tb, old, shared, fresh, ref, nodeW, nodeH }) => {
     const mobile = name === 'mobile';
     const half = nodeW / 2;

@@ -4,12 +4,11 @@ export const sections = [
     groups: [
       { label: 'Start here', items: [
         { label: 'Introduction', slug: '' },
-        { label: 'Quickstart', slug: 'getting-started' },
         { label: 'Core concepts', slug: 'core/concepts' },
+        { label: 'Quickstart', slug: 'getting-started' },
+        { label: 'Integrate into your app', slug: 'core/integration' },
       ] },
       { label: 'Build with Artifacts', items: [
-        { label: 'Model your data', slug: 'core/data-model' },
-        { label: 'Integrate your application', slug: 'core/integration' },
         { label: 'Authentication', slug: 'core/authentication' },
         { label: 'Manage repositories', slug: 'core/repositories' },
         { label: 'Write files', slug: 'core/writing-files' },
@@ -17,9 +16,11 @@ export const sections = [
         { label: 'Work with Git', slug: 'core/git' },
         { label: 'Forks & imports', slug: 'core/forks-and-imports' },
       ] },
-      { label: 'Reference & operations', items: [
+      { label: 'Reference', items: [
         { label: 'REST API reference', slug: 'core/api-reference' },
         { label: 'Errors & limits', slug: 'core/errors-and-limits' },
+      ] },
+      { label: 'Operate Artifacts', items: [
         { label: 'Configuration', slug: 'core/configuration' },
         { label: 'Production deployment', slug: 'core/deployment' },
         { label: 'Storage architecture', slug: 'storage' },
@@ -36,9 +37,8 @@ export const sections = [
     ] }],
   },
   {
-    id: 'developer-tools', label: 'Developer tools', href: 'developer-tools',
+    id: 'developer-tools', label: 'Developer tools', href: 'developer-tools/local-development',
     groups: [{ label: 'Inspect & develop', items: [
-      { label: 'Overview', slug: 'developer-tools' },
       { label: 'Web UI', slug: 'developer-tools/web-ui' },
       { label: 'Local development', slug: 'developer-tools/local-development' },
     ] }],

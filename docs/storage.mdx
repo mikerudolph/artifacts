@@ -3,6 +3,7 @@ title: Storage architecture
 description: Understand the publication contract, disposable caches, and the data that must survive a service restart.
 ---
 
+import Objects from '../docs-site/src/components/diagrams/Objects.astro';
 import Publication from '../docs-site/src/components/diagrams/Publication.astro';
 import Storage from '../docs-site/src/components/diagrams/Storage.astro';
 
@@ -17,6 +18,14 @@ Artifacts supports independent serving instances backed by one shared Postgres w
 Your application can rely on a successful publication having durable objects before its refs become visible. It should store commit SHAs for exact versions and read files through REST or Git. WAL sequence numbers and object keys are storage diagnostics, not an application data model.
 
 Instances coordinate publication through Postgres transactions. They do not replicate local caches or require repository ownership, leader election, or object-store compare-and-swap for publication.
+
+## Git objects behind a version
+
+A commit identifies a root tree. Tree entries connect paths to file blobs or nested trees. Blobs hold bytes; trees give those bytes their names. New commits can share unchanged objects while preserving earlier versions.
+
+<Objects />
+
+Applications can work with paths and commit SHAs without managing these objects directly.
 
 ## Write path
 
@@ -54,14 +63,8 @@ A same-tenant snapshot fork records `(child, parent, parent_sequence)` and copie
 
 Deletion moves a repository through `deleting` to `deleted`, which blocks Git and REST lookup immediately and revokes its credentials. Immutable objects and metadata are retained so descendant forks remain reconstructable. Physical garbage collection must account for lineage reachability before deleting packs.
 
-## Legacy data
-
-Migration 001 remains unchanged. Migration 002 adds tenant ownership on repositories, WAL sequence, failure/deletion state, immutable pack/ref-update tables, checkpoints, fork lineage, and job lease fields. The legacy loose-object storer remains readable for migration/import compatibility; all normal publication uses immutable packs.
-
-HTTPS imports apply a hard per-file operating-system quota and stream object counting. The aggregate checkout-size cap is monitored during clone and checked again before publication; it is best-effort between monitor intervals, so deployments should retain an outer filesystem or container quota as defense in depth.
-
 ## Integrator implications
 
 A cold file read may take longer while the server reconstructs a cache; clients still receive ordinary file bytes. A transaction protects publication of refs, but it cannot merge two applications' competing snapshots or coordinate your external database transaction. Those belong in your [integration workflow](/artifacts/core/integration/).
 
-Deleting a repository means access revocation and a retained tombstone. It does not promise physical erasure or name reuse. Plan retention with [repository boundaries](/artifacts/core/data-model/) and configure durable storage using the [configuration reference](/artifacts/core/configuration/).
+Deleting a repository means access revocation and a retained tombstone. It does not promise physical erasure or name reuse. Plan retention with [repository boundaries](/artifacts/core/integration/) and configure durable storage using the [configuration reference](/artifacts/core/configuration/).

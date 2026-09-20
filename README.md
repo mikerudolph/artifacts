@@ -107,7 +107,7 @@ Run `artifacts serve` with [authentication configured](docs/core/authentication.
 
 When publishing files, use `expected_head` to detect concurrent changes and `Idempotency-Key` to safely retry commits. Untouched files are preserved; deletions and full replacement are explicit. See [writing files](docs/core/writing-files.md) for the request formats.
 
-Start with [application integration](docs/core/integration.md) and [data modeling](docs/core/data-model.md), or explore the [working examples](docs/examples/index.md).
+Start with [application integration](docs/core/integration.md) to choose a repository boundary and connect it to your app, or explore the [working examples](docs/examples/index.md).
 
 ## How it works
 

@@ -24,7 +24,6 @@ repository-workflow.repository-orbit { display: block; container-type: inline-si
 .workflow-scene .workflow-history-note { font-size: 9px; }
 .workflow-agent-panel { fill: var(--surface-code); stroke: var(--sl-color-gray-5); stroke-width: 1; }
 .workflow-agent-corners { stroke: var(--accent-lilac); stroke-width: .9; }
-.workflow-scene .workflow-agent-kicker { fill: var(--accent-lilac); font-size: 7px; letter-spacing: .7px; }
 .workflow-agent-divider { stroke: var(--sl-color-hairline); stroke-width: 1; }
 .workflow-agent-glyph { stroke: var(--accent-lilac); stroke-width: .9; }
 .workflow-scene .workflow-agent-title { font-family: var(--font-display); font-size: 17px; font-weight: 500; fill: var(--sl-color-gray-1); }
@@ -33,7 +32,6 @@ repository-workflow.repository-orbit { display: block; container-type: inline-si
 .workflow-compose { stroke: var(--accent-lilac); }
 .workflow-task-check { stroke: var(--accent-green); stroke-width: 1; stroke-dasharray: 1; stroke-dashoffset: 1; }
 .workflow-scene .workflow-agent-status { font-size: 9px; fill: var(--sl-color-gray-3); }
-.workflow-scene .workflow-files-heading { font-size: 9px; letter-spacing: 1px; fill: var(--sl-color-gray-3); }
 .workflow-file-rule { stroke: var(--sl-color-hairline); stroke-width: .8; }
 .workflow-file-icon { stroke: var(--sl-color-gray-3); stroke-width: .8; }
 .workflow-scene .workflow-file-name { fill: var(--sl-color-gray-1); font-size: 12px; }
@@ -46,7 +44,6 @@ repository-workflow.repository-orbit { display: block; container-type: inline-si
 .repository-orbit > figure > .workflow-caption { display: block; padding: 0; margin: .35rem 1rem 0; border: 0; }
 .workflow-steps { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: .75rem; }
 .workflow-steps li { position: relative; font-family: var(--font-display); color: var(--sl-color-gray-3); font-size: .9rem; padding: .55rem 0 .85rem; display: flex; align-items: center; gap: .5rem; }
-.workflow-steps li > span { font-family: var(--sl-font-mono); font-size: .51rem; }
 .workflow-steps li[data-active='true'] { color: var(--frame-accent); }
 .workflow-steps li > i { position: absolute; bottom: 0; left: 0; width: 100%; height: 1px; background: var(--sl-color-gray-5); }
 .workflow-steps li > i::after { content: ''; display: block; width: 100%; height: 1px; background: var(--frame-accent); transform: scaleX(0); transform-origin: left; }
@@ -55,8 +52,6 @@ repository-workflow.repository-orbit { display: block; container-type: inline-si
 .workflow-explanation { min-height: 5.5rem; padding-top: 1rem; }
 .workflow-explanation p { margin: 0; font-family: var(--sl-font); font-size: .79rem; line-height: 1.75; color: var(--sl-color-gray-2); }
 .workflow-explanation strong { display: block; font-family: var(--font-display); font-size: 1.15rem; font-weight: 500; color: var(--sl-color-gray-1); letter-spacing: .02em; }
-.workflow-interface-note { margin: .3rem 0 0; font-family: var(--sl-font-mono); font-size: .54rem; color: var(--sl-color-gray-3); line-height: 1.9; }
-.workflow-interface-note span { color: var(--frame-accent); }
 .workflow-static { color: var(--sl-color-gray-2); font-size: .8rem; line-height: 1.7; }
 @container (max-width: 420px) {
   .workflow-wide { display: none; }
@@ -64,12 +59,10 @@ repository-workflow.repository-orbit { display: block; container-type: inline-si
   .workflow-scene .workflow-entity-title { font-size: 11px; letter-spacing: .6px; }
   .workflow-scene .workflow-head, .workflow-scene .workflow-file-name { font-size: 14px; }
   .workflow-scene .workflow-task-label { font-size: 12px; }
-  .workflow-scene .workflow-files-heading { font-size: 10px; }
   .workflow-scene .workflow-agent-status { font-size: 10px; }
   .workflow-scene .workflow-file-hash { font-size: 12px; }
   .repository-orbit > figure > .workflow-caption { margin-inline: .35rem; }
   .workflow-steps { gap: .6rem; }
   .workflow-steps li { gap: .35rem; font-size: .88rem; }
-  .workflow-interface-note { max-width: 32ch; }
   .workflow-explanation { min-height: 6rem; }
 }

@@ -7,7 +7,7 @@ const layouts = [
 ];
 ---
 
-<Diagram story="storage">
+<Diagram story="storage" playbackControl={false}>
   {layouts.map(({ name, width, height, meta, objects, cache }) => {
     const mobile = name === 'mobile';
     const metaRow = mobile ? 62 : 102;

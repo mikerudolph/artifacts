@@ -112,16 +112,11 @@ class ArtifactDiagram extends HTMLElement {
     this.querySelectorAll<HTMLElement>('[data-caption]').forEach(caption => {
       caption.hidden = Number(caption.dataset.caption) !== step;
     });
-    const counter = this.querySelector('[data-counter]');
-    if (counter) counter.textContent = String(step + 1).padStart(2, '0');
     const label = paused ? 'Play' : 'Pause';
     const play = this.querySelector('[data-action="play"]');
     play?.setAttribute('aria-label', `${label} ${this.dataset.story} explainer`);
     const playLabel = this.querySelector('[data-play-label]');
     if (playLabel) playLabel.textContent = label;
-    const status = this.querySelector('[data-playback-status]');
-    if (status) status.textContent = paused ? 'Paused' : !this.playing ? 'Plays in view'
-      : step === this.buttons.length - 1 ? 'Looping shortly' : 'Autoplay';
     this.drawing.render(step, progress, this.buttons.length);
   }
 

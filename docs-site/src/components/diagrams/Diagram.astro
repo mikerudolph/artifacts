@@ -2,8 +2,8 @@
 import { stories, type StoryName } from './stories';
 import '../../styles/diagrams.css';
 
-interface Props { story: StoryName; }
-const { story: name } = Astro.props;
+interface Props { story: StoryName; playbackControl?: boolean; }
+const { story: name, playbackControl = true } = Astro.props;
 const story = stories[name];
 const id = `diagram-${name}`;
 const lastStep = story.steps.length - 1;
@@ -13,29 +13,27 @@ const lastStep = story.steps.length - 1;
   <figure aria-labelledby={`${id}-heading`} aria-describedby={`${id}-summary`}>
     <header class="diagram-heading">
       <div>
-        <span class="diagram-kicker"><span>{story.number}</span> / {story.category}</span>
         <h3 id={`${id}-heading`}>{story.title}</h3>
       </div>
-      <span class="diagram-motion-label" aria-hidden="true"><i></i><span data-playback-status>Explainer</span></span>
     </header>
     <p class="diagram-sr-only" id={`${id}-summary`}>{story.summary}</p>
     <div class="diagram-stage">
       <slot />
     </div>
     <div class="diagram-controls" role="group" aria-label={`${story.category} animation controls`}>
-        <button type="button" class="diagram-play" data-action="play" aria-label={`Play ${story.category.toLowerCase()} animation`}>
+        {playbackControl && <button type="button" class="diagram-play" data-action="play" aria-label={`Play ${story.category.toLowerCase()} animation`}>
           <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true">
             <path class="play-symbol" d="m6 3 10 7-10 7Z" fill="currentColor" />
             <path class="pause-symbol" d="M6 4v12M14 4v12" fill="none" stroke="currentColor" stroke-width="3" />
           </svg>
           <span data-play-label>Play</span>
-        </button>
+        </button>}
         <ol class="diagram-steps">
           {story.steps.map((step, index) => (
             <li>
               <button type="button" data-go={index} aria-label={`Step ${index + 1} of ${story.steps.length}: ${step.title}`} aria-current={index === lastStep ? 'step' : undefined}>
                 <span class="step-track"><span></span></span>
-                <span class="step-label"><span class="step-index">{index + 1}</span>{step.label}</span>
+                <span class="step-label">{step.label}</span>
               </button>
             </li>
           ))}
@@ -43,7 +41,6 @@ const lastStep = story.steps.length - 1;
     </div>
     <figcaption>
       <div class="diagram-caption">
-        <span class="diagram-counter" aria-hidden="true"><span data-counter>{String(story.steps.length).padStart(2, '0')}</span><span> / {String(story.steps.length).padStart(2, '0')}</span></span>
         <div class="diagram-caption-stack">
           {story.steps.map((step, index) => (
             <div data-caption={index} hidden={index !== lastStep}>

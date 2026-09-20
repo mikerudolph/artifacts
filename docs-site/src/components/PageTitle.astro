@@ -1,11 +1,11 @@
 ---
-import { sectionFor, docsHref } from '../navigation.mjs';
 const { id, entry } = Astro.locals.starlightRoute;
-const section = sectionFor(id);
-const group = section.groups.find((group) => group.items.some((item) => item.slug === id));
 ---
-<div class="page-heading">
-  <div class="eyebrow"><a href={docsHref(section.href)}>{section.label}</a><span aria-hidden="true">/</span><span>{group?.label}</span></div>
+<div class:list={["page-heading", { "article-heading": ["core/concepts", "core/integration"].includes(id) }]}>
   <h1 id="_top">{entry.data.title}</h1>
   <p class="page-description">{entry.data.description}</p>
 </div>
+
+<style>
+  .page-heading.article-heading h1 { text-transform: none; letter-spacing: -.025em; font-family: var(--sl-font); font-size: clamp(2rem, 4vw, 2.8rem); line-height: 1.2; font-weight: 650; }
+</style>

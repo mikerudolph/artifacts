@@ -5,7 +5,11 @@ import { sections } from './src/navigation.mjs';
 export default defineConfig({
   site: 'https://mikerudolph.github.io',
   base: '/artifacts',
-  redirects: { '/onboarding': '/artifacts/examples/agent-sessions/' },
+  redirects: {
+    '/onboarding': '/artifacts/examples/agent-sessions/',
+    '/core/data-model': '/artifacts/core/integration/',
+    '/developer-tools': '/artifacts/developer-tools/local-development/',
+  },
   integrations: [
     starlight({
       title: 'Artifacts',
@@ -22,6 +26,7 @@ export default defineConfig({
         ThemeProvider: './src/components/ThemeProvider.astro',
       },
       expressiveCode: {
+        defaultProps: { frame: 'none' },
         themes: ['tokyo-night', 'github-light'],
         styleOverrides: { borderRadius: '2px', codeFontSize: '0.8125rem', codeLineHeight: '1.8' },
       },

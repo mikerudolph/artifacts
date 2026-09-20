@@ -1,117 +1,98 @@
 ---
-title: Integrate your application
-description: Connect repository lifecycle, workers, and published results to your backend.
+title: Integrate into your app
+description: Choose what belongs in a repository, connect it to an application record, and publish results your app can retrieve.
 ---
 
-This guide assumes you have completed the [quickstart](/artifacts/getting-started/) and chosen a [repository boundary](/artifacts/core/data-model/). The basic integration has three participants: your backend owns the workflow, a worker produces files, and Artifacts stores the published history.
+Start with one feature in your application: a generated report, a project workspace, or a set of files produced by a job. Artifacts stores those files and their versions. Your application keeps the record that explains who owns the work and what should happen next.
 
-## Keep the control plane in your backend
+The integration is a small loop: create a repository, publish files, and save the commit SHA with the application record. Add a worker when you need one.
 
-Your backend uses an account-bound control token for REST. It creates repositories, issues repository credentials, and reads results on behalf of authorized application users. A worker gets a short-lived credential for REST content operations or Git on its assigned repository.
+## Choose what belongs together
 
-Do not expose the account control token to a browser or an untrusted agent. It authorizes REST operations across that account. If a client needs a file, authorize that request in your backend and proxy the file response, or provide a repository read credential for REST/Git when access to the full repository is appropriate.
+Use one repository for files that share readers, writers, and a lifecycle. A report job is a useful starting point: its brief and result stay together, and the repository can be retired when the job's history is no longer needed.
 
-## Build a small HTTP adapter
+For a shared project, a repository per project may fit better. For persistent personal memory, a repository per user can span many sessions. These are application choices, not special Artifacts resource types.
 
-There is no client SDK required. This server-side JavaScript helper works with a runtime that provides `fetch`. It treats API failures as failures even if a body is valid JSON and keeps credentials out of error text.
+Repository access includes readable history. A directory or branch cannot hide private inputs from a reader who can access the repository. Split files into separate repositories when their audiences differ.
 
-```js title="artifacts.mjs"
-const origin = process.env.ARTIFACTS_URL ?? 'http://127.0.0.1:8080';
-const account = process.env.ARTIFACTS_ACCOUNT ?? 'local';
-const controlToken = process.env.ARTIFACTS_API_TOKEN;
-const base = `${origin.replace(/\/$/, '')}/client/v4/accounts/${encodeURIComponent(account)}/artifacts`;
+## Connect the repository to your record
 
-export async function artifacts(path, { method = 'GET', body, idempotencyKey } = {}) {
-  const response = await fetch(`${base}${path}`, {
-    method,
-    headers: {
-      ...(controlToken ? { Authorization: `Bearer ${controlToken}` } : {}),
-      ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
-      ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
-    },
-    body: body === undefined ? undefined : JSON.stringify(body),
-    signal: AbortSignal.timeout(30_000),
-  });
-  const envelope = await response.json();
-  if (!response.ok || !envelope.success) {
-    const code = envelope.errors?.[0]?.code ?? 'unknown';
-    throw new Error(`Artifacts request failed: HTTP ${response.status}, code ${code}`);
-  }
-  return envelope.result;
+Keep a mapping in your application database. For a report job, it could look like this:
+
+```json
+{
+  "id": "report-42",
+  "status": "draft",
+  "repository": {
+    "account": "acme",
+    "namespace": "research",
+    "name": "report-42",
+    "id": "<returned repository ID>"
+  },
+  "result_commit": null
 }
 ```
 
-Use this helper for JSON endpoints. The successful `/file`, `/blob`, and `/raw` responses are bytes and need a separate reader. The helper's 30-second timeout is an application choice; imports or large operations may need a different deadline. It deliberately does not retry writes.
+The repository ID identifies the resource; its names form REST and Git addresses. When a result is ready, save its commit SHA in `result_commit`. Later edits can advance `main` without changing which version your record refers to.
 
-## Create, seed, and delegate
+Keep credentials in your secret-handling system, separate from ordinary application records.
 
-Create a repository once for your application record, then persist the returned ID and remote with that record. Use a unique name derived from a stable run ID. Do not log the create response: its `token` is a secret.
+## Create once, publish as the work changes
 
-```js title="Create an isolated unit of work"
-import { artifacts } from './artifacts.mjs';
+Your backend uses an account control token to create a repository. It can then publish and read files using REST. This is enough for an application that generates its own outputs.
 
-const namespace = 'research';
-const repoName = 'run-42'; // Use your own unique run ID.
-const repos = `/namespaces/${namespace}/repos`;
-const repo = await artifacts(repos, {
-  method: 'POST',
-  idempotencyKey: `create-${repoName}`,
-  body: { name: repoName, description: 'Research run 42', issue_credential: false },
-});
-const repoPath = `${repos}/${encodeURIComponent(repo.name)}`;
+The requests below are relative to `/client/v4/accounts/acme/artifacts`. Send the control token as a Bearer header. The [quickstart](/artifacts/getting-started/) provides executable commands; the [API reference](/artifacts/core/api-reference/) documents response fields.
 
-const bootstrap = await artifacts(`${repoPath}/commits`, {
-  method: 'POST',
-  idempotencyKey: `seed-${repoName}`,
-  body: {
-    message: 'Seed research inputs',
-    expected_head: '',
-    files: [
-      { path: 'AGENTS.md', content: 'Write the result to outputs/report.md.\n' },
-      { path: 'inputs/brief.md', content: '# Brief\nResearch the launch plan.\n' },
-    ],
-  },
-});
+```http
+POST /namespaces/research/repos
+Content-Type: application/json
+Idempotency-Key: create-report-42
 
-const credential = await artifacts(`/namespaces/${namespace}/credentials`, {
-  method: 'POST',
-  body: { repo: repo.name, scope: 'write', ttl: 3600 },
-});
-// Persist repo.id, repo.name, repo.remote, and bootstrap.sha in your application.
-// Pass repo.remote and credential.plaintext to the worker through a secret channel.
-// Keep credential.id so the backend can revoke it after the handoff.
+{"name":"report-42","issue_credential":false}
 ```
 
-This example creates without an initial credential, then issues only the one-hour credential it needs. Create and seed use stable idempotency keys; repeating either request with the same input returns its original result. Credential issuance is not idempotent: after an uncertain issuance, inspect/revoke unused credentials before issuing a replacement. See [credential lifecycle](/artifacts/core/authentication/#issue-and-revoke-repository-credentials).
+Persist the returned repository ID and remote. Then publish the initial brief:
 
-## Publish and consume the result
+```http
+POST /namespaces/research/repos/report-42/commits
+Content-Type: application/json
+Idempotency-Key: seed-report-42
 
-The worker clones the repository, changes files, commits, and pushes. Have it report its pushed commit SHA to your backend only after push succeeds. Fetch the expected result at that SHA, validate the file format and your schema, and then mark the application record complete.
+{"expected_head":"","files":[{"path":"brief.md","content":"Research the launch plan."}]}
+```
 
-For a REST-only worker, use its repository write credential to publish changed files and explicit deletions, with `expected_head` and an `Idempotency-Key`, then report the returned `sha`. Untouched files remain. Only management operations need the account token.
+The empty `expected_head` requires an unborn branch. Save the returned `sha`. When your app generates a report, publish `report.md` with that SHA as the next write's `expected_head`; the brief remains in place.
 
-Pin related reads to the same SHA. Reading `main` once for a manifest and again for its output could span two publications. The tree endpoint returns its resolved `commit`, which you can reuse for subsequent file requests.
+Choose an idempotency key for each logical create or commit operation and retain it until the outcome is known. If a response is lost, retry the same request with the same key and body. A new key describes a new operation. If a version check returns a conflict, read the current state and decide how to reconcile the change before submitting it again.
 
-Your backend can poll `/events?after=<saved-sequence>&limit=100` with bounded backoff. Process each publication, read outputs at its `new_sha`, and persist `next_after` after processing the page. Deduplicate by repository ID and sequence so a crash followed by replay does not run the same application action twice. See [publication events](/artifacts/core/api-reference/#publication-events). A new commit alone does not mean the business task succeeded; validate your completion contract.
+## Read the version your app selected
 
-## Handle the gaps between systems
+Use the returned commit SHA to retrieve a result:
 
-Your application database and Artifacts do not share a transaction. Make intermediate states explicit, for example `creating → seeded → running → validating → completed`, with a failure state and a reconciliation job.
+```http
+GET /namespaces/research/repos/report-42/file?ref=<commit-sha>&path=report.md
+```
 
-| Failure window | Recovery approach |
-| --- | --- |
-| Create succeeds, but your process loses the response. | Retry with the same key and body. Without a key, look up the intended name and verify ownership; a `409` alone is insufficient. |
-| Seed succeeds, but the request times out. | Retry with the same key and body to recover the original SHA. Without a key, inspect state before retrying. |
-| Worker pushes, but its completion message is lost. | Reconcile the published ref and your result manifest, then validate the output. |
-| Git push is rejected after another writer advances the branch. | Fetch and reconcile the changes. Retry only if the result is still valid; surface actual conflicts. |
-| A credential expires while work is running. | Your backend issues a replacement for the same repository after checking the job is still authorized. |
+A successful file response contains the file's bytes. Parse or stream those bytes according to your file format. When consuming multiple files, use the same SHA for every read so the result stays consistent.
 
-For a timeout or a `500`, the outcome can be uncertain. An acknowledged response can be lost after publication. Retry keyed create/publication requests with the same key and body; inspect state before repeating other writes, and avoid assuming every server error is transient. See [errors and limits](/artifacts/core/errors-and-limits/).
+Your application decides when to record that SHA as the completed or approved result. Validate the required files and their contents before changing business state. Use your own database or derived index for queries such as “all completed reports for this project.”
 
-## Close the lifecycle
+## Add a worker with access to this repository
 
-Revoke worker credentials after a task ends. Keep the repository while consumers need its content. If another task should continue independently, create a [snapshot fork](/artifacts/core/forks-and-imports/) and give it its own credentials.
+If another process produces the report, your backend issues a repository write credential with a suitable expiry and passes it to the worker through a secret channel. Keep the account control token in your backend.
 
-When your retention policy allows, delete the repository and confirm lookup returns `404`. Deletion hides the repository immediately; it is not a physical purge of historical data. Persist cleanup failures in your application so they can be retried without losing the resource mapping.
+The worker can use REST to publish text changes, or Git to clone, edit, and push. After publishing, it returns the commit SHA to your backend. Your backend reads that version, validates the result, and updates the application record.
 
-For a complete executable REST → Git → REST implementation, see the [agent session example](/artifacts/examples/agent-sessions/).
+A repository credential covers the repository's permitted content operations; it does not authorize account management. Account control tokens do not authenticate Git. See [authentication](/artifacts/core/authentication/) for issuing, using, renewing, and revoking repository credentials.
+
+For a complete worker workflow, use the [agent session example](/artifacts/examples/agent-sessions/). For independent work from a shared starting point, see [snapshot handoffs](/artifacts/examples/snapshot-handoffs/).
+
+## Make recovery part of the lifecycle
+
+Your application database and Artifacts do not share a transaction. Retain the repository mapping and distinguish work that is being created, running, or awaiting validation. If a worker publishes but its completion message is lost, your backend can inspect the repository and reconcile the result.
+
+Start with direct completion messages if they fit your workflow. When you need to discover publications independently, use the [polling event feed](/artifacts/core/api-reference/#publication-events), persist its cursor, and tolerate duplicate processing.
+
+Revoke worker credentials when their task ends. Delete a repository when your retention policy allows, and retry failed cleanup using the saved mapping. Deletion blocks access; it does not physically erase historical bytes. Plan repository boundaries with that limitation in mind.
+
+The [errors and limits guide](/artifacts/core/errors-and-limits/) owns detailed recovery behavior. The [examples](/artifacts/examples/) show file schemas and complete applications you can adapt.

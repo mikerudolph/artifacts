@@ -4,10 +4,9 @@ const { id } = Astro.locals.starlightRoute;
 const current = sectionFor(id);
 ---
 <div class="docs-sidebar">
-  <div class="sidebar-edition"><span>FIELD MANUAL</span></div>
   <nav aria-label={`${current.label} documentation`}>
-    {current.groups.map((group, index) => <div class="sidebar-group">
-      <h2><span class="nav-group-index" aria-hidden="true">0{index + 1}</span>{group.label}</h2>
+    {current.groups.map((group) => <div class="sidebar-group">
+      <h2>{group.label}</h2>
       <ul>{group.items.map((item) => <li><a href={docsHref(item.slug)} aria-current={id === item.slug ? 'page' : undefined}><span>{item.label}</span>{item.slug === 'getting-started' && <span class="quickstart-arrow" aria-hidden="true">↗</span>}</a></li>)}</ul>
     </div>)}
   </nav>
@@ -15,5 +14,4 @@ const current = sectionFor(id);
     <h2>Explore</h2>
     {sections.filter((section) => section.id !== current.id).map((section) => <a href={docsHref(section.href)}>{section.label}<span aria-hidden="true">↗</span></a>)}
   </nav>
-  <a class="sidebar-source" href="https://github.com/mikerudolph/artifacts">Open source. Yours to build on.<span aria-hidden="true">↗</span></a>
 </div>

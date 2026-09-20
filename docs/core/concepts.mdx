@@ -1,84 +1,64 @@
 ---
-title: Core concepts
-description: A small set of primitives for storing the work your application produces.
+title: Files, versions, and your application
+description: Follow a report from its first brief to a saved result, and learn the small model behind Artifacts.
 ---
 
-import Objects from '../../docs-site/src/components/diagrams/Objects.astro';
+import ConceptFigure from '../../docs-site/src/components/ConceptFigure.astro';
 
-Artifacts is a service for creating and managing **Git-compatible file repositories**. Your backend can create a repository and publish files with HTTP. A worker can clone that same repository with Git, add output, and push. Your backend can then read the published output over HTTP.
+Imagine an application that produces research reports. Each report starts with a brief, gains a draft, and goes through revisions. You want to retrieve the version a customer approved, even after someone edits the report again. You may also want a worker to update that report without giving it access to every other customer's work.
 
-You do not need to use agents to use Artifacts. A repository can hold generated reports, a project workspace, a user's memory, or the inputs and outputs of a job. These are application conventions built on the same primitives.
+Artifacts gives these files a home with history and scoped access. The model starts with a **repository**, a **commit**, and a **branch**.
 
-## The address of your data
+## A repository keeps related work together
 
-```text title="A repository and the files inside it"
-account: acme                     tenant / authentication boundary
-└── namespace: research           organizational grouping
-    └── repository: run-42        history / Git credential boundary
-        ├── AGENTS.md             instructions, if you use an agent
-        ├── session.json          your structured application data
-        └── outputs/
-            └── report.md         a native file
-```
+A repository holds files and their history. For our report, it might contain just `brief.md` and `report.md`. Those filenames and formats belong to your application; Artifacts doesn't prescribe a report schema.
 
-| Primitive | What it gives you | What you decide |
-| --- | --- | --- |
-| Account | Tenant-bound REST authentication and repository ownership. | Which application tenant maps to this account. |
-| Namespace | A named group of repositories within an account. | Group by workload, environment, or team. |
-| Repository | An isolated Git history and repository-scoped REST/Git credentials. | The unit of access, collaboration, and retention. |
-| File | Bytes at a path in a committed tree. | Format, schema, validation, and meaning. |
-| Commit | A versioned tree, parent history, message, and author. | What belongs in one publication. |
-| Ref | A name such as `main` that points to a commit. | Which branch is the working or published version. |
-| Snapshot fork | A new repository at a captured parent publication. | When work should diverge with independent access. |
+Choose a repository around work that shares access and a lifecycle. One report job can have its own repository. A project whose documents evolve together might use a longer-lived repository instead.
 
-A namespace is an organizational boundary. It does not narrow a control-plane token's account access. A Git credential covers a whole repository, including its readable history; it cannot be restricted to a directory or branch.
+This choice also sets the access boundary. A repository credential grants access to the repository and its readable history. Directories and branches do not create separate permissions. If two sets of files need different readers, put them in separate repositories.
 
-## A snapshot is a graph of objects
+## A commit is a version you can come back to
 
-A branch name is a movable pointer, not a folder and not a permanent version. It resolves to a commit; the commit identifies a root tree; tree entries associate names with file blobs or nested trees. A blob contains bytes, while its path comes from the tree that references it.
+When you publish changes, you create a commit. It captures a complete version of the files and receives a Git commit SHA. Save that SHA when your application needs to refer to an exact result.
 
-<Objects />
+A branch such as `main` is a name that moves as new work is published. Use it to find the latest work; use a commit SHA to read a version you already chose.
 
-Changing a file creates new objects instead of mutating the previous snapshot. Unchanged content can be referenced by both snapshots. Your application should keep a **commit SHA** for reproducible output, and use a **branch name** when it intentionally wants the latest published work. None of this requires your application to manage Git object IDs for individual files.
+<ConceptFigure kind="history" />
 
-## One history, two interfaces
+Suppose a customer approves the first report, at commit B. Your application records B with the approval. A later revision moves `main` to C, but reading `report.md` at B still returns the approved text.
 
-Use the **REST API** to create and find repositories, issue credentials, publish small file changes, read content, and manage lifecycle. Use **Git smart HTTP** for clone, fetch, and push with existing tools. Both publish into the same history.
+The same principle applies to several files. Publish a report and its supporting data in one commit, then read both at that SHA. Two separate reads of `main` could otherwise see different revisions.
 
-```text
-Your backend ── REST commit ──┐
-                             ├── Repository history ── REST read ── Your application
-Your worker  ── Git push ─────┘                      └── Git fetch ── Other workers
-```
+## REST and Git meet in the same repository
 
-A successful REST commit returns a Git commit SHA and a publication sequence. The SHA identifies the content version. The sequence tracks storage publications within that repository; it is not a business event ID or a count of Git commits. One push can contain several commits.
+Your backend can publish files with an HTTP request. A worker can clone those files, edit them with ordinary tools, and push a Git commit. Your backend can read the result through HTTP without maintaining a clone.
 
-An empty repository has a default branch setting and symbolic `HEAD`, but no commit to read yet. Publish its first files before requesting a tree or file.
+<ConceptFigure kind="interfaces" />
 
-## What your application owns
+Git is optional for an application that only needs REST. It becomes useful when a worker already uses Git tools, needs to publish binary files, or wants a local workspace. Either way, the files and commits belong to one shared history.
 
-Artifacts does not interpret `session.json`, enforce your JSON schema, schedule workers, query your business records, or index file contents for search. Your application provides those behaviors.
+REST updates preserve paths you didn't change. Updating `report.md` leaves `brief.md` in place. Deletion and full replacement are explicit operations. If a change depends on a version you read, send its SHA as `expected_head` so another writer's changes produce a conflict you can resolve. The [writing guide](/artifacts/core/writing-files/) explains version checks and safe retries.
 
-A useful division is to keep permissions, task state, billing, and searchable records in your application database, with a link to the Artifacts account, namespace, repository ID/name, and relevant commit SHA. Put versioned inputs, manifests, and output files in the repository. A manifest can make a repository understandable on its own, but consistency between that manifest and your database is your application's responsibility.
+## Your application gives the files their meaning
 
-## What makes a publication durable
+Artifacts knows that a commit contains files. Your application knows that those files represent an approved report, a completed job, or a project ready for review.
 
-Postgres owns published refs and repository metadata. Object storage holds immutable Git packs. A local bare repository is a cache that the server can reconstruct.
+<ConceptFigure kind="ownership" />
 
-Artifacts stores the object data before publishing the refs in a Postgres transaction. After an acknowledged publication, readers can resolve that version through either interface. Consumers work with files and Git objects; cache reconstruction and WAL packs stay on the server.
+Keep the repository address and the relevant commit SHA alongside your business record. Your application still authorizes its users, validates outputs, and decides when work is complete. A new commit is evidence that files were published; it doesn't by itself mean a job succeeded.
 
-Run one or more instances of the same release against a shared Postgres writer and durable object storage. Multiple instances use the same S3-compatible bucket and prefix with independent local caches. See [storage architecture](/artifacts/storage/) for the detailed contract.
+When another process needs to work on the files, your backend can issue a short-lived repository credential. That worker can read or update its assigned repository without receiving your account's management token.
 
-## Choose the next step
+## Give each repository an address
 
-If you have not made a commit yet, follow the [quickstart](/artifacts/getting-started/). Once that works, [model your data](/artifacts/core/data-model/) before choosing your repository layout. That decision determines who can read the work, how writers coordinate, and how long you keep it.
+A repository address has three parts: **account / namespace / repository**. For example, `acme/research/report-42` identifies a report repository in the `research` group of the `acme` account.
 
-### Publication and read costs
+The account owns the repositories and scopes management credentials. A namespace groups repositories within that account; it doesn't restrict an account token's access. Most application code only needs to retain these names, the repository ID, and the commit SHA it plans to read.
 
-Each REST commit or Git push uploads a pack of newly reachable objects and its index. Previously published history stays in earlier packs. Packs contain their own delta bases, so decoding a pack does not require another pack. A ref-only publication may upload an empty pack.
+You can start with one repository and `main`. When work needs an independent starting point and its own credentials, a [snapshot fork](/artifacts/core/forks-and-imports/) creates a new repository from captured history. You don't need forks to use the basic model.
 
-The serving process checks for compaction work at startup and once a minute. Repositories with at least 32 publications since their last checkpoint qualify; each pass handles up to eight repositories. Compaction creates a full checkpoint outside the write request. Original packs remain available for fork snapshots and event replay. Manual `artifacts compact` remains available.
+## Put the model to work
 
-Content reads load cached pack indexes and fetch the byte ranges needed for the requested Git objects. The reader verifies decoded object hashes and keeps up to eight 256 KiB blocks for its current pack. It switches to the full disk cache for objects larger than 8 MiB, preserving disk-backed reads for large files. Git clone/fetch/push still use the full local cache. All caches are disposable.
+Try the [quickstart](/artifacts/getting-started/) to write and read your first version. Then follow [Integrate into your app](/artifacts/core/integration/) to choose a repository boundary and connect it to your application records.
 
-Postgres remains the authority for refs, publication order, and credentials. These changes do not change the supported single-serving-node deployment model.
+For deployment and durability details, see [production deployment](/artifacts/core/deployment/) and [storage architecture](/artifacts/storage/). Those explain how the service keeps published history available without making storage internals part of your application model.

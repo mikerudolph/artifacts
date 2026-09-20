@@ -5,7 +5,7 @@ description: See how the same repository primitives support short-lived work, lo
 
 These examples layer application conventions on top of Artifacts. An agent session, a memory, or a run manifest is your data model; Artifacts stores its files and publication history.
 
-If you have not used the API yet, complete the [quickstart](/artifacts/getting-started/). For the design decisions behind these examples, read [model your data](/artifacts/core/data-model/).
+If you have not used the API yet, complete the [quickstart](/artifacts/getting-started/). For the design decisions behind these examples, read [integration guide](/artifacts/core/integration/).
 
 ## Choose a pattern
 
@@ -19,4 +19,4 @@ If you have not used the API yet, complete the [quickstart](/artifacts/getting-s
 
 Keep the repository boundary aligned with access and retention. Replace example file schemas with ones your application validates. Store the repository mapping and completed commit SHA in your own database. Explicitly assign responsibility for worker completion, credential renewal/revocation, and cleanup.
 
-The [Core documentation](/artifacts/core/concepts/) remains the API contract. The [Developer tools](/artifacts/developer-tools/) section covers the local browser and verification workflow used to inspect these examples.
+The [API reference](/artifacts/core/api-reference/) documents the request and response contract. The [Developer tools](/artifacts/developer-tools/local-development/) section covers the local browser and verification workflow used to inspect these examples.

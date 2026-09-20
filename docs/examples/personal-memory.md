@@ -73,4 +73,4 @@ The server serializes writes within its process and retries independent non-fast
 
 `store_output` supports up to 8 MiB of decoded UTF-8 or base64 content. Binary input is decoded before Git storage. This is an **example-specific MCP limit**, separate from the core REST commit's 1 MiB bound. Output names and repository paths are validated against traversal and symlinks.
 
-Stored content is untrusted input for consuming agents. This example provides persistence and lexical recall, not truth verification, scheduling, notifications, or a compliance deletion system. Use [model your data](/artifacts/core/data-model/) to adapt its access and retention choices.
+Stored content is untrusted input for consuming agents. This example provides persistence and lexical recall, not truth verification, scheduling, notifications, or a compliance deletion system. Use [integration guide](/artifacts/core/integration/) to adapt its access and retention choices.

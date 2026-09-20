@@ -18,7 +18,6 @@ const steps = [
 
 <repository-workflow class="repository-orbit">
   <figure aria-label="An agent reads an execution plan from Artifacts, performs work, and writes revised report and state files back as a new commit. Earlier snapshots remain available.">
-    <div class="orbit-instrument-label"><span>THE AGENT WORKFLOW</span><span>ILLUSTRATIVE RUN</span></div>
     <div class="workflow-stage">
       {scenes.map(({ name, width, height, repo: [rx, ry], agent: [ax, ay], files: [fx, fy], fileWidth, read, write }) => <svg class={`workflow-scene workflow-${name}`} viewBox={`0 0 ${width} ${height}`} fill="none" aria-hidden="true" focusable="false">
         <defs>
@@ -92,8 +91,7 @@ const steps = [
           <path class="workflow-agent-corners" d="M0 14V0h14M156 0h14v14M0 140v14h14M156 154h14v-14" />
           <path d="M0 43h170" class="workflow-agent-divider" />
           <g transform="translate(19 23)"><g data-agent-spin><path class="workflow-agent-glyph" d="M0-9 8-4v8L0 9-8 4v-8ZM0-9v18M-8-4 8 4M-8 4 8-4" /></g></g>
-          <text x="38" y="12" class="workflow-agent-kicker">YOUR APPLICATION</text>
-          <text x="38" y="32" class="workflow-agent-title">Research agent</text>
+          <text x="38" y="27" class="workflow-agent-title">Research agent</text>
           <g transform="translate(15 65)">
             <text class="workflow-task-label">Inspect sources</text>
             <path d="M0 12h139" class="workflow-task-rail" />
@@ -109,7 +107,7 @@ const steps = [
           <text x="15" y="140" class="workflow-agent-status" data-agent-status>Waiting for plan.md</text>
         </g>
         <g transform={`translate(${fx} ${fy})`} class="workflow-files">
-          <text class="workflow-files-heading">RESEARCH-42 / FILES</text>
+
           {[
             ['plan.md', 'plan', exampleHash(0, 1)],
             ['state.json', 'state', exampleHash(0, 3)],
@@ -126,12 +124,11 @@ const steps = [
     </div>
     <figcaption class="workflow-caption">
       <ol class="workflow-steps" aria-label="Read, work, write, preserve history">
-        {steps.map(([label], i) => <li data-workflow-step={i} data-active={i === 0 ? 'true' : 'false'}><span>0{i + 1}</span>{label}<i aria-hidden="true"></i></li>)}
+        {steps.map(([label], i) => <li data-workflow-step={i} data-active={i === 0 ? 'true' : 'false'}>{label}<i aria-hidden="true"></i></li>)}
       </ol>
       <div class="workflow-explanation">
         {steps.map(([, title, description], i) => <p data-workflow-caption={i} hidden={i !== 0}><strong>{title}</strong> {description}</p>)}
       </div>
-      <p class="workflow-interface-note">Your agent does the work. <span>Artifacts keeps the versions.</span></p>
       <noscript><p class="workflow-static">The agent reads plan.md, performs its task, and writes report.md and state.json back as a new commit. Earlier snapshots remain available.</p></noscript>
     </figcaption>
   </figure>

@@ -1,0 +1,57 @@
+---
+interface Props { kind: 'history' | 'interfaces' | 'ownership'; }
+const { kind } = Astro.props;
+---
+<figure class="concept-figure">
+  {kind === 'history' && <>
+    <div class="version-strip">
+      <div><span class="version-tag">Commit A</span><strong>The brief</strong><p>brief.md</p><small>The starting point</small></div>
+      <div><span class="version-tag">Commit B</span><strong>The first report</strong><p>brief.md<br />report.md</p><small>Your app saves this SHA</small></div>
+      <div><span class="version-tag current">main → Commit C</span><strong>A revised report</strong><p>brief.md<br />report.md</p><small>The latest work</small></div>
+    </div>
+    <figcaption>Reading commit B still returns the first report after <code>main</code> advances to C. Letters stand in for full commit SHAs.</figcaption>
+  </>}
+  {kind === 'interfaces' && <>
+    <div class="interface-flow">
+      <div><strong>Your backend</strong><span>REST</span><p>Create a repository.<br />Write and read files.</p></div>
+      <span class="flow-arrow" aria-label="exchanges files with">↔</span>
+      <div class="shared-history"><strong>Artifacts</strong><span>One repository</span><p>Files + version history</p></div>
+      <span class="flow-arrow" aria-label="exchanges files with">↔</span>
+      <div><strong>Your worker</strong><span>Git or REST</span><p>Read the inputs.<br />Publish the result.</p></div>
+    </div>
+    <figcaption>A REST commit can be cloned with Git. A Git push can be read through REST. Your app can also use REST for the entire workflow.</figcaption>
+  </>}
+  {kind === 'ownership' && <>
+    <div class="ownership-pair">
+      <div><strong>Your application</strong><p>Users and permissions<br />Job status and scheduling<br />Search and business records</p><span class="record-link">Repository address + result SHA</span></div>
+      <div><strong>Artifacts</strong><p>Input and output files<br />Commits and branches<br />Repository credentials</p><span class="record-link">Read the saved version</span></div>
+    </div>
+    <figcaption>Your database records which result belongs to a job. The repository preserves the files that make up that result.</figcaption>
+  </>}
+</figure>
+<style>
+  .concept-figure { margin: 2.25rem 0; padding: 1.5rem; border: 1px solid var(--sl-color-hairline); border-radius: 8px; background: var(--surface-raised); }
+  .version-strip, .ownership-pair { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.25rem; }
+  .version-strip > *, .interface-flow > *, .ownership-pair > * { margin-top: 0; }
+  .version-strip > div { border-top: 2px solid var(--sl-color-accent); padding-top: .8rem; }
+  .concept-figure strong { display: block; color: var(--sl-color-white); font-size: 1rem; }
+  .concept-figure p { font-size: .9rem; line-height: 1.8; margin: .65rem 0; }
+  .version-tag { display: block; font: .75rem var(--sl-font-mono); color: var(--sl-color-gray-2); margin-bottom: .65rem; }
+  .version-tag.current { color: var(--sl-color-accent-high); }
+  small { color: var(--sl-color-gray-2); font-size: .8rem; }
+  figcaption { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--sl-color-hairline); color: var(--sl-color-gray-2); font-size: .85rem; line-height: 1.7; }
+  .interface-flow { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; align-items: center; gap: .6rem; text-align: center; }
+  .interface-flow span { font-size: .8rem; color: var(--sl-color-accent-high); }
+  .interface-flow .flow-arrow { font-size: 1.5rem; }
+  .shared-history { padding: 1.25rem .5rem; border: 1px solid var(--sl-color-accent); border-radius: 6px; }
+  .ownership-pair { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ownership-pair > div { border-left: 2px solid var(--sl-color-accent); padding-left: 1rem; }
+  .record-link { font-size: .8rem; color: var(--sl-color-accent-high); }
+  @media (max-width: 600px) {
+    .concept-figure { padding: 1rem; }
+    .version-strip, .ownership-pair, .interface-flow { grid-template-columns: 1fr; }
+    .version-strip > *, .interface-flow > *, .ownership-pair > * { margin-top: 0; }
+  .version-strip > div { border-top: 0; border-left: 2px solid var(--sl-color-accent); padding: 0 0 0 1rem; }
+    .interface-flow .flow-arrow { transform: rotate(90deg); }
+  }
+</style>

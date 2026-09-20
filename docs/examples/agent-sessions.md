@@ -53,6 +53,6 @@ Expect proof of REST creation, a REST commit and readback, real Git clone/push, 
 
 The [Go harness source](https://github.com/mikerudolph/artifacts/tree/main/examples/agent-harness) separates the HTTP client, Git invocation, workflow, and redacted report. Use its transport and verification patterns as a reference while keeping your application's scheduling and task state in your own backend.
 
-An expired credential should trigger a backend authorization check and replacement issuance. A lost completion message should trigger reconciliation of the expected output and published ref. A failed cleanup should retain the repository mapping for a later retry. These cases are covered in [integrate your application](/artifacts/core/integration/#handle-the-gaps-between-systems).
+An expired credential should trigger a backend authorization check and replacement issuance. A lost completion message should trigger reconciliation of the expected output and published ref. A failed cleanup should retain the repository mapping for a later retry. These cases are covered in [integrate your application](/artifacts/core/integration/#make-recovery-part-of-the-lifecycle).
 
 When the next session needs to continue from this work independently, use a [snapshot handoff](/artifacts/examples/snapshot-handoffs/).

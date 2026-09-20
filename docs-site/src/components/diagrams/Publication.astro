@@ -7,7 +7,7 @@ const layouts = [
 ];
 ---
 
-<Diagram story="publication">
+<Diagram story="publication" playbackControl={false}>
   {layouts.map(({ name, width, height, x, y, w, h, reader }) => {
     const mobile = name === 'mobile';
     const row1 = mobile ? 58 : 80;

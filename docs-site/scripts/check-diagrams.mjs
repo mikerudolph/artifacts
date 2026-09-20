@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { stories } from '../src/components/diagrams/stories.ts';
 
 const routes = {
-  objects: 'core/concepts',
+  objects: 'storage',
   publication: 'storage',
   storage: 'storage',
   forks: 'core/forks-and-imports',
