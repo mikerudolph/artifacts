@@ -18,7 +18,6 @@ import (
 	"github.com/mikerudolph/artifacts/internal/types"
 )
 
-// Run executes a CLI command. Returns process exit code.
 func Run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	if len(args) == 0 || args[0] == "-h" || args[0] == "--help" {
 		WriteUsage(stdout)
@@ -55,7 +54,9 @@ func runServe(ctx context.Context, stderr io.Writer) int {
 	return listen(ctx, cfg.HTTP.Addr, h, stderr)
 }
 
-func listen(_ context.Context, addr string, h http.Handler, stderr io.Writer) int {
+func listen(ctx context.Context, addr string, h http.Handler, stderr io.Writer) int {
+	stop := startMaintenance(ctx, h)
+	defer stop()
 	_, _ = fmt.Fprintf(stderr, "listening on %s\n", addr)
 	srv := newHTTPServer(addr, h)
 	if err := srv.ListenAndServe(); err != nil {
@@ -98,7 +99,9 @@ func runDev(ctx context.Context, args []string, stderr io.Writer) int {
 	return listenDev(ctx, cfg.HTTP.Addr, h, stderr)
 }
 
-func listenDev(_ context.Context, addr string, h http.Handler, stderr io.Writer) int {
+func listenDev(ctx context.Context, addr string, h http.Handler, stderr io.Writer) int {
+	stop := startMaintenance(ctx, h)
+	defer stop()
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		_, _ = fmt.Fprintln(stderr, err)

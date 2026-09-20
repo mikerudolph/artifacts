@@ -36,7 +36,7 @@ The Settings tab is read-only. Change settings through the REST API. The UI does
 
 ## Investigate a surprising result
 
-If a file looks old, check the branch and resolved commit first. A worker's local commit does not appear until it pushes. If inputs disappeared after a REST update, check whether the request included the whole intended snapshot. The [write guide](/artifacts/core/writing-files/) explains that behavior.
+If a file looks old, check the branch and resolved commit first. A worker's local commit does not appear until it pushes. If inputs disappeared after a REST update, check for explicit `deletes` or `replace: true`. The [write guide](/artifacts/core/writing-files/) explains that behavior.
 
 For empty or error views, try the corresponding REST `/tree` or `/file` request and inspect its HTTP status. A cold read may need to reconstruct the cache. WAL entries confirm publications but do not prove the meaning or correctness of a worker's output.
 

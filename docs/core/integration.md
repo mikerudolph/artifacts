@@ -7,9 +7,9 @@ This guide assumes you have completed the [quickstart](/artifacts/getting-starte
 
 ## Keep the control plane in your backend
 
-Your backend uses an account-bound control token for REST. It creates repositories, issues repository credentials, and reads results on behalf of authorized application users. A worker that only needs Git gets a short-lived credential for its assigned repository.
+Your backend uses an account-bound control token for REST. It creates repositories, issues repository credentials, and reads results on behalf of authorized application users. A worker gets a short-lived credential for REST content operations or Git on its assigned repository.
 
-Do not expose the account control token to a browser or an untrusted agent. It authorizes REST operations across that account. If a client needs a file, authorize that request in your backend and proxy the file response, or provide repository-level Git access when that is appropriate.
+Do not expose the account control token to a browser or an untrusted agent. It authorizes REST operations across that account. If a client needs a file, authorize that request in your backend and proxy the file response, or provide a repository read credential for REST/Git when access to the full repository is appropriate.
 
 ## Build a small HTTP adapter
 
@@ -21,11 +21,12 @@ const account = process.env.ARTIFACTS_ACCOUNT ?? 'local';
 const controlToken = process.env.ARTIFACTS_API_TOKEN;
 const base = `${origin.replace(/\/$/, '')}/client/v4/accounts/${encodeURIComponent(account)}/artifacts`;
 
-export async function artifacts(path, { method = 'GET', body } = {}) {
+export async function artifacts(path, { method = 'GET', body, idempotencyKey } = {}) {
   const response = await fetch(`${base}${path}`, {
     method,
     headers: {
       ...(controlToken ? { Authorization: `Bearer ${controlToken}` } : {}),
+      ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
       ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
     },
     body: body === undefined ? undefined : JSON.stringify(body),
@@ -54,14 +55,17 @@ const repoName = 'run-42'; // Use your own unique run ID.
 const repos = `/namespaces/${namespace}/repos`;
 const repo = await artifacts(repos, {
   method: 'POST',
-  body: { name: repoName, description: 'Research run 42' },
+  idempotencyKey: `create-${repoName}`,
+  body: { name: repoName, description: 'Research run 42', issue_credential: false },
 });
 const repoPath = `${repos}/${encodeURIComponent(repo.name)}`;
 
 const bootstrap = await artifacts(`${repoPath}/commits`, {
   method: 'POST',
+  idempotencyKey: `seed-${repoName}`,
   body: {
     message: 'Seed research inputs',
+    expected_head: '',
     files: [
       { path: 'AGENTS.md', content: 'Write the result to outputs/report.md.\n' },
       { path: 'inputs/brief.md', content: '# Brief\nResearch the launch plan.\n' },
@@ -78,17 +82,17 @@ const credential = await artifacts(`/namespaces/${namespace}/credentials`, {
 // Keep credential.id so the backend can revoke it after the handoff.
 ```
 
-Creation also issues an initial write credential with a 24-hour TTL. You can use that credential or mint a shorter-lived one as above. If you mint a new one, the initial credential remains valid until expiry or revocation; see [credential lifecycle](/artifacts/core/authentication/#issue-and-revoke-repository-credentials).
+This example creates without an initial credential, then issues only the one-hour credential it needs. Create and seed use stable idempotency keys; repeating either request with the same input returns its original result. Credential issuance is not idempotent: after an uncertain issuance, inspect/revoke unused credentials before issuing a replacement. See [credential lifecycle](/artifacts/core/authentication/#issue-and-revoke-repository-credentials).
 
 ## Publish and consume the result
 
 The worker clones the repository, changes files, commits, and pushes. Have it report its pushed commit SHA to your backend only after push succeeds. Fetch the expected result at that SHA, validate the file format and your schema, and then mark the application record complete.
 
-For a REST-only worker, publish a complete snapshot and use the returned `sha`. A repository credential cannot authenticate REST; a REST worker needs trusted backend mediation or account-level control access.
+For a REST-only worker, use its repository write credential to publish changed files and explicit deletions, with `expected_head` and an `Idempotency-Key`, then report the returned `sha`. Untouched files remain. Only management operations need the account token.
 
 Pin related reads to the same SHA. Reading `main` once for a manifest and again for its output could span two publications. The tree endpoint returns its resolved `commit`, which you can reuse for subsequent file requests.
 
-There are no webhooks or completion callbacks in the current API. Completion can come from your worker protocol, or your backend can poll refs with bounded backoff. A new commit alone does not mean the business task succeeded; validate your completion contract.
+Your backend can poll `/events?after=<saved-sequence>&limit=100` with bounded backoff. Process each publication, read outputs at its `new_sha`, and persist `next_after` after processing the page. Deduplicate by repository ID and sequence so a crash followed by replay does not run the same application action twice. See [publication events](/artifacts/core/api-reference/#publication-events). A new commit alone does not mean the business task succeeded; validate your completion contract.
 
 ## Handle the gaps between systems
 
@@ -96,13 +100,13 @@ Your application database and Artifacts do not share a transaction. Make interme
 
 | Failure window | Recovery approach |
 | --- | --- |
-| Create succeeds, but your process loses the response. | Look up the intended unique name and compare it with the application mapping. Issue a fresh credential if needed; never assume a `409` proves ownership. |
-| Seed succeeds, but the request times out. | Read the branch and expected files before retrying. A repeated REST commit creates another commit. |
+| Create succeeds, but your process loses the response. | Retry with the same key and body. Without a key, look up the intended name and verify ownership; a `409` alone is insufficient. |
+| Seed succeeds, but the request times out. | Retry with the same key and body to recover the original SHA. Without a key, inspect state before retrying. |
 | Worker pushes, but its completion message is lost. | Reconcile the published ref and your result manifest, then validate the output. |
 | Git push is rejected after another writer advances the branch. | Fetch and reconcile the changes. Retry only if the result is still valid; surface actual conflicts. |
 | A credential expires while work is running. | Your backend issues a replacement for the same repository after checking the job is still authorized. |
 
-For a timeout or a `500`, the outcome can be uncertain. An acknowledged response can be lost after publication. Inspect state before retrying, and avoid assuming that every server error is transient. See [errors and limits](/artifacts/core/errors-and-limits/).
+For a timeout or a `500`, the outcome can be uncertain. An acknowledged response can be lost after publication. Retry keyed create/publication requests with the same key and body; inspect state before repeating other writes, and avoid assuming every server error is transient. See [errors and limits](/artifacts/core/errors-and-limits/).
 
 ## Close the lifecycle
 

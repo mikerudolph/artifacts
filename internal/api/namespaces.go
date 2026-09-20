@@ -16,7 +16,7 @@ type createNSBody struct {
 func (s *server) createNamespace(w http.ResponseWriter, r *http.Request) {
 	var body createNSBody
 	if err := decodeJSON(w, r, &body); err != nil {
-		writeErr(w, types.ErrInvalidName)
+		writeErr(w, err)
 		return
 	}
 	j, err := types.ParseJurisdiction(body.Jurisdiction)

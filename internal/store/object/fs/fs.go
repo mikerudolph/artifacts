@@ -17,7 +17,6 @@ type store struct {
 	root string
 }
 
-// New returns a filesystem-backed object.Store rooted at root.
 func New(root string) (object.Store, error) {
 	if root == "" {
 		return nil, fmt.Errorf("empty root")
@@ -44,7 +43,7 @@ func (s *store) Get(_ context.Context, key string) (io.ReadCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	f, err := os.Open(filepath.Clean(path)) //nolint:gosec // path is ValidateKey'd
+	f, err := os.Open(filepath.Clean(path)) //nolint:gosec
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, object.ErrNotFound
@@ -79,7 +78,7 @@ func (s *store) Put(_ context.Context, key string, r io.Reader, _ int64) error {
 	if err := f.Close(); err != nil {
 		return err
 	}
-	if err := os.Link(tmp, filepath.Clean(path)); err != nil { //nolint:gosec // path is ValidateKey'd
+	if err := os.Link(tmp, filepath.Clean(path)); err != nil { //nolint:gosec
 		if os.IsExist(err) && sameFileContent(tmp, path) {
 			return nil
 		}
@@ -97,12 +96,12 @@ func (s *store) Put(_ context.Context, key string, r io.Reader, _ int64) error {
 }
 
 func sameFileContent(a, b string) bool {
-	one, err := os.Open(filepath.Clean(a)) //nolint:gosec // internal temporary file
+	one, err := os.Open(filepath.Clean(a)) //nolint:gosec
 	if err != nil {
 		return false
 	}
 	defer func() { _ = one.Close() }()
-	two, err := os.Open(filepath.Clean(b)) //nolint:gosec // validated store path
+	two, err := os.Open(filepath.Clean(b)) //nolint:gosec
 	if err != nil {
 		return false
 	}

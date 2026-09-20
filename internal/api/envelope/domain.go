@@ -9,8 +9,10 @@ import (
 	"github.com/mikerudolph/artifacts/internal/types"
 )
 
-// FromDomain maps a domain error to an HTTP status and API error.
 func FromDomain(err error) (int, APIError) {
+	if status, out, ok := detailedError(err); ok {
+		return status, out
+	}
 	switch {
 	case err == nil:
 		return http.StatusInternalServerError, APIError{Code: CodeInternalError, Message: "internal error"}
@@ -25,7 +27,7 @@ func FromDomain(err error) (int, APIError) {
 		errors.Is(err, types.ErrInvalidJurisdiction):
 		return http.StatusBadRequest, APIError{Code: CodeInvalidInput, Message: err.Error()}
 	case errors.Is(err, meta.ErrNotFound):
-		return http.StatusNotFound, APIError{Code: CodeNotFound, Message: "File not found"}
+		return http.StatusNotFound, APIError{Code: CodeNotFound, Kind: "not_found", Message: "Resource not found"}
 	case errors.Is(err, meta.ErrAlreadyExists):
 		return http.StatusConflict, APIError{Code: CodeAlreadyExists, Message: err.Error()}
 	case errors.Is(err, jobs.ErrInvalidURL):
@@ -39,4 +41,33 @@ func FromDomain(err error) (int, APIError) {
 	default:
 		return http.StatusInternalServerError, APIError{Code: CodeInternalError, Message: "internal error"}
 	}
+}
+
+func detailedError(err error) (int, APIError, bool) {
+	var input *types.InputError
+	if errors.As(err, &input) {
+		status := http.StatusBadRequest
+		kind := "invalid_input"
+		if input.TooLarge {
+			status, kind = http.StatusRequestEntityTooLarge, "payload_too_large"
+		}
+		out := APIError{Code: CodeInvalidInput, Kind: kind, Message: input.Message}
+		out.Source = &struct {
+			Pointer string `json:"pointer,omitempty"`
+		}{Pointer: input.Field}
+		return status, out, true
+	}
+	var conflict *types.HeadConflict
+	if errors.As(err, &conflict) {
+		return http.StatusConflict, APIError{Code: CodePublicationConflict, Kind: "head_conflict", Message: conflict.Error(), CurrentHead: &conflict.Current}, true
+	}
+	switch {
+	case errors.Is(err, types.ErrForbidden):
+		return http.StatusForbidden, APIError{Code: CodeForbidden, Kind: "forbidden", Message: err.Error()}, true
+	case errors.Is(err, types.ErrIdempotencyConflict):
+		return http.StatusConflict, APIError{Code: CodeIdempotencyConflict, Kind: "idempotency_conflict", Message: err.Error()}, true
+	case errors.Is(err, meta.ErrCASConflict):
+		return http.StatusConflict, APIError{Code: CodePublicationConflict, Kind: "publication_conflict", Message: "publication state changed; read the current head before retrying"}, true
+	}
+	return 0, APIError{}, false
 }

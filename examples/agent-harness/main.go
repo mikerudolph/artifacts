@@ -1,4 +1,3 @@
-// Command agent-harness verifies Artifacts through its public REST and Git surfaces.
 package main
 
 import (

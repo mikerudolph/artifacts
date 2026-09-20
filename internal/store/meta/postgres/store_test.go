@@ -256,7 +256,7 @@ func TestOpenAndCursorErrors(t *testing.T) {
 	if _, _, err := decodeCursor("%%%"); err == nil {
 		t.Fatal("expected cursor error")
 	}
-	if _, _, err := decodeCursor("YQ"); err == nil { // "a"
+	if _, _, err := decodeCursor("YQ"); err == nil {
 		t.Fatal("expected cursor error")
 	}
 	badTime := base64.RawURLEncoding.EncodeToString([]byte("not-a-time|id"))

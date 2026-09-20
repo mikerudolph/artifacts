@@ -39,7 +39,7 @@ git rev-parse HEAD
 
 This adds or updates the report while preserving unrelated files. The returned local SHA is a published result only after push succeeds. Send that SHA back to your backend so it can read the result through [REST at a pinned version](/artifacts/core/reading-files/#pin-a-version-for-related-reads).
 
-Git also supports binary files, file modes, deletes, and larger file sets than the bounded REST snapshot endpoint. The receive stream is capped at 512 MiB; this is a transfer limit, not a recommended file size or an unlimited storage guarantee.
+Git also supports binary files, file modes, deletes, and larger file sets than the bounded REST commit endpoint. The receive stream is capped at 512 MiB; this is a transfer limit, not a recommended file size or an unlimited storage guarantee.
 
 ## Branch from an existing version
 

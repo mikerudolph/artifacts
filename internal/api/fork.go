@@ -8,7 +8,6 @@ import (
 	"github.com/mikerudolph/artifacts/internal/types"
 )
 
-// Jobs is the optional fork/import runner. Set by process wiring.
 var Jobs *jobs.Runner
 
 func (s *server) handleFork(w http.ResponseWriter, r *http.Request) {
@@ -22,7 +21,7 @@ func (s *server) handleFork(w http.ResponseWriter, r *http.Request) {
 	}
 	var in types.ForkRepoInput
 	if err := decodeJSON(w, r, &in); err != nil {
-		writeErr(w, types.ErrInvalidName)
+		writeErr(w, err)
 		return
 	}
 	got, err := runner.Fork(r.Context(), types.AccountID(chi.URLParam(r, "account_id")), chi.URLParam(r, "namespace"), chi.URLParam(r, "name"), in)
@@ -44,7 +43,7 @@ func (s *server) handleImport(w http.ResponseWriter, r *http.Request) {
 	}
 	var in types.ImportRepoInput
 	if err := decodeJSON(w, r, &in); err != nil {
-		writeErr(w, types.ErrInvalidName)
+		writeErr(w, err)
 		return
 	}
 	name := types.RepoName(chi.URLParam(r, "name"))

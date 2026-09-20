@@ -5,7 +5,6 @@ import (
 	"testing"
 )
 
-// GitAvailable skips the test when git is not on PATH.
 func GitAvailable(tb testing.TB) {
 	tb.Helper()
 	if _, err := exec.LookPath("git"); err != nil {
@@ -20,7 +19,6 @@ func gitOutput(dir string, args ...string) (string, error) {
 	return string(out), err
 }
 
-// RunGit runs git in dir and fails the test on a non-zero exit.
 func RunGit(tb testing.TB, dir string, args ...string) string {
 	tb.Helper()
 	GitAvailable(tb)
@@ -31,7 +29,6 @@ func RunGit(tb testing.TB, dir string, args ...string) string {
 	return out
 }
 
-// TempRepo creates a git repo with user.name and user.email set.
 func TempRepo(tb testing.TB) string {
 	tb.Helper()
 	dir := tb.TempDir()

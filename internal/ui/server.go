@@ -1,4 +1,3 @@
-// Package ui serves the local no-auth repository browser.
 package ui
 
 import (
@@ -61,7 +60,6 @@ type browserEntry struct {
 //go:embed templates/*.html assets/*.css
 var files embed.FS
 
-// New constructs a local browser backed only by the REST handler.
 func New(rest http.Handler) (http.Handler, error) {
 	if rest == nil {
 		return nil, errors.New("REST handler is required")

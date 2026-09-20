@@ -1,4 +1,3 @@
-// Package httpstream applies progress-based idle deadlines to streaming HTTP bodies.
 package httpstream
 
 import (
@@ -8,16 +7,13 @@ import (
 	"time"
 )
 
-// DefaultIdleTimeout is the production inactivity limit for a streaming transfer.
 const DefaultIdleTimeout = 30 * time.Second
 
-// Stream refreshes connection deadlines whenever bytes make progress.
 type Stream struct {
 	controller *http.ResponseController
 	idle       time.Duration
 }
 
-// New constructs a progress deadline stream for one request.
 func New(w http.ResponseWriter, idle time.Duration) *Stream {
 	if idle <= 0 {
 		idle = DefaultIdleTimeout
@@ -25,17 +21,14 @@ func New(w http.ResponseWriter, idle time.Duration) *Stream {
 	return &Stream{controller: http.NewResponseController(w), idle: idle}
 }
 
-// Reader wraps a request body with a refreshing read deadline.
 func (s *Stream) Reader(r io.Reader) io.Reader {
 	return &progressReader{reader: r, stream: s}
 }
 
-// Writer wraps a response with a refreshing write deadline.
 func (s *Stream) Writer(w http.ResponseWriter) http.ResponseWriter {
 	return &progressWriter{ResponseWriter: w, stream: s}
 }
 
-// Close clears any active connection deadlines.
 func (s *Stream) Close() {
 	_ = s.controller.SetReadDeadline(time.Time{})
 	_ = s.controller.SetWriteDeadline(time.Time{})

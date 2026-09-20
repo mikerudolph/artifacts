@@ -8,16 +8,12 @@ import (
 
 const maxNameLen = 100
 
-// NamespaceName is unique within an account.
 type NamespaceName string
 
-// RepoName is unique within a namespace.
 type RepoName string
 
-// BranchName is a git branch name.
 type BranchName string
 
-// ParseNamespaceName validates a Cloudflare Artifacts namespace name.
 func ParseNamespaceName(s string) (NamespaceName, error) {
 	if err := validateName(s); err != nil {
 		return "", fmt.Errorf("namespace name: %w", err)
@@ -25,7 +21,6 @@ func ParseNamespaceName(s string) (NamespaceName, error) {
 	return NamespaceName(s), nil
 }
 
-// ParseRepoName validates a Cloudflare Artifacts repository name.
 func ParseRepoName(s string) (RepoName, error) {
 	if err := validateName(s); err != nil {
 		return "", fmt.Errorf("repo name: %w", err)
@@ -33,7 +28,6 @@ func ParseRepoName(s string) (RepoName, error) {
 	return RepoName(s), nil
 }
 
-// ParseBranchName validates a non-empty branch name.
 func ParseBranchName(s string) (BranchName, error) {
 	if s == "" {
 		return "", fmt.Errorf("branch name: %w", ErrInvalidName)
@@ -45,7 +39,24 @@ func ParseBranchName(s string) (BranchName, error) {
 		strings.ContainsAny(s, " ~^:?*[\\") || strings.Contains(s, "..") || strings.Contains(s, "@{") || strings.Contains(s, "//") {
 		return "", fmt.Errorf("branch name: %w", ErrInvalidName)
 	}
+	if !validRefComponents(s) {
+		return "", fmt.Errorf("branch name: %w", ErrInvalidName)
+	}
 	return BranchName(s), nil
+}
+
+func validRefComponents(s string) bool {
+	for _, part := range strings.Split(s, "/") {
+		if part == "" || strings.HasPrefix(part, ".") || strings.HasSuffix(part, ".lock") {
+			return false
+		}
+	}
+	for _, r := range s {
+		if r < 32 || r == 127 {
+			return false
+		}
+	}
+	return s != "@"
 }
 
 func validateName(s string) error {

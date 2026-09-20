@@ -5,17 +5,17 @@ import (
 	"net/http"
 )
 
-// APIError is one Cloudflare v4 error or message entry.
 type APIError struct {
-	Code             int    `json:"code"`
-	Message          string `json:"message"`
-	DocumentationURL string `json:"documentation_url,omitempty"`
+	Kind             string  `json:"kind,omitempty"`
+	CurrentHead      *string `json:"current_head,omitempty"`
+	Code             int     `json:"code"`
+	Message          string  `json:"message"`
+	DocumentationURL string  `json:"documentation_url,omitempty"`
 	Source           *struct {
 		Pointer string `json:"pointer,omitempty"`
 	} `json:"source,omitempty"`
 }
 
-// Envelope is the Cloudflare v4 JSON wrapper.
 type Envelope[T any] struct {
 	Result     T          `json:"result"`
 	Success    bool       `json:"success"`
@@ -24,7 +24,6 @@ type Envelope[T any] struct {
 	ResultInfo any        `json:"result_info,omitempty"`
 }
 
-// OK wraps a successful result.
 func OK[T any](v T) Envelope[T] {
 	return Envelope[T]{
 		Result:   v,
@@ -34,14 +33,12 @@ func OK[T any](v T) Envelope[T] {
 	}
 }
 
-// OKInfo wraps a successful result with pagination metadata.
 func OKInfo[T any](v T, info any) Envelope[T] {
 	env := OK(v)
 	env.ResultInfo = info
 	return env
 }
 
-// Fail wraps a single API error. Result is null.
 func Fail(status int, err APIError) (int, Envelope[any]) {
 	return status, Envelope[any]{
 		Success:  false,
@@ -50,7 +47,6 @@ func Fail(status int, err APIError) (int, Envelope[any]) {
 	}
 }
 
-// Write writes JSON with the given HTTP status.
 func Write(w http.ResponseWriter, status int, body any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)

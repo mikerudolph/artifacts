@@ -110,7 +110,7 @@ func TestControlledImportLimitsAndTimeout(t *testing.T) {
 	if err := os.WriteFile(script, []byte("#!/bin/sh\nexec sleep 5\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Chmod(script, 0o700); err != nil { //nolint:gosec // executable test fixture
+	if err := os.Chmod(script, 0o700); err != nil { //nolint:gosec
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -181,7 +181,7 @@ func installFakeGit(t *testing.T, body string) string {
 	if err := os.WriteFile(script, []byte(body), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Chmod(script, 0o700); err != nil { //nolint:gosec // executable test fixture
+	if err := os.Chmod(script, 0o700); err != nil { //nolint:gosec
 		t.Fatal(err)
 	}
 	return bin

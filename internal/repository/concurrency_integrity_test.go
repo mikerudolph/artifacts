@@ -92,7 +92,7 @@ func TestConcurrentCacheOperationsAndCorruptReplay(t *testing.T) {
 
 func assertReplayIntegrity(t *testing.T, ctx context.Context, manager *Manager, metadata *memoryMeta, objects *objecttest.Mem, repo types.Repo) {
 	t.Helper()
-	pack := metadata.packs[repo.ID][0]
+	pack := metadata.checkpoints[repo.ID]
 	index, err := objects.Get(ctx, pack.IndexKey)
 	if err != nil {
 		t.Fatal(err)

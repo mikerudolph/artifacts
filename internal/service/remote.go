@@ -6,13 +6,11 @@ import (
 	"github.com/mikerudolph/artifacts/internal/types"
 )
 
-// RemoteURL is {publicURL}/git/{ns}/{repo}.git.
 func RemoteURL(publicURL string, ns types.NamespaceName, repo types.RepoName) string {
 	base := strings.TrimRight(publicURL, "/")
 	return base + "/git/" + string(ns) + "/" + string(repo) + ".git"
 }
 
-// TenantRemoteURL includes the account in the v2 Git route.
 func TenantRemoteURL(publicURL string, account types.AccountID, ns types.NamespaceName, repo types.RepoName) string {
 	base := strings.TrimRight(publicURL, "/")
 	return base + "/git/" + string(account) + "/" + string(ns) + "/" + string(repo) + ".git"

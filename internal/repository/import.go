@@ -23,13 +23,11 @@ import (
 
 var errImportLimit = errors.New("import limit exceeded")
 
-// Import preserves the explicit local conversion seam for storage-v1 repositories.
 func (m *Manager) Import(ctx context.Context, repo types.Repo, remote, branch string, depth int) error {
 	_, err := m.importRepo(ctx, repo, types.ImportSpec{URL: remote, Branch: branch, Depth: depth})
 	return err
 }
 
-// ImportControlled clones a validated, pinned HTTPS origin within fixed resource bounds.
 func (m *Manager) ImportControlled(ctx context.Context, repo types.Repo, spec types.ImportSpec) (string, error) {
 	if spec.PinnedAddress == "" || spec.MaxBytes <= 0 || spec.MaxObjects <= 0 || spec.Timeout <= 0 {
 		return "", errors.New("controlled import policy is required")
@@ -143,7 +141,7 @@ func boundedGitCommand(ctx context.Context, maxBytes int64, args []string) *exec
 	blocks := importFileLimitBlocks(maxBytes, runtime.GOOS)
 	shell := []string{"-c", `ulimit -f "$1" || exit 125; shift; exec "$@"`, "artifacts-import",
 		strconv.FormatInt(blocks, 10), "git"}
-	return exec.CommandContext(ctx, "/bin/sh", append(shell, args...)...) //nolint:gosec // args are validated and passed positionally
+	return exec.CommandContext(ctx, "/bin/sh", append(shell, args...)...) //nolint:gosec
 }
 
 func importFileLimitBlocks(maxBytes int64, goos string) int64 {
@@ -193,7 +191,7 @@ func validateImportUsage(ctx context.Context, path string, spec types.ImportSpec
 }
 
 func countImportObjects(ctx context.Context, path string, limit int) error {
-	cmd := exec.CommandContext(ctx, "git", "--git-dir="+path, "rev-list", "--objects", "--all") //nolint:gosec // controlled cache path
+	cmd := exec.CommandContext(ctx, "git", "--git-dir="+path, "rev-list", "--objects", "--all") //nolint:gosec
 	cmd.Env = gitEnvironment(nil)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {

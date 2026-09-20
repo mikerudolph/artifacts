@@ -12,10 +12,11 @@ import (
 func (s *server) createRepo(w http.ResponseWriter, r *http.Request) {
 	var in types.CreateRepoInput
 	if err := decodeJSON(w, r, &in); err != nil {
-		writeErr(w, types.ErrInvalidName)
+		writeErr(w, err)
 		return
 	}
 	acct := types.AccountID(chi.URLParam(r, "account_id"))
+	in.IdempotencyKey = r.Header.Get("Idempotency-Key")
 	got, err := s.svc.CreateRepo(r.Context(), acct, chi.URLParam(r, "namespace"), in)
 	if err != nil {
 		writeErr(w, err)

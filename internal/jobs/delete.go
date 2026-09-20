@@ -8,13 +8,11 @@ import (
 	"github.com/mikerudolph/artifacts/internal/types"
 )
 
-// Delete durably tombstones a repository and revokes its credentials.
 func (r *Runner) Delete(ctx context.Context, account types.AccountID, ns, name string) error {
 	_, err := r.DeleteRepo(ctx, account, ns, name)
 	return err
 }
 
-// DeleteRepo atomically records and completes an idempotent delete job.
 func (r *Runner) DeleteRepo(ctx context.Context, account types.AccountID, ns, name string) (types.RepoID, error) {
 	repo, _, err := r.lookup(ctx, account, ns, name)
 	if err != nil {

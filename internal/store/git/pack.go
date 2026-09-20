@@ -10,7 +10,6 @@ import (
 	"github.com/mikerudolph/artifacts/internal/store/object"
 )
 
-// PackfileWriter implements storer.PackfileWriter.
 func (s *Store) PackfileWriter() (io.WriteCloser, error) {
 	return &packWriter{s: s}, nil
 }

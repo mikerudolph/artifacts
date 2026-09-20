@@ -60,8 +60,6 @@ for (const [path, html] of documents) {
     }
     checked++;
   }
-  // Content caching can retain an old generated code stylesheet even when the
-  // page and its navigation links build successfully. Check resources as well.
   for (const tag of html.matchAll(/<(script|link|img|source)\b[^>]*>/gi)) {
     if (tag[1].toLowerCase() === 'link') {
       const rel = tag[0].match(/\brel=(['"])(.*?)\1/i)?.[2] ?? '';

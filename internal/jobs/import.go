@@ -23,7 +23,6 @@ type ipResolver interface {
 	LookupIP(context.Context, string, string) ([]net.IP, error)
 }
 
-// Import clones a public HTTPS (or file) remote into a new repo.
 func (r *Runner) Import(ctx context.Context, account types.AccountID, ns string, name types.RepoName, in types.ImportRepoInput) (types.CreateRepoResult, error) {
 	target, err := resolveImportURL(ctx, r.resolver, in.URL)
 	if err != nil {
@@ -79,7 +78,7 @@ func (r *Runner) Import(ctx context.Context, account types.AccountID, ns string,
 	}
 	return types.CreateRepoResult{
 		ID: repo.ID, Name: repo.Name, DefaultBranch: repo.DefaultBranch,
-		Remote: r.tenantRemote(account, nsName, repo.Name), Token: tok.Plaintext,
+		Remote: r.tenantRemote(account, nsName, repo.Name), Token: tok.Plaintext, Credential: &tok,
 	}, nil
 }
 

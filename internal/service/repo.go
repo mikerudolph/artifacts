@@ -7,8 +7,16 @@ import (
 	"github.com/mikerudolph/artifacts/internal/types"
 )
 
-// CreateRepo creates a repo, implicitly creating the namespace, and mints a write token.
 func (s *Services) CreateRepo(ctx context.Context, account types.AccountID, ns string, in types.CreateRepoInput) (types.CreateRepoResult, error) {
+	if in.IdempotencyKey != "" {
+		if in.IssueCredential == nil || *in.IssueCredential {
+			return types.CreateRepoResult{}, &types.InputError{Field: "/issue_credential", Message: "idempotent creation requires issue_credential:false; issue credentials separately"}
+		}
+		return meta.Idempotent(ctx, s.meta, "create/"+string(account)+"/"+ns, in.IdempotencyKey, in, func(tx meta.Store) (types.CreateRepoResult, error) {
+			in.IdempotencyKey = ""
+			return New(tx, s.now, s.publicURL).CreateRepo(ctx, account, ns, in)
+		})
+	}
 	nsName, repoName, branch, err := parseCreate(ns, in)
 	if err != nil {
 		return types.CreateRepoResult{}, err
@@ -40,10 +48,15 @@ func (s *Services) CreateRepo(ctx context.Context, account types.AccountID, ns s
 		s.failCreate(ctx, repo, err)
 		return types.CreateRepoResult{}, err
 	}
-	tok, err := s.mintAndStore(ctx, repo.ID, types.ScopeWrite, types.DefaultTTLSeconds)
-	if err != nil {
-		s.failCreate(ctx, repo, err)
-		return types.CreateRepoResult{}, err
+	var credential *types.CreateTokenResult
+	var plaintext string
+	if in.IssueCredential == nil || *in.IssueCredential {
+		tok, err := s.mintAndStore(ctx, repo.ID, types.ScopeWrite, types.DefaultTTLSeconds)
+		if err != nil {
+			s.failCreate(ctx, repo, err)
+			return types.CreateRepoResult{}, err
+		}
+		credential, plaintext = &tok, tok.Plaintext
 	}
 	return types.CreateRepoResult{
 		ID:            repo.ID,
@@ -51,7 +64,8 @@ func (s *Services) CreateRepo(ctx context.Context, account types.AccountID, ns s
 		Description:   descPtr(repo.Description),
 		DefaultBranch: repo.DefaultBranch,
 		Remote:        s.remote(account, nsName, repo.Name),
-		Token:         tok.Plaintext,
+		Token:         plaintext,
+		Credential:    credential,
 	}, nil
 }
 
@@ -81,7 +95,6 @@ func parseCreate(ns string, in types.CreateRepoInput) (types.NamespaceName, type
 	return nsName, repoName, b, nil
 }
 
-// GetRepo returns a repo with its git remote URL.
 func (s *Services) GetRepo(ctx context.Context, account types.AccountID, ns, name string) (types.Repo, error) {
 	repo, nsName, err := s.lookupRepo(ctx, account, ns, name)
 	if err != nil {
@@ -90,7 +103,6 @@ func (s *Services) GetRepo(ctx context.Context, account types.AccountID, ns, nam
 	return withRemote(repo, s.publicURL, account, nsName), nil
 }
 
-// ListRepos lists repos in a namespace.
 func (s *Services) ListRepos(ctx context.Context, account types.AccountID, ns string, opts meta.ListReposOpts) ([]types.Repo, types.CursorResult, error) {
 	nspace, nsName, err := s.lookupNS(ctx, account, ns)
 	if err != nil {
@@ -107,12 +119,10 @@ func (s *Services) ListRepos(ctx context.Context, account types.AccountID, ns st
 	return repos, info, nil
 }
 
-// Lookup resolves a tenant-qualified repository for Git and UI adapters.
 func (s *Services) Lookup(ctx context.Context, account types.AccountID, namespace, repo string) (types.Repo, error) {
 	return s.GetRepo(ctx, account, namespace, repo)
 }
 
-// DeleteRepo marks a repo deleting. Object cleanup is T11.
 func (s *Services) DeleteRepo(ctx context.Context, account types.AccountID, ns, name string) (types.RepoID, error) {
 	repo, _, err := s.lookupRepo(ctx, account, ns, name)
 	if err != nil {
@@ -125,7 +135,6 @@ func (s *Services) DeleteRepo(ctx context.Context, account types.AccountID, ns, 
 	return repo.ID, nil
 }
 
-// UpdateRepo changes mutable settings within the resolved tenant.
 func (s *Services) UpdateRepo(ctx context.Context, account types.AccountID, ns, name string, input types.UpdateRepoInput) (types.Repo, error) {
 	repo, nsName, err := s.lookupRepo(ctx, account, ns, name)
 	if err != nil {

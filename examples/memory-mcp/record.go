@@ -47,7 +47,7 @@ type document struct {
 
 func newID(prefix string, now time.Time, source io.Reader) (string, error) {
 	data := make([]byte, 16)
-	nanos := uint64(now.UnixNano()) //nolint:gosec // ordering, not a secret
+	nanos := uint64(now.UnixNano()) //nolint:gosec
 	for i := 7; i >= 0; i-- {
 		data[i] = byte(nanos)
 		nanos >>= 8

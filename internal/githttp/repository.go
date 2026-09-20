@@ -16,17 +16,14 @@ import (
 	"github.com/mikerudolph/artifacts/internal/types"
 )
 
-// RepositoryLookup resolves the tenant-qualified route to a repository.
 type RepositoryLookup interface {
 	Lookup(ctx context.Context, account types.AccountID, namespace, repo string) (types.Repo, error)
 }
 
-// RepositoryAuthorizer authorizes a credential against the resolved repository.
 type RepositoryAuthorizer interface {
 	Authorize(ctx context.Context, repo types.Repo, credential string, write bool) error
 }
 
-// RepositoryBackend serves Git RPCs from a durable repository cache.
 type RepositoryBackend interface {
 	RPC(ctx context.Context, repo types.Repo, service string, input io.Reader, output io.Writer, protocol string) error
 	Receive(ctx context.Context, repo types.Repo, input io.Reader, protocol string) ([]byte, error)
@@ -42,12 +39,10 @@ type repositoryServer struct {
 	gates   sync.Map
 }
 
-// NewRepository serves tenant-qualified smart HTTP routes.
 func NewRepository(backend RepositoryBackend, lookup RepositoryLookup, authorizer RepositoryAuthorizer, bypass bool) http.Handler {
 	return newRepository(backend, lookup, authorizer, bypass, httpstream.DefaultIdleTimeout)
 }
 
-// NewRepositoryWithIdleTimeout serves tenant-qualified routes with a progress deadline.
 func NewRepositoryWithIdleTimeout(backend RepositoryBackend, lookup RepositoryLookup, authorizer RepositoryAuthorizer, bypass bool, idle time.Duration) http.Handler {
 	return newRepository(backend, lookup, authorizer, bypass, idle)
 }

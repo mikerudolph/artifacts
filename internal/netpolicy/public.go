@@ -1,4 +1,3 @@
-// Package netpolicy defines fail-closed network destination policy.
 package netpolicy
 
 import (
@@ -18,7 +17,6 @@ var specialUse = []netip.Prefix{
 	netip.MustParsePrefix("fec0::/10"),
 }
 
-// IsGloballyRoutable reports whether ip is public unicast and not IANA special-use space.
 func IsGloballyRoutable(ip net.IP) bool {
 	addr, ok := netip.AddrFromSlice(ip)
 	if !ok {

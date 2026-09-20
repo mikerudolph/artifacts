@@ -26,7 +26,7 @@ func TestEvidenceRedaction(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, name := range []string{"report.json", "report.md", "git.log"} {
-		data, err := os.ReadFile(filepath.Join(dir, name)) //nolint:gosec // test-owned temporary directory
+		data, err := os.ReadFile(filepath.Join(dir, name)) //nolint:gosec
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -36,7 +36,7 @@ func TestEvidenceRedaction(t *testing.T) {
 			}
 		}
 	}
-	data, err := os.ReadFile(filepath.Join(dir, "report.json")) //nolint:gosec // test-owned temporary directory
+	data, err := os.ReadFile(filepath.Join(dir, "report.json")) //nolint:gosec
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -13,7 +13,7 @@ import (
 func TestForkImportHTTP(t *testing.T) {
 	h := testAPI(t, "none", "")
 	doJSON(t, h, http.MethodPost, acctBase+"/namespaces/default/repos", "", map[string]string{"name": "src"})
-	// Jobs unset → 500
+
 	rec := doJSON(t, h, http.MethodPost, acctBase+"/namespaces/default/repos/src/fork", "", map[string]string{"name": "dst"})
 	if rec.Code != http.StatusInternalServerError {
 		t.Fatalf("no jobs %d", rec.Code)

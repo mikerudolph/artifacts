@@ -16,20 +16,18 @@ import (
 
 const (
 	repoPrefix = "art_v1_"
-	secretLen  = 20 // 40 hex chars
+	secretLen  = 20
 	idLen      = 16
 )
 
 var (
-	// ErrInvalidToken means the plaintext is malformed.
 	ErrInvalidToken = errors.New("invalid token")
-	// ErrExpired means the token's expires timestamp is in the past.
+
 	ErrExpired = errors.New("token expired")
-	// ErrMismatch means the token hash does not match.
+
 	ErrMismatch = errors.New("token mismatch")
 )
 
-// MintRepo creates a repo-scoped token. Plaintext is art_v1_<40 hex>?expires=<unix>.
 func MintRepo(scope types.Scope, ttl time.Duration, now time.Time) (plaintext, hash string, id types.TokenID, expires time.Time, err error) {
 	if _, err := types.ParseScope(string(scope)); err != nil {
 		return "", "", "", time.Time{}, err
@@ -44,7 +42,6 @@ func MintRepo(scope types.Scope, ttl time.Duration, now time.Time) (plaintext, h
 	return plaintext, HashRepo(hexSecret), types.TokenID(hexSecret[:idLen]), expires, nil
 }
 
-// ParseRepo accepts the full art_v1_…?expires=… string or the secret-only form.
 func ParseRepo(plaintext string) (secret string, expires time.Time, err error) {
 	plaintext = strings.TrimSpace(plaintext)
 	var expPart string
@@ -79,13 +76,11 @@ func secretFrom(s string) (string, error) {
 	return s, nil
 }
 
-// HashRepo returns hex(sha256(secret)).
 func HashRepo(secret string) string {
 	sum := sha256.Sum256([]byte(secret))
 	return hex.EncodeToString(sum[:])
 }
 
-// VerifyRepo checks plaintext against a stored hash and expiry.
 func VerifyRepo(plaintext, storedHash string, now time.Time) error {
 	secret, expires, err := ParseRepo(plaintext)
 	if err != nil {
@@ -100,13 +95,11 @@ func VerifyRepo(plaintext, storedHash string, now time.Time) error {
 	return nil
 }
 
-// HashAPI returns hex(sha256(plaintext)) for a control-plane token.
 func HashAPI(plaintext string) string {
 	sum := sha256.Sum256([]byte(plaintext))
 	return hex.EncodeToString(sum[:])
 }
 
-// VerifyAPI compares a control-plane token to a stored hash.
 func VerifyAPI(plaintext, storedHash string) error {
 	if subtle.ConstantTimeCompare([]byte(HashAPI(plaintext)), []byte(storedHash)) != 1 {
 		return ErrMismatch

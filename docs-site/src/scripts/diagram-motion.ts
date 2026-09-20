@@ -1,5 +1,3 @@
-// SVG choreography sampled from the same clock as the captions and controls.
-// No CSS transition races, independent animation loops, or animation dependency.
 import { STEP_DURATION, FINAL_DURATION } from './diagram-timeline.ts';
 
 export const clamp = (value: number) => Math.max(0, Math.min(1, value));
@@ -30,7 +28,6 @@ export function presence(time: number, ranges: [number, number][], delay = 0.03,
 }
 
 export function choreographyTime(step: number, progress: number, count: number) {
-  // Keep motion speed consistent in the last chapter, then let the result rest.
   return step + Math.min(0.999, progress * (step === count - 1 ? FINAL_DURATION / STEP_DURATION : 1));
 }
 
@@ -118,7 +115,6 @@ export class DiagramMotion {
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         path.setAttribute('d', element.dataset.route ?? 'M0 0');
         const length = path.getTotalLength();
-        // Sample geometry once; the animation frame only interpolates numbers.
         const points = Array.from({ length: 121 }, (_, index) => {
           const { x, y } = path.getPointAtLength(length * index / 120);
           return { x, y };
@@ -135,7 +131,6 @@ export class DiagramMotion {
     const time = choreographyTime(step, progress, count);
     for (const scene of this.scenes) {
       if (scene.svg.classList.contains('scene-mobile') !== this.narrow) continue;
-      // A soft reset between loops, never an animated reversal of the mechanism.
       scene.svg.style.opacity = String(phase(position, 0, 0.09) * (1 - phase(position, count - 0.07, count)));
       for (const track of scene.reveals) {
         const amount = presence(time, track.ranges, track.delay, track.span, track.leave);
@@ -177,8 +172,6 @@ export class DiagramMotion {
 
   disconnect() {
     this.resize.disconnect();
-    // Custom elements can be detached and reinserted. Don't treat the last
-    // animated transform as a new base transform on reconnection.
     for (const scene of this.scenes) {
       for (const track of [...scene.reveals, ...scene.shifts]) {
         if (track.base) track.element.setAttribute('transform', track.base);

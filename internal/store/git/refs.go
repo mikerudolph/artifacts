@@ -11,7 +11,6 @@ import (
 
 const symPrefix = "ref:"
 
-// SetReference implements storer.ReferenceStorer.
 func (s *Store) SetReference(ref *plumbing.Reference) error {
 	if ref == nil {
 		return nil
@@ -26,7 +25,6 @@ func (s *Store) SetReference(ref *plumbing.Reference) error {
 	return mapCAS(s.refs.CompareAndSwap(s.ctx(), s.repo, string(ref.Name()), oldVal, encodeRef(ref)))
 }
 
-// CheckAndSetReference implements storer.ReferenceStorer.
 func (s *Store) CheckAndSetReference(newRef, old *plumbing.Reference) error {
 	if newRef == nil {
 		return nil
@@ -37,7 +35,6 @@ func (s *Store) CheckAndSetReference(newRef, old *plumbing.Reference) error {
 	return mapCAS(s.refs.CompareAndSwap(s.ctx(), s.repo, string(newRef.Name()), encodeRef(old), encodeRef(newRef)))
 }
 
-// Reference implements storer.ReferenceStorer.
 func (s *Store) Reference(name plumbing.ReferenceName) (*plumbing.Reference, error) {
 	got, err := s.refs.Get(s.ctx(), s.repo, string(name))
 	if err != nil {
@@ -49,7 +46,6 @@ func (s *Store) Reference(name plumbing.ReferenceName) (*plumbing.Reference, err
 	return decodeRef(got.Name, got.SHA), nil
 }
 
-// IterReferences implements storer.ReferenceStorer.
 func (s *Store) IterReferences() (storer.ReferenceIter, error) {
 	all, err := s.refs.List(s.ctx(), s.repo)
 	if err != nil {
@@ -62,7 +58,6 @@ func (s *Store) IterReferences() (storer.ReferenceIter, error) {
 	return storer.NewReferenceSliceIter(out), nil
 }
 
-// RemoveReference implements storer.ReferenceStorer.
 func (s *Store) RemoveReference(name plumbing.ReferenceName) error {
 	cur, err := s.refs.Get(s.ctx(), s.repo, string(name))
 	if err != nil {
@@ -74,7 +69,6 @@ func (s *Store) RemoveReference(name plumbing.ReferenceName) error {
 	return mapCAS(s.refs.CompareAndSwap(s.ctx(), s.repo, string(name), cur.SHA, ""))
 }
 
-// CountLooseRefs implements storer.ReferenceStorer.
 func (s *Store) CountLooseRefs() (int, error) {
 	all, err := s.refs.List(s.ctx(), s.repo)
 	if err != nil {
@@ -83,7 +77,6 @@ func (s *Store) CountLooseRefs() (int, error) {
 	return len(all), nil
 }
 
-// PackRefs implements storer.ReferenceStorer.
 func (s *Store) PackRefs() error { return nil }
 
 func encodeRef(r *plumbing.Reference) string {

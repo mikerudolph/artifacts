@@ -7,7 +7,6 @@ import (
 	"github.com/testcontainers/testcontainers-go/modules/minio"
 )
 
-// MinIO starts MinIO and returns endpoint, keys, and a bucket name. Skips without Docker.
 func MinIO(tb testing.TB) (endpoint, accessKey, secretKey, bucket string) {
 	tb.Helper()
 	DockerAvailable(tb)

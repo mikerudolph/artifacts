@@ -15,11 +15,11 @@ CREATED=$(curl --fail-with-body -sS -X POST "$API/namespaces/research/repos" \
 
 export REMOTE=$(printf '%s' "$CREATED" | jq -er '.result.remote')
 export REPO_TOKEN=$(printf '%s' "$CREATED" | jq -er '.result.token')
-printf '%s' "$CREATED" | jq '.result | del(.token)'
+printf '%s' "$CREATED" | jq '.result | del(.token, .credential.plaintext)'
 unset CREATED
 ```
 
-The response is HTTP `200`. `result` contains `id`, `name`, `description`, `default_branch`, `remote`, and `token`. The credential is returned as plaintext only at issuance. Save the repository identity in your application and handle the token as a secret.
+The response is HTTP `200`. `result` contains `id`, `name`, `description`, `default_branch`, `remote`, `token`, and `credential`. The credential object includes `id`, `plaintext`, `scope`, and `expires_at`; `token` is a compatibility plaintext alias. The credential is returned as plaintext only at issuance. Save the repository identity in your application and handle the token as a secret.
 
 | Create field | Required | Behavior |
 | --- | --- | --- |
@@ -27,6 +27,7 @@ The response is HTTP `200`. `result` contains `id`, `name`, `description`, `defa
 | `description` | No | Human-readable description. |
 | `default_branch` | No | Defaults to `main`. |
 | `read_only` | No | Defaults to `false`. See the bootstrap exception below. |
+| `issue_credential` | No | Defaults to `true`; set `false` to create without a secret. |
 
 Creation ensures the namespace exists, creates symbolic `HEAD`, and makes the empty repository ready. It does not create an initial commit. An immediate file or tree read has nothing to resolve until you [publish files](/artifacts/core/writing-files/).
 
@@ -76,7 +77,7 @@ curl --fail-with-body -sS -X PATCH "$REPO_API/settings" \
 `description`, `default_branch`, and `read_only` are mutable. There is no repository rename route. Changing `default_branch` changes symbolic `HEAD`; it does not create a commit on a missing branch. Create or push that branch first.
 
 :::note[Read-only bootstrap exception]
-Git writes are blocked for a read-only repository. The REST publication path permits an initial commit when its WAL sequence is zero, including on a newly created read-only repository. Later REST writes are blocked. For an unambiguous freeze, publish the content first and then set `read_only: true`.
+Git writes are blocked for a read-only repository. A control-token REST request permits an initial commit when its WAL sequence is zero, including on a newly created read-only repository. Repository credentials cannot write read-only repositories, including the initial commit. Later control-token REST writes are blocked. For an unambiguous freeze, publish the content first and then set `read_only: true`.
 :::
 
 ## Retire a repository

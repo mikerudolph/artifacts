@@ -4,7 +4,6 @@ import "time"
 
 const DefaultBranch = "main"
 
-// Repo is the durable repository record.
 type Repo struct {
 	ID             RepoID        `json:"id"`
 	NamespaceID    NamespaceID   `json:"-"`
@@ -26,7 +25,6 @@ type Repo struct {
 	Remote         string        `json:"remote"`
 }
 
-// Namespace is the durable namespace record.
 type Namespace struct {
 	ID           NamespaceID   `json:"-"`
 	AccountID    AccountID     `json:"-"`
@@ -36,22 +34,21 @@ type Namespace struct {
 	UpdatedAt    time.Time     `json:"updated_at"`
 }
 
-// CreateRepoInput is the control-plane create body.
 type CreateRepoInput struct {
-	Name          RepoName `json:"name"`
-	Description   string   `json:"description"`
-	DefaultBranch string   `json:"default_branch"`
-	ReadOnly      bool     `json:"read_only"`
+	IssueCredential *bool    `json:"issue_credential,omitempty"`
+	IdempotencyKey  string   `json:"-"`
+	Name            RepoName `json:"name"`
+	Description     string   `json:"description"`
+	DefaultBranch   string   `json:"default_branch"`
+	ReadOnly        bool     `json:"read_only"`
 }
 
-// UpdateRepoInput changes mutable repository settings.
 type UpdateRepoInput struct {
 	Description   *string `json:"description"`
 	DefaultBranch *string `json:"default_branch"`
 	ReadOnly      *bool   `json:"read_only"`
 }
 
-// ForkRepoInput is the control-plane fork body.
 type ForkRepoInput struct {
 	Name              RepoName `json:"name"`
 	Description       string   `json:"description"`
@@ -59,7 +56,6 @@ type ForkRepoInput struct {
 	DefaultBranchOnly bool     `json:"default_branch_only"`
 }
 
-// ImportRepoInput is the control-plane import body.
 type ImportRepoInput struct {
 	URL      string `json:"url"`
 	Branch   string `json:"branch"`
@@ -67,13 +63,13 @@ type ImportRepoInput struct {
 	ReadOnly bool   `json:"read_only"`
 }
 
-// CreateRepoResult is returned by create, fork, and import.
 type CreateRepoResult struct {
-	ID            RepoID   `json:"id"`
-	Name          RepoName `json:"name"`
-	Description   *string  `json:"description"`
-	DefaultBranch string   `json:"default_branch"`
-	Remote        string   `json:"remote"`
-	Token         string   `json:"token"`
-	Objects       int      `json:"objects,omitempty"`
+	Credential    *CreateTokenResult `json:"credential,omitempty"`
+	ID            RepoID             `json:"id"`
+	Name          RepoName           `json:"name"`
+	Description   *string            `json:"description"`
+	DefaultBranch string             `json:"default_branch"`
+	Remote        string             `json:"remote"`
+	Token         string             `json:"token"`
+	Objects       int                `json:"objects,omitempty"`
 }

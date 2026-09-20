@@ -10,12 +10,11 @@ import (
 	"github.com/mikerudolph/artifacts/internal/store/object"
 )
 
-// Factory constructs a Store for one test. The store must start empty.
 type Factory func(tb testing.TB) object.Store
 
-// Run exercises the Store contract. T3 must call this against fs and s3.
 func Run(t *testing.T, newStore Factory) {
 	t.Helper()
+	t.Run("range", func(t *testing.T) { testRange(t, newStore) })
 	t.Run("put-get", func(t *testing.T) { testPutGet(t, newStore) })
 	t.Run("missing", func(t *testing.T) { testMissing(t, newStore) })
 	t.Run("list-copy-delete", func(t *testing.T) { testListCopyDelete(t, newStore) })

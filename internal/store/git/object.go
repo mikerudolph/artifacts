@@ -11,7 +11,6 @@ import (
 	"github.com/mikerudolph/artifacts/internal/store/object"
 )
 
-// SetEncodedObject implements storer.EncodedObjectStorer.
 func (s *Store) SetEncodedObject(obj plumbing.EncodedObject) (plumbing.Hash, error) {
 	h := obj.Hash()
 	raw, err := encodeObject(obj)
@@ -25,7 +24,6 @@ func (s *Store) SetEncodedObject(obj plumbing.EncodedObject) (plumbing.Hash, err
 	return h, nil
 }
 
-// EncodedObject implements storer.EncodedObjectStorer.
 func (s *Store) EncodedObject(t plumbing.ObjectType, h plumbing.Hash) (plumbing.EncodedObject, error) {
 	obj, err := s.readObject(h)
 	if err != nil {
@@ -37,7 +35,6 @@ func (s *Store) EncodedObject(t plumbing.ObjectType, h plumbing.Hash) (plumbing.
 	return obj, nil
 }
 
-// HasEncodedObject implements storer.EncodedObjectStorer.
 func (s *Store) HasEncodedObject(h plumbing.Hash) error {
 	ok, err := s.objects.Exists(s.ctx(), s.looseKey(h))
 	if err != nil {
@@ -49,7 +46,6 @@ func (s *Store) HasEncodedObject(h plumbing.Hash) error {
 	return nil
 }
 
-// EncodedObjectSize implements storer.EncodedObjectStorer.
 func (s *Store) EncodedObjectSize(h plumbing.Hash) (int64, error) {
 	obj, err := s.readObject(h)
 	if err != nil {
@@ -58,7 +54,6 @@ func (s *Store) EncodedObjectSize(h plumbing.Hash) (int64, error) {
 	return obj.Size(), nil
 }
 
-// IterEncodedObjects implements storer.EncodedObjectStorer.
 func (s *Store) IterEncodedObjects(t plumbing.ObjectType) (storer.EncodedObjectIter, error) {
 	keys, err := s.objects.List(s.ctx(), s.objectsPrefix())
 	if err != nil {

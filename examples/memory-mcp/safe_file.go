@@ -35,7 +35,7 @@ func readRepositoryFile(root, relative string) ([]byte, error) {
 	if err != nil || !info.Mode().IsRegular() {
 		return nil, errors.New("repository file not found")
 	}
-	data, err := os.ReadFile(path) //nolint:gosec // lstat rejects symlinks in the disposable clone
+	data, err := os.ReadFile(path) //nolint:gosec
 	if err != nil {
 		return nil, errors.New("read repository file")
 	}

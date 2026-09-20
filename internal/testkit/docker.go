@@ -10,10 +10,9 @@ func dockerAvailable() bool {
 	if err != nil {
 		return false
 	}
-	return exec.Command(path, "info").Run() == nil //nolint:gosec // docker binary from LookPath
+	return exec.Command(path, "info").Run() == nil //nolint:gosec
 }
 
-// DockerAvailable skips the test when Docker is not usable.
 func DockerAvailable(tb testing.TB) {
 	tb.Helper()
 	if !dockerAvailable() {

@@ -12,7 +12,6 @@ import (
 	"github.com/mikerudolph/artifacts/migrations"
 )
 
-// Migrate applies embedded SQL migrations to dsn.
 func Migrate(dsn string) error {
 	src, err := iofs.New(migrations.FS, ".")
 	if err != nil {

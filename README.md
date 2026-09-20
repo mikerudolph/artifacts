@@ -42,7 +42,9 @@ curl -sS "$API/namespaces/agents/repos/researcher-session-42/file?ref=main&path=
 curl -sS "$API/namespaces/agents/repos/researcher-session-42/tree?ref=main&path=results" | jq
 ```
 
-The create response contains a tenant-qualified remote and a short-lived write credential:
+REST commits update selected files and preserve untouched paths. Use `deletes` for removal, `expected_head` for concurrency checks, and `Idempotency-Key` for safe publication retries. For full-tree replacement, explicitly set `replace: true`.
+
+The create response contains a tenant-qualified remote and a short-lived REST-content/Git write credential (including its ID and expiry in `credential`):
 
 ```text
 http://127.0.0.1:8080/git/local/agents/researcher-session-42.git
@@ -78,6 +80,6 @@ go run ./cmd/artifacts compact --account local --namespace agents --repo researc
 make verify
 ```
 
-Compaction creates a checkpoint pack. Cache contents under `ARTIFACTS_CACHE_DIR` can be deleted at any time and are reconstructed from snapshot lineage, checkpoints, WAL packs, and Postgres refs.
+Writes upload incremental packs. The serving process checks once a minute for repositories with 32 publications since their checkpoint and compacts up to eight per pass. The command above also creates a checkpoint on demand. Old packs are retained for forks and publication history. REST content reads use cached indexes and remote byte ranges, with a full-cache fallback for objects over 8 MiB. Applications can resume committed changes through the [publication event feed](docs/core/api-reference.md#publication-events). Cache contents under `ARTIFACTS_CACHE_DIR` can be deleted at any time and are reconstructed from snapshot lineage, checkpoints, WAL packs, and Postgres refs.
 
 Read [the example harness](examples/agent-harness/main.go) for REST → Git → REST readback.

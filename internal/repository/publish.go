@@ -17,13 +17,16 @@ import (
 
 const defaultReceiveLimit = int64(512 << 20)
 
-// Receive applies a bounded receive-pack, uploads its immutable pack, then atomically publishes refs.
 func (m *Manager) Receive(ctx context.Context, repo types.Repo, input io.Reader, protocol string) ([]byte, error) {
 	path, unlock, err := m.lockedPath(repo)
 	if err != nil {
 		return nil, err
 	}
 	defer unlock()
+	repo, err = m.currentRepo(ctx, repo)
+	if err != nil {
+		return nil, err
+	}
 	if err := m.ensure(ctx, repo, path); err != nil {
 		return nil, err
 	}
@@ -36,9 +39,10 @@ func (m *Manager) Receive(ctx context.Context, repo types.Repo, input io.Reader,
 		return nil, err
 	}
 	defer func() { _ = os.Remove(staged.Name()) }()
-	response, err := runGitProtocol(ctx, staged, protocol, "receive-pack", "--stateless-rpc", path)
+	response, err := runGitProtocol(ctx, staged, protocol, "-c", "gc.auto=0", "-c", "maintenance.auto=false", "receive-pack", "--stateless-rpc", path)
 	_ = staged.Close()
 	if err != nil {
+		_ = os.RemoveAll(path)
 		return nil, err
 	}
 	after, err := listRefs(ctx, path)
@@ -49,7 +53,7 @@ func (m *Manager) Receive(ctx context.Context, repo types.Repo, input io.Reader,
 	if len(updates) == 0 {
 		return response, nil
 	}
-	pack, err := m.packAndUpload(ctx, repo, path)
+	pack, err := m.incrementalPack(ctx, repo, path, before, after)
 	if err != nil {
 		_ = os.RemoveAll(path)
 		return nil, err
@@ -123,23 +127,47 @@ func refDiff(before, after map[string]string) []types.RefUpdate {
 }
 
 func (m *Manager) packAndUpload(ctx context.Context, repo types.Repo, path string) (types.PackWAL, error) {
-	if _, err := runGit(ctx, nil, "--git-dir="+path, "repack", "-a", "-d"); err != nil {
+	objects, err := runGit(ctx, nil, "--git-dir="+path, "cat-file", "--batch-all-objects", "--batch-check=%(objectname)")
+	if err != nil {
 		return types.PackWAL{}, err
 	}
-	matches, err := filepath.Glob(filepath.Join(path, "objects", "pack", "*.pack"))
-	if err != nil || len(matches) != 1 {
-		return types.PackWAL{}, errors.New("expected one repository pack")
+	if len(objects) == 0 {
+		return types.PackWAL{}, errors.New("repository has no objects to compact")
 	}
-	packPath := matches[0]
+	return m.uploadPack(ctx, repo, path, string(objects), false)
+}
+
+func (m *Manager) incrementalPack(ctx context.Context, repo types.Repo, path string, before, after map[string]string) (types.PackWAL, error) {
+	var revisions strings.Builder
+	for _, sha := range after {
+		revisions.WriteString(sha + "\n")
+	}
+	for _, sha := range before {
+		revisions.WriteString("^" + sha + "\n")
+	}
+	return m.uploadPack(ctx, repo, path, revisions.String(), true)
+}
+
+func (m *Manager) uploadPack(ctx context.Context, repo types.Repo, path, input string, revisions bool) (types.PackWAL, error) {
+	prefix := filepath.Join(path, "objects", "pack", "pack")
+	args := []string{"--git-dir=" + path, "pack-objects", "--delta-base-offset"}
+	if revisions {
+		args = append(args, "--revs")
+	}
+	name, err := runGit(ctx, strings.NewReader(input), append(args, prefix)...)
+	if err != nil {
+		return types.PackWAL{}, err
+	}
+	packPath := prefix + "-" + strings.TrimSpace(string(name)) + ".pack"
 	idxPath := strings.TrimSuffix(packPath, ".pack") + ".idx"
 	checksum, size, err := hashFile(packPath)
 	if err != nil {
 		return types.PackWAL{}, err
 	}
-	name := strings.TrimSuffix(filepath.Base(packPath), ".pack")
-	name = strings.TrimPrefix(name, "pack-")
-	packKey := object.PackKey(string(repo.AccountID), string(repo.ID), name)
-	idxKey := object.PackIndexKey(string(repo.AccountID), string(repo.ID), name)
+	packName := strings.TrimSuffix(filepath.Base(packPath), ".pack")
+	packName = strings.TrimPrefix(packName, "pack-")
+	packKey := object.PackKey(string(repo.AccountID), string(repo.ID), packName)
+	idxKey := object.PackIndexKey(string(repo.AccountID), string(repo.ID), packName)
 	if err := putFile(ctx, m.objects, packKey, packPath); err != nil {
 		return types.PackWAL{}, err
 	}
@@ -150,7 +178,7 @@ func (m *Manager) packAndUpload(ctx context.Context, repo types.Repo, path strin
 }
 
 func hashFile(path string) (string, int64, error) {
-	f, err := os.Open(path) //nolint:gosec // controlled cache path
+	f, err := os.Open(path) //nolint:gosec
 	if err != nil {
 		return "", 0, err
 	}
@@ -164,7 +192,7 @@ func hashFile(path string) (string, int64, error) {
 }
 
 func putFile(ctx context.Context, store object.Store, key, path string) error {
-	f, err := os.Open(path) //nolint:gosec // controlled cache path
+	f, err := os.Open(path) //nolint:gosec
 	if err != nil {
 		return err
 	}

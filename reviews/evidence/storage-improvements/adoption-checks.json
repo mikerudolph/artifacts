@@ -1,0 +1,125 @@
+{
+  "passed": true,
+  "checks": [
+    {
+      "name": "core harness classification",
+      "passed": true
+    },
+    {
+      "name": "core harness assertions",
+      "passed": true
+    },
+    {
+      "name": "evidence integrity git.log",
+      "passed": true
+    },
+    {
+      "name": "REST precondition detects Git push",
+      "passed": true
+    },
+    {
+      "name": "REST preserves Git-authored file",
+      "passed": true
+    },
+    {
+      "name": "REST preserves untouched input",
+      "passed": true
+    },
+    {
+      "name": "Git reads REST update",
+      "passed": true
+    },
+    {
+      "name": "cold content read",
+      "passed": true
+    },
+    {
+      "name": "content read avoids full Git cache",
+      "passed": true
+    },
+    {
+      "name": "create replay after actual server restart",
+      "passed": true
+    },
+    {
+      "name": "commit replay after actual server restart",
+      "passed": true
+    },
+    {
+      "name": "replay did not publish another WAL record",
+      "passed": true
+    },
+    {
+      "name": "changed retry is a conflict",
+      "passed": true
+    },
+    {
+      "name": "read credential can read REST",
+      "passed": true
+    },
+    {
+      "name": "read credential cannot write REST",
+      "passed": true
+    },
+    {
+      "name": "repository credential cannot create repositories",
+      "passed": true
+    },
+    {
+      "name": "incremental Git pack is small",
+      "passed": true
+    },
+    {
+      "name": "incremental REST pack is small",
+      "passed": true
+    },
+    {
+      "name": "event feed starts with committed seed",
+      "passed": true
+    },
+    {
+      "name": "events survive restart without retry duplicates",
+      "passed": true
+    },
+    {
+      "name": "atomic multi-ref push is one whole event",
+      "passed": true
+    },
+    {
+      "name": "ref-only deletion is durable",
+      "passed": true
+    },
+    {
+      "name": "compaction creates no event",
+      "passed": true
+    },
+    {
+      "name": "cold checkpoint read",
+      "passed": true
+    },
+    {
+      "name": "event replay survives compaction",
+      "passed": true
+    },
+    {
+      "name": "background compaction discovers backlog on restart",
+      "passed": true
+    },
+    {
+      "name": "background compaction preserves events",
+      "passed": true
+    },
+    {
+      "name": "revocation blocks REST",
+      "passed": true
+    },
+    {
+      "name": "revocation blocks Git",
+      "passed": true
+    },
+    {
+      "name": "custom repository cleanup",
+      "passed": true
+    }
+  ]
+}

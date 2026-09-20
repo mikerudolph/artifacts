@@ -18,7 +18,6 @@ const (
 	defaultAcct = "local"
 )
 
-// Config is process configuration loaded from the environment.
 type Config struct {
 	HTTP     HTTP
 	Auth     Auth
@@ -28,37 +27,31 @@ type Config struct {
 	Account  Account
 }
 
-// HTTP is the listen address and public git/API base URL.
 type HTTP struct {
 	Addr              string
 	PublicURL         string
 	StreamIdleTimeout time.Duration
 }
 
-// Auth is control-plane authentication.
 type Auth struct {
 	Mode     string
 	APIToken string
 }
 
-// Storage selects the object backend.
 type Storage struct {
 	Backend string
 	FS      FS
 	S3      S3
 }
 
-// Cache configures disposable local bare Git repositories.
 type Cache struct {
 	Path string
 }
 
-// FS is the local filesystem object backend.
 type FS struct {
 	Path string
 }
 
-// S3 is any S3-compatible object backend.
 type S3 struct {
 	Endpoint     string
 	Bucket       string
@@ -69,23 +62,19 @@ type S3 struct {
 	UsePathStyle bool
 }
 
-// Postgres is the metadata database.
 type Postgres struct {
 	DSN string
 }
 
-// Account holds the default tenant used when none is supplied.
 type Account struct {
 	DefaultID string
 }
 
-// Load reads configuration from the process environment.
 func Load() (Config, error) {
 	cfg := load()
 	return cfg, cfg.validate(false)
 }
 
-// LoadNoAuth loads configuration for bootstrap and isolated developer commands.
 func LoadNoAuth() (Config, error) {
 	cfg := load()
 	cfg.Auth.Mode = authNone
@@ -123,7 +112,6 @@ func load() Config {
 	}
 }
 
-// Validate reports configuration that cannot start the server.
 func (c Config) Validate() error {
 	return c.validate(false)
 }

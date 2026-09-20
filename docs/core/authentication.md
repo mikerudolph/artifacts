@@ -1,14 +1,14 @@
 ---
 title: Authentication
-description: Use an account token for REST and a repository credential for Git. Keep their scopes separate.
+description: Use account tokens for management and repository credentials for REST content and Git.
 ---
 
 | Credential | Used by | Authorizes | Created with |
 | --- | --- | --- | --- |
 | Control-plane token | Your trusted backend or operator. | REST operations for one account. | `artifacts token create --account ACCOUNT` |
-| Repository credential | A Git client or worker. | Read, or read/write, on one repository. | Repository creation or `POST /namespaces/{namespace}/credentials` |
+| Repository credential | A Git or REST worker. | Read, or read/write content, on one repository. | Repository creation or `POST /namespaces/{namespace}/credentials` |
 
-These credentials are not interchangeable. A Git write credential cannot create repositories or read the REST API. The account control token cannot replace a repository credential on a Git remote.
+Repository credentials work with REST file/tree/blob/raw/commit/history/refs reads and `POST /commits`. A read credential cannot publish; a write credential can. Management routes—including repository lookup/list/create/delete, settings, credentials, forks/imports, jobs, and WAL—still require an account control token. Account control tokens cannot replace repository credentials on Git remotes.
 
 ## Start an authenticated service
 
@@ -62,7 +62,7 @@ CREDENTIAL_ID=$(printf '%s' "$CREATED_CREDENTIAL" | jq -er '.result.id')
 unset CREATED_CREDENTIAL
 ```
 
-The issue response contains `id`, `plaintext`, `scope`, and `expires_at`. Repository creation instead puts the initial credential in `result.token`.
+The issue response contains `id`, `plaintext`, `scope`, and `expires_at`. Creation, fork, and import return the same object in `result.credential`; `result.token` remains a compatibility alias for its plaintext. Repository creation accepts `issue_credential: false` to avoid issuing a credential. This is required when creating with an `Idempotency-Key`, so replay records never store secrets.
 
 | Setting | Accepted values | Default |
 | --- | --- | --- |
@@ -86,7 +86,7 @@ curl --fail-with-body -sS -X DELETE \
 unset REPO_TOKEN
 ```
 
-Creating a replacement does not revoke previous credentials. The create-repository response does not include the initial credential's ID; a trusted backend can list credentials immediately after creating its new repository and retain that ID for revocation. Avoid racing unrelated issuance if you need to identify it this way.
+Creating a replacement does not revoke previous credentials. Retain `result.credential.id` from creation for direct revocation, or create without a credential and issue only the scope/TTL your worker needs.
 
 ## Give Git a credential without changing the remote
 
@@ -102,6 +102,6 @@ Apply the same option to authenticated `fetch` and `push` commands. This avoids 
 
 ## Understand enforcement
 
-Each Git request checks the stored repository binding, tenant, scope, state, and expiry. An expired, revoked, wrong-repository, or cross-account credential is rejected with `401`. A read credential attempting a push is rejected with `403`. Repository read-only state also blocks Git writes, even with a write credential.
+Each Git request and repository-authenticated REST content request checks the stored repository binding, tenant, scope, state, and expiry. An expired, revoked, wrong-repository, or cross-account credential is rejected with `401`. A read credential attempting a push or REST publication is rejected with `403`. Repository read-only state also blocks Git writes, even with a write credential.
 
 The credential may include an `?expires=` suffix. Treat the whole value as secret; editing the suffix does not extend the stored expiry. Git credentials cover a repository's readable history and are not path- or branch-scoped. See [data model boundaries](/artifacts/core/data-model/#choose-a-repository-boundary) when different files need different audiences.

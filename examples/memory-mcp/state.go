@@ -40,7 +40,7 @@ func loadState(root string) (brainState, error) {
 		if err != nil || !info.Mode().IsRegular() {
 			return errors.New("memory record is not a regular file")
 		}
-		data, err := os.ReadFile(path) //nolint:gosec // regular file inside disposable clone
+		data, err := os.ReadFile(path) //nolint:gosec
 		if err != nil {
 			return errors.New("read memory record")
 		}

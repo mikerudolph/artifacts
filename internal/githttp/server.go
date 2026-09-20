@@ -13,7 +13,6 @@ import (
 	"github.com/mikerudolph/artifacts/internal/types"
 )
 
-// TokenLookup resolves a repo token to a scope.
 type TokenLookup interface {
 	Lookup(ctx context.Context, ns, repo, plaintext string) (types.Scope, error)
 }
@@ -24,8 +23,6 @@ type server struct {
 	git    transport.Transport
 }
 
-// New serves the legacy accountless Git route.
-// Deprecated: use NewRepository for tenant-qualified production routes.
 func New(open func(ns, repo string) (storer.Storer, error), tokens TokenLookup) http.Handler {
 	s := &server{
 		open:   open,

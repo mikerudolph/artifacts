@@ -71,6 +71,6 @@ This is the general integration pattern: keep canonical records and native files
 
 The server serializes writes within its process and retries independent non-fast-forward publications. Conflicting edits to the same run manifest fail. Run completion is final (`completed`, `failed`, or `cancelled`); store outputs before finishing the run.
 
-`store_output` supports up to 8 MiB of decoded UTF-8 or base64 content. Binary input is decoded before Git storage. This is an **example-specific MCP limit**, separate from the core REST snapshot's 1 MiB bound. Output names and repository paths are validated against traversal and symlinks.
+`store_output` supports up to 8 MiB of decoded UTF-8 or base64 content. Binary input is decoded before Git storage. This is an **example-specific MCP limit**, separate from the core REST commit's 1 MiB bound. Output names and repository paths are validated against traversal and symlinks.
 
 Stored content is untrusted input for consuming agents. This example provides persistence and lexical recall, not truth verification, scheduling, notifications, or a compliance deletion system. Use [model your data](/artifacts/core/data-model/) to adapt its access and retention choices.

@@ -1,4 +1,3 @@
-// Package repository manages disposable local bare Git caches backed by the pack WAL.
 package repository
 
 import (
@@ -19,7 +18,6 @@ import (
 	"github.com/mikerudolph/artifacts/internal/types"
 )
 
-// Manager materializes and publishes repository caches.
 type Manager struct {
 	meta    meta.V2Store
 	objects object.Store
@@ -28,7 +26,6 @@ type Manager struct {
 	locks   map[string]*sync.Mutex
 }
 
-// New constructs a cache manager.
 func New(metadata meta.V2Store, objects object.Store, root string) (*Manager, error) {
 	if metadata == nil || objects == nil || root == "" {
 		return nil, errors.New("metadata, objects, and cache root are required")
@@ -43,7 +40,6 @@ func New(metadata meta.V2Store, objects object.Store, root string) (*Manager, er
 	return &Manager{meta: metadata, objects: objects, root: abs, locks: map[string]*sync.Mutex{}}, nil
 }
 
-// Upgrade converts a legacy repository to v2 under its repository lock.
 func (m *Manager) Upgrade(ctx context.Context, repo types.Repo) (types.Repo, error) {
 	if repo.StorageVersion != 1 {
 		return repo, nil
@@ -59,7 +55,6 @@ func (m *Manager) Upgrade(ctx context.Context, repo types.Repo) (types.Repo, err
 	return m.meta.Repos().GetByID(ctx, repo.ID)
 }
 
-// Read runs visit against the synchronized disk cache while holding its repository lock.
 func (m *Manager) Read(ctx context.Context, repo types.Repo, visit func(storer.Storer) error) error {
 	path, unlock, err := m.lockedPath(repo)
 	if err != nil {
@@ -76,7 +71,6 @@ func (m *Manager) Read(ctx context.Context, repo types.Repo, visit func(storer.S
 	return visit(r.Storer)
 }
 
-// Evict removes one disposable cache.
 func (m *Manager) Evict(repo types.Repo) error {
 	path, unlock, err := m.lockedPath(repo)
 	if err != nil {
@@ -121,7 +115,7 @@ func (m *Manager) lockFile(key string) (*os.File, error) {
 	if err := os.MkdirAll(filepath.Dir(name), 0o750); err != nil {
 		return nil, err
 	}
-	f, err := os.OpenFile(name, os.O_CREATE|os.O_RDWR, 0o600) //nolint:gosec // controlled cache root
+	f, err := os.OpenFile(name, os.O_CREATE|os.O_RDWR, 0o600) //nolint:gosec
 	if err != nil {
 		return nil, err
 	}
@@ -209,7 +203,7 @@ func (m *Manager) convertLegacy(ctx context.Context, repo types.Repo, path strin
 }
 
 func readCacheState(path string) (int64, string, error) {
-	b, err := os.ReadFile(filepath.Join(path, ".artifacts-sequence")) //nolint:gosec // controlled cache root
+	b, err := os.ReadFile(filepath.Join(path, ".artifacts-sequence")) //nolint:gosec
 	if err != nil {
 		return 0, "", err
 	}

@@ -9,29 +9,32 @@ JSON endpoints wrap failures in `success: false`, `result: null`, and an `errors
 
 | HTTP status | API code | Meaning and next action |
 | --- | --- | --- |
-| `400` | `10101` | Invalid name or JSON body, including unknown fields, malformed JSON, and excessive JSON body size. Check the payload. |
+| `400` | `10101` | Invalid name. |
+| `400` | `10100` | Malformed JSON or invalid commit input; `kind: invalid_input`, with a field pointer where available. |
+| `413` | `10100` | JSON body, change count, or decoded content exceeds its limit; `kind: payload_too_large`. |
+| `403` | `10107` | Credential or repository is read-only; `kind: forbidden`. |
+| `409` | `10304` | Expected head changed (`kind: head_conflict`, includes `current_head`) or publication state changed (`publication_conflict`). Reconcile before retrying. |
+| `409` | `10305` | Idempotency key reused with different input; `kind: idempotency_conflict`. |
 | `400` | `10103` | Invalid credential TTL. Use seconds in the supported range. |
 | `400` | `10100` | Invalid scope, state, sort, direction, jurisdiction, or other mapped input. |
 | `400` | `10104` | Invalid or disallowed import URL. Use a public HTTPS remote without userinfo. |
 | `400` | `10106` | Upstream import requires authentication; authenticated imports are unsupported. |
-| `401` | `10100` | REST authentication rejected. Check the control token and route account. |
-| `404` | `10200` | Resource/ref/file missing or repository hidden by its lifecycle state. The generic message is `File not found`. |
+| `401` | `10100` | REST authentication rejected. Check the credential scope and route account/repository. |
+| `404` | `10200` | Resource/ref/file missing or repository hidden by its lifecycle state. The generic message is `Resource not found`. |
 | `409` | `10201` | Name already exists. Reconcile ownership before reusing a resource. |
 | `409` | `10302` | Repository is busy with an import/fork operation. Inspect state before retrying. |
-| `500` | `10400` | Generic server error, including some validation and publication failures. Inspect request and state; do not blindly retry. |
+| `500` | `10400` | Server failure. Retry create/publication using the same idempotency key and input, or inspect state before repeating unkeyed writes. |
 | `502` | `10401` | Import upstream unavailable, timed out, or exceeded limits. |
 
 Git uses its own protocol responses: invalid/expired/revoked credentials return `401`; insufficient write scope or read-only state returns `403`. Do not expect a REST envelope from Git endpoints.
 
-:::caution[Some validation failures currently return 500]
-Empty/oversized file sets, duplicate or invalid paths, and excessive decoded commit content can map to the generic internal error. Publication conflicts and read-only REST writes can also surface as generic failures. The current contract is not a universal `400` for validation or `409` for every write conflict. Validate in your client and inspect server diagnostics.
-:::
+
 
 ## Request and transfer limits
 
 | Surface | Limit / default | Integration consequence |
 | --- | --- | --- |
-| REST commit files | 1–100 files. | Use Git for a larger tree; an empty snapshot is unsupported. |
+| REST commit changes | Up to 100 writes + deletions. | Untouched files do not count. Empty replacement and deletion of the last file are supported. |
 | REST commit content | 1 MiB total decoded string bytes. | Count UTF-8 bytes, not characters. |
 | JSON request body | 2 MiB. | Includes JSON escapes, paths, and metadata; unknown fields are rejected. |
 | Git receive stream | 512 MiB. | Split unusually large publications or reconsider artifact size. |
@@ -50,9 +53,9 @@ Import size enforcement includes a hard per-file operating-system quota and moni
 
 Read requests can usually be retried with bounded exponential backoff after transient network failures. Keep a pinned SHA for multi-file reads so retries do not silently select a new branch version.
 
-Writes have no general idempotency-key support. A timeout may happen after a commit or repository was created. Resolve the intended repository and ref, verify expected content, and retry only after deciding what actually happened. Treat a repeated name's `409` as a prompt to reconcile, not automatic success.
+Repository creation (with `issue_credential: false`) and commit publication accept `Idempotency-Key`. Retry an uncertain outcome with the same key and decoded body; a successful result is stored durably with the mutation. Successful keys are retained indefinitely. Other writes, or writes without a key, still require inspecting state after a lost response. A repeated name's `409` is not proof of ownership.
 
-REST snapshot writes have no expected-head field. Two competing snapshots need application coordination even if each request succeeds. Git clients can fetch and merge or rebase after a rejected push. Never turn an automated retry into an unconditional force push.
+Use `expected_head` to detect intervening publications. On conflict, reconcile the newer version, then submit a new intended operation with a new key. Git clients can fetch and merge or rebase after a rejected push. Never turn an automated retry into an unconditional force push.
 
 ## Diagnose by layer
 

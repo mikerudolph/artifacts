@@ -8,7 +8,6 @@ import (
 	"github.com/mikerudolph/artifacts/internal/types"
 )
 
-// Fork creates a metadata-only snapshot with isolated credentials.
 func (r *Runner) Fork(ctx context.Context, account types.AccountID, srcNS, srcName string, dst types.ForkRepoInput) (types.CreateRepoResult, error) {
 	src, nspace, err := r.lookup(ctx, account, srcNS, srcName)
 	if err != nil {
@@ -52,7 +51,7 @@ func (r *Runner) Fork(ctx context.Context, account types.AccountID, srcNS, srcNa
 	return types.CreateRepoResult{
 		ID: dest.ID, Name: dest.Name, Description: descPtr(dest.Description),
 		DefaultBranch: dest.DefaultBranch, Remote: r.tenantRemote(account, nspace.Name, dest.Name),
-		Token: tok.Plaintext,
+		Token: tok.Plaintext, Credential: &tok,
 	}, nil
 }
 

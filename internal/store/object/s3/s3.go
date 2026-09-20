@@ -27,7 +27,6 @@ type store struct {
 	prefix string
 }
 
-// New returns an S3-compatible object.Store.
 func New(ctx context.Context, cfg config.S3) (object.Store, error) {
 	if cfg.Bucket == "" {
 		return nil, fmt.Errorf("S3 bucket is required")

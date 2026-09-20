@@ -9,30 +9,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mikerudolph/artifacts/internal/store/meta"
 	"github.com/mikerudolph/artifacts/internal/types"
 )
 
 func (m *Manager) installHistory(ctx context.Context, repo types.RepoID, through int64, path string) error {
-	after := int64(0)
-	line, err := m.meta.Forks().Get(ctx, repo)
-	if err == nil {
-		if err := m.installHistory(ctx, line.ParentRepoID, line.ParentSequence, path); err != nil {
-			return err
-		}
-	} else if !meta.IsNotFound(err) {
-		return err
-	}
-	cp, err := m.meta.Checkpoints().Get(ctx, repo)
-	if err == nil && cp.Sequence <= through {
-		if err := m.installPair(ctx, cp.PackKey, cp.IndexKey, cp.Checksum, path); err != nil {
-			return err
-		}
-		after = cp.Sequence
-	} else if err != nil && !meta.IsNotFound(err) {
-		return err
-	}
-	packs, err := m.meta.WAL().List(ctx, repo, after, through)
+	packs, err := m.packHistory(ctx, repo, through)
 	if err != nil {
 		return err
 	}

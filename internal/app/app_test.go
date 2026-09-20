@@ -215,7 +215,7 @@ func exerciseConcurrentReaders(t *testing.T, root, remote string, dev http.Handl
 }
 
 func cloneLargeRepository(dest, remote string) error {
-	cmd := exec.Command("git", "-c", "protocol.version=1", "clone", remote, filepath.Join(dest, "clone")) //nolint:gosec // test server URL
+	cmd := exec.Command("git", "-c", "protocol.version=1", "clone", remote, filepath.Join(dest, "clone")) //nolint:gosec
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("clone: %w: %s", err, out)

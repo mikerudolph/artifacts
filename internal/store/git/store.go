@@ -12,7 +12,6 @@ import (
 	"github.com/mikerudolph/artifacts/internal/types"
 )
 
-// Store is a go-git Storer backed by object.Store and meta.Refs.
 type Store struct {
 	objects object.Store
 	refs    meta.Refs
@@ -20,7 +19,6 @@ type Store struct {
 	repo    types.RepoID
 }
 
-// Open returns a Storer for one repository.
 func Open(objects object.Store, refs meta.Refs, account types.AccountID, repo types.RepoID) (storer.Storer, error) {
 	if objects == nil || refs == nil {
 		return nil, errors.New("objects and refs are required")
@@ -31,12 +29,10 @@ func Open(objects object.Store, refs meta.Refs, account types.AccountID, repo ty
 	return &Store{objects: objects, refs: refs, account: account, repo: repo}, nil
 }
 
-// NewEncodedObject implements storer.EncodedObjectStorer.
 func (s *Store) NewEncodedObject() plumbing.EncodedObject {
 	return &plumbing.MemoryObject{}
 }
 
-// AddAlternate is not supported.
 func (s *Store) AddAlternate(string) error {
 	return errNotSupported
 }

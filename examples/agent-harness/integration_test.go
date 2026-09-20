@@ -49,7 +49,7 @@ func TestCoreIntegration(t *testing.T) {
 	if code := run(context.Background(), []string{"verify-core", "--evidence", evidence}, stdout, stderr); code != 0 {
 		t.Fatalf("verify core code=%d stderr=%s", code, stderr)
 	}
-	data, err := os.ReadFile(filepath.Join(evidence, "report.json")) //nolint:gosec // test-owned temporary directory
+	data, err := os.ReadFile(filepath.Join(evidence, "report.json")) //nolint:gosec
 	if err != nil {
 		t.Fatal(err)
 	}

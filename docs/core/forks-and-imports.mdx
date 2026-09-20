@@ -19,7 +19,7 @@ FORKED=$(curl --fail-with-body -sS -X POST "$REPO_API/fork" \
 
 export REMOTE=$(printf '%s' "$FORKED" | jq -er '.result.remote')
 export REPO_TOKEN=$(printf '%s' "$FORKED" | jq -er '.result.token')
-printf '%s' "$FORKED" | jq '.result | del(.token)'
+printf '%s' "$FORKED" | jq '.result | del(.token, .credential.plaintext)'
 unset FORKED
 ```
 
@@ -52,7 +52,7 @@ IMPORTED=$(curl --fail-with-body -sS -X POST \
   -H "Authorization: Bearer $CONTROL_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"url":"https://github.com/mikerudolph/artifacts.git","depth":1}')
-printf '%s' "$IMPORTED" | jq '.result | del(.token)'
+printf '%s' "$IMPORTED" | jq '.result | del(.token, .credential.plaintext)'
 unset IMPORTED
 ```
 

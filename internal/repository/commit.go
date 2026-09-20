@@ -2,12 +2,11 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/mikerudolph/artifacts/internal/store/meta"
 	"github.com/mikerudolph/artifacts/internal/types"
 )
 
@@ -16,17 +15,34 @@ const (
 	maxCommitBytes = 1 << 20
 )
 
-// Commit validates and publishes a bounded REST commit.
 func (m *Manager) Commit(ctx context.Context, repo types.Repo, input types.CommitInput) (types.CommitResult, error) {
-	branch, err := validateCommit(repo, input)
-	if err != nil {
-		return types.CommitResult{}, err
-	}
 	path, unlock, err := m.lockedPath(repo)
 	if err != nil {
 		return types.CommitResult{}, err
 	}
 	defer unlock()
+	if input.IdempotencyKey != "" {
+		result, err := meta.Idempotent(ctx, m.meta, "commit/"+string(repo.AccountID)+"/"+string(repo.ID), input.IdempotencyKey, input, func(tx meta.Store) (types.CommitResult, error) {
+			inner := &Manager{meta: tx.(meta.V2Store), objects: m.objects, root: m.root}
+			return inner.commitLocked(ctx, repo, input, path)
+		})
+		if err != nil {
+			_ = os.RemoveAll(path)
+		}
+		return result, err
+	}
+	return m.commitLocked(ctx, repo, input, path)
+}
+
+func (m *Manager) commitLocked(ctx context.Context, repo types.Repo, input types.CommitInput, path string) (types.CommitResult, error) {
+	repo, err := m.commitRepo(ctx, repo, input)
+	if err != nil {
+		return types.CommitResult{}, err
+	}
+	branch, err := validateCommit(repo, input)
+	if err != nil {
+		return types.CommitResult{}, err
+	}
 	if err := m.ensure(ctx, repo, path); err != nil {
 		return types.CommitResult{}, err
 	}
@@ -35,9 +51,17 @@ func (m *Manager) Commit(ctx context.Context, repo types.Repo, input types.Commi
 		return types.CommitResult{}, err
 	}
 	defer func() { _ = os.RemoveAll(work) }()
+	before, err := listRefs(ctx, path)
+	if err != nil {
+		return types.CommitResult{}, err
+	}
 	ref := "refs/heads/" + branch
 	old := currentRef(ctx, path, ref)
-	sha, err := writeCommit(ctx, path, work, old, input)
+	parent, err := commitParent(ctx, repo, input, path, old)
+	if err != nil {
+		return types.CommitResult{}, err
+	}
+	sha, err := writeCommit(ctx, path, work, parent, input)
 	if err != nil {
 		return types.CommitResult{}, err
 	}
@@ -48,14 +72,14 @@ func (m *Manager) Commit(ctx context.Context, repo types.Repo, input types.Commi
 	if _, err := runGit(ctx, nil, args...); err != nil {
 		return types.CommitResult{}, err
 	}
-	pack, err := m.packAndUpload(ctx, repo, path)
+	pack, err := m.incrementalPack(ctx, repo, path, before, map[string]string{ref: sha})
 	if err != nil {
 		_ = os.RemoveAll(path)
 		return types.CommitResult{}, err
 	}
 	sequence, err := m.meta.WAL().Publish(ctx, types.Publication{
 		Pack: pack, Updates: []types.RefUpdate{{Name: ref, OldSHA: old, NewSHA: sha}},
-		ExpectedSequence: repo.WALSequence, AllowReadOnly: repo.WALSequence == 0,
+		ExpectedSequence: repo.WALSequence, AllowReadOnly: repo.WALSequence == 0 && !input.RepositoryCredential,
 	})
 	if err != nil {
 		_ = os.RemoveAll(path)
@@ -67,64 +91,38 @@ func (m *Manager) Commit(ctx context.Context, repo types.Repo, input types.Commi
 	return types.CommitResult{SHA: sha, Sequence: sequence}, nil
 }
 
-func validateCommit(repo types.Repo, input types.CommitInput) (string, error) {
-	branch := input.Branch
-	if branch == "" {
-		branch = repo.DefaultBranch
-	}
-	if _, err := types.ParseBranchName(branch); err != nil {
-		return "", err
-	}
-	if len(input.Files) == 0 || len(input.Files) > maxCommitFiles {
-		return "", errors.New("commit must contain 1 to 100 files")
-	}
-	total := 0
-	seen := map[string]struct{}{}
-	for _, file := range input.Files {
-		clean := filepath.ToSlash(filepath.Clean(file.Path))
-		if clean != file.Path || clean == "." || strings.HasPrefix(clean, "../") || strings.Contains(clean, "/.git/") || strings.HasPrefix(clean, ".git/") {
-			return "", errors.New("invalid commit path")
+func (m *Manager) commitRepo(ctx context.Context, repo types.Repo, input types.CommitInput) (types.Repo, error) {
+	if m.meta.Repos() != nil {
+		current, err := m.meta.Repos().GetByID(ctx, repo.ID)
+		if err != nil {
+			return types.Repo{}, err
 		}
-		if _, ok := seen[clean]; ok {
-			return "", errors.New("duplicate commit path")
-		}
-		seen[clean] = struct{}{}
-		total += len(file.Content)
+		repo = current
 	}
-	if total > maxCommitBytes {
-		return "", errors.New("commit content exceeds limit")
+	if repo.ReadOnly && (repo.WALSequence != 0 || input.RepositoryCredential) {
+		return types.Repo{}, types.ErrForbidden
 	}
-	return branch, nil
+	return repo, nil
 }
 
-func writeCommit(ctx context.Context, gitDir, work, parent string, input types.CommitInput) (string, error) {
-	index := filepath.Join(gitDir, ".artifacts-index")
-	defer func() { _ = os.Remove(index) }()
-	env := []string{"GIT_INDEX_FILE=" + index}
-	readArgs := []string{"--git-dir=" + gitDir, "--work-tree=" + work, "read-tree", "--empty"}
-	if parent != "" {
-		readArgs[len(readArgs)-1] = parent
+func commitParent(ctx context.Context, repo types.Repo, input types.CommitInput, path, old string) (string, error) {
+	if input.ExpectedHead != nil && *input.ExpectedHead != old {
+		return "", &types.HeadConflict{Current: old}
 	}
-	if _, err := runGitEnv(ctx, nil, env, "", readArgs...); err != nil {
-		return "", err
-	}
-	for _, file := range input.Files {
-		dest := filepath.Join(work, filepath.FromSlash(file.Path))
-		if err := os.MkdirAll(filepath.Dir(dest), 0o750); err != nil {
-			return "", err
+	parent := old
+	if input.Base != "" {
+		if old != "" {
+			return "", &types.InputError{Field: "/base", Message: "base is only valid when creating a branch"}
 		}
-		if err := os.WriteFile(dest, []byte(file.Content), 0o600); err != nil {
-			return "", err
+		kind, err := runGit(ctx, nil, "--git-dir="+path, "cat-file", "-t", input.Base)
+		if err != nil || strings.TrimSpace(string(kind)) != "commit" {
+			return "", &types.InputError{Field: "/base", Message: "base commit does not exist in this repository"}
 		}
+		parent = input.Base
+	} else if old == "" {
+		parent = currentRef(ctx, path, "refs/heads/"+repo.DefaultBranch)
 	}
-	if _, err := runGitEnv(ctx, nil, env, "", "--git-dir="+gitDir, "--work-tree="+work, "add", "-A"); err != nil {
-		return "", err
-	}
-	tree, err := runGitEnv(ctx, nil, env, "", "--git-dir="+gitDir, "write-tree")
-	if err != nil {
-		return "", err
-	}
-	return createCommit(ctx, gitDir, strings.TrimSpace(string(tree)), parent, input)
+	return parent, nil
 }
 
 func createCommit(ctx context.Context, gitDir, tree, parent string, input types.CommitInput) (string, error) {
@@ -163,23 +161,24 @@ func currentRef(ctx context.Context, path, ref string) string {
 	return strings.TrimSpace(string(b))
 }
 
-// Refs lists published refs.
 func (m *Manager) Refs(ctx context.Context, repo types.Repo) ([]types.Ref, error) {
 	return m.meta.Refs().List(ctx, repo.ID)
 }
 
-// WAL lists published immutable packs.
 func (m *Manager) WAL(ctx context.Context, repo types.Repo) ([]types.PackWAL, error) {
 	return m.meta.WAL().List(ctx, repo.ID, 0, -1)
 }
 
-// Compact publishes the current full pack as a checkpoint.
 func (m *Manager) Compact(ctx context.Context, repo types.Repo) error {
 	path, unlock, err := m.lockedPath(repo)
 	if err != nil {
 		return err
 	}
 	defer unlock()
+	repo, err = m.currentRepo(ctx, repo)
+	if err != nil {
+		return err
+	}
 	if err := m.ensure(ctx, repo, path); err != nil {
 		return err
 	}

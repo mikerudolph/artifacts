@@ -6,7 +6,6 @@ import (
 	"io"
 )
 
-// Store is a content-addressed object backend (filesystem or S3-compatible).
 type Store interface {
 	Get(ctx context.Context, key string) (io.ReadCloser, error)
 	Put(ctx context.Context, key string, r io.Reader, size int64) error
@@ -18,15 +17,13 @@ type Store interface {
 }
 
 var (
-	// ErrNotFound means the key does not exist.
 	ErrNotFound = errors.New("object not found")
-	// ErrInvalidKey means the key is empty or not a relative path.
+
 	ErrInvalidKey = errors.New("invalid object key")
-	// ErrImmutableConflict means an existing immutable key has different bytes.
+
 	ErrImmutableConflict = errors.New("immutable object conflict")
 )
 
-// IsNotFound reports whether err is ErrNotFound.
 func IsNotFound(err error) bool {
 	return errors.Is(err, ErrNotFound)
 }

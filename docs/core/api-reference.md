@@ -63,11 +63,13 @@ List query: `limit` (default 50, maximum 200) and `cursor`. There are no namespa
 | `default_branch` | Optional string; defaults to `main`. | Optional string; updates symbolic `HEAD`. |
 | `read_only` | Optional boolean; defaults to `false`. | Optional boolean. |
 
-The create result contains `id`, `name`, nullable `description`, `default_branch`, `remote`, and `token`. The token is a 24-hour Git write credential; avoid logging the entire response. Creation returns an empty repository without an initial commit.
+The create result contains `id`, `name`, nullable `description`, `default_branch`, `remote`, and `token`. By default, `credential` also contains the initial credential's `id`, `plaintext`, `scope`, and `expires_at`; `token` is a compatibility plaintext alias. The credential grants 24-hour REST-content/Git write access. Set `issue_credential: false` to create without a secret (`credential` omitted, `token` empty). Creation returns an empty repository.
+
+Creation supports `Idempotency-Key` only with `issue_credential: false`. Identical decoded input and key within the account/namespace returns the original create result; changed input returns `409` (`idempotency_conflict`). Successful results are retained indefinitely; replay does not recreate a deleted repository. Issue worker credentials separately. Publication keys are scoped separately to each repository. Fork/import and credential issuance do not support idempotent replay.
 
 A repository read contains `id`, `name`, `description`, `default_branch`, `created_at`, `updated_at`, nullable `last_push_at`, `source`, `read_only`, `wal_sequence`, and `remote`. Optional `failure` and `deleted_at` fields exist in the record type, but failed and deleted repositories are hidden from normal lookup. The internal `status` field is **not** included in JSON.
 
-Settings only change supplied fields. A missing default branch is not created by changing the setting. An initial REST commit at WAL sequence zero is allowed even on a read-only repository; Git writes and later REST publications respect read-only state.
+Settings only change supplied fields. A missing default branch is not created by changing the setting. An initial control-token REST commit at WAL sequence zero is allowed even on a read-only repository; repository-credential writes and later REST publications respect read-only state.
 
 ### Repository list filters
 
@@ -94,11 +96,11 @@ Deletion tombstones the repository and revokes credentials before `202` is retur
 }
 ```
 
-`files` is required: 1–100 unique paths, at most 1 MiB of decoded string contents, and at most 2 MiB for the full JSON body. The file set is the **whole desired tree**. Paths omitted from a later request are removed from that new tree.
+`files` creates/updates selected paths; untouched paths are preserved. Optional `deletes` removes exact file paths. Accepts at most 100 combined changes, 1 MiB decoded string content, and 2 MiB JSON. At least one change is required unless `replace: true`, which explicitly replaces the whole tree and permits an empty file set. Replacement cannot also specify deletes.
 
 `branch` defaults to the repository default; `message` defaults to `Initial artifacts`; author name/email default to `Artifacts Agent` / `agent@artifacts.local`. Optional `author.date` is an RFC 3339 timestamp and otherwise uses current time.
 
-The JSON result is `{"sha":"<commit-sha>","sequence":1}`. No expected-head, merge, binary encoding, or idempotency field is supported. See [write files](/artifacts/core/writing-files/) for new-branch semantics and writer coordination.
+The JSON result is `{"sha":"<commit-sha>","sequence":1}`. Optional `expected_head` checks the full commit SHA; empty requires a nonexistent branch. New branches inherit the default branch unless `base` specifies a commit. `Idempotency-Key` safely replays successful publications. Repository write credentials can call this route. Merge and binary encodings are unsupported. See [write files](/artifacts/core/writing-files/) for details and migration from implicit snapshot replacement.
 
 ## Content and history
 
@@ -114,11 +116,34 @@ The following paths are relative to `/namespaces/{ns}/repos/{repo}`. All return 
 | `GET` | `/tree/{hash}` | Tree object SHA. Array of tree entries. |
 | `GET` | `/blob/{hash}` | Blob object SHA. Raw `application/octet-stream` bytes. |
 | `GET` | `/refs` | Array of `{"name":"refs/heads/main","sha":"<sha>"}` records. May include symbolic `HEAD`. |
+| `GET` | `/events` | `after` (default 0), `limit` (1–100, default 100). Resumable committed publications; see below. |
 | `GET` | `/wal` | Array of published immutable pack metadata. Storage diagnostics. |
 
 A tree entry has `mode`, `type`, `hash`, and `name`. A log entry has `hash`, `message`, `author`, and `committer`. Signatures contain `name`, `email`, and `date`. WAL records contain `sequence`, `pack_key`, `index_key`, `checksum`, `size`, and `created_at`.
 
 File/tree/log ref resolution supports `HEAD`, short branch or lightweight tag names, full refs, and full commit SHAs. It does not peel annotated tag objects or act as a general Git revision-expression parser. Pin a commit SHA for consistent multi-file reads. A new empty repository has no readable commit yet. See [read files and history](/artifacts/core/reading-files/).
+
+## Publication events
+
+`GET /namespaces/{ns}/repos/{repo}/events?after=0&limit=100` returns the usual envelope with this result:
+
+```json
+{
+  "events": [{
+    "repo_id": "repo_...",
+    "sequence": 1,
+    "created_at": "2026-09-19T12:00:00Z",
+    "updates": [{"name": "refs/heads/main", "old_sha": "", "new_sha": "<commit-sha>"}]
+  }],
+  "next_after": 1
+}
+```
+
+Events are ordered committed publications from REST, Git, imports, or legacy conversion. All ref changes in one publication stay together, even at a page boundary. Empty `old_sha` means ref creation; empty `new_sha` means deletion. A conversion can have no ref changes. Compaction emits no event. A snapshot fork starts its own sequence at zero and does not replay its parent's events.
+
+Persist `next_after` **after** processing the page, then pass it as `after` on the next request. An empty page keeps the cursor unchanged. Repeated requests can return the same events: make consumers idempotent using `(repo_id, sequence)`, or include the ref name when processing individual ref changes. Events survive server restarts and compaction. They are retained with publication history; repository deletion makes the endpoint inaccessible.
+
+Control tokens and repository read/write credentials can read the feed. Failed publications and idempotent retries produce no extra event. The API polls committed database records; it does not push webhooks or promise exactly-once execution in your application.
 
 ## Repository credentials
 
@@ -132,7 +157,7 @@ Create body: `repo` (required repository name), `scope` (`read` or `write`, defa
 
 List query: `state` (`active` by default, or `expired`, `revoked`, `all`), `page` (default 1), and `per_page` (default 30, maximum 100). The former `/tokens` routes are compatibility aliases with identical behavior. Use `/credentials` for new integrations.
 
-These REST routes require a control-plane token, even though they manage Git credentials. See [authentication](/artifacts/core/authentication/).
+These management routes require a control-plane token, even though the credentials they issue authorize both REST content and Git. See [authentication](/artifacts/core/authentication/).
 
 ## Forks, imports, and jobs
 

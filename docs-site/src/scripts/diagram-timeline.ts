@@ -1,7 +1,6 @@
 export const STEP_DURATION = 4400;
 export const FINAL_DURATION = STEP_DURATION + 2200;
 
-// One clock drives the drawing, captions, and playback progress.
 export class DiagramTimeline {
   readonly stepCount: number;
   step = 0;
@@ -24,7 +23,6 @@ export class DiagramTimeline {
     this.elapsed += Math.max(0, delta);
     if (this.elapsed < this.duration) return false;
     this.step = (this.step + 1) % this.stepCount;
-    // Show each concept even after a long frame; don't burst through missed steps.
     this.elapsed = 0;
     return true;
   }
@@ -33,6 +31,5 @@ export class DiagramTimeline {
     if (!Number.isInteger(step) || step < 0 || step >= this.stepCount) throw new RangeError('Invalid explainer step');
     this.step = step;
     this.elapsed = 0;
-    // Seeking preserves the reader's play/pause choice.
   }
 }

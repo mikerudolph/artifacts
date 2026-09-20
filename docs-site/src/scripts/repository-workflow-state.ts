@@ -12,8 +12,6 @@ export function flight(time: number, from: number, to: number) {
   };
 }
 
-// Illustrative content IDs, not live service telemetry. Each loop starts from
-// the snapshot published by the previous one; history never rewinds to zero.
 export function exampleHash(revision: number, file = 0) {
   const seed = Math.imul(revision + 31, 0x45d9f3b) ^ Math.imul(file + 7, 0x119de1f3);
   return (seed >>> 0).toString(16).padStart(8, '0').slice(0, 7);

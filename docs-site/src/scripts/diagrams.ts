@@ -1,8 +1,6 @@
 import { DiagramTimeline } from './diagram-timeline';
 import { DiagramMotion } from './diagram-motion';
 
-// Automatically play through, hold the final state, and loop while visible.
-// Only an explicit Pause stops playback; seeking keeps the sequence running.
 class ArtifactDiagram extends HTMLElement {
   private timeline!: DiagramTimeline;
   private visible = false;
@@ -37,8 +35,6 @@ class ArtifactDiagram extends HTMLElement {
       }
     }, { signal });
 
-    // Arrow keys supplement native Tab/Enter/Space behavior without introducing
-    // tab semantics: these are navigation buttons, not separate tab panels.
     this.querySelector('.diagram-steps')?.addEventListener('keydown', (event) => {
       const key = (event as KeyboardEvent).key;
       const index = this.buttons.indexOf(document.activeElement as HTMLButtonElement);
@@ -56,7 +52,6 @@ class ArtifactDiagram extends HTMLElement {
       this.visible = entry.isIntersecting && entry.intersectionRatio >= 0.15;
       this.syncPlayback();
     }, { threshold: [0, 0.15], rootMargin: '-80px 0px -24px 0px' });
-    // Measure the drawing, not the article/player/transcript around it.
     this.observer.observe(this.querySelector('.diagram-stage') ?? this);
   }
 
@@ -95,8 +90,6 @@ class ArtifactDiagram extends HTMLElement {
 
   private tick = (time: number) => {
     if (!this.playing) return;
-    // Use elapsed time, not a per-frame cap: throttled rendering must not turn
-    // a four-second scene into a minute. Suspension resets the clock.
     const delta = this.lastTime === null ? 0 : time - this.lastTime;
     this.lastTime = time;
     if (this.timeline.advance(delta)) this.render();

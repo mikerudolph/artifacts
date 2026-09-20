@@ -19,7 +19,7 @@ func (s *server) createCommit(w http.ResponseWriter, r *http.Request) {
 	}
 	var input types.CommitInput
 	if err := decodeJSON(w, r, &input); err != nil {
-		writeErr(w, types.ErrInvalidName)
+		writeErr(w, err)
 		return
 	}
 	repo, err := s.routeRepo(r)
@@ -27,6 +27,8 @@ func (s *server) createCommit(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, err)
 		return
 	}
+	input.IdempotencyKey = r.Header.Get("Idempotency-Key")
+	input.RepositoryCredential, _ = r.Context().Value(repositoryCredentialKey{}).(bool)
 	result, err := s.deps.Repository.Commit(r.Context(), repo, input)
 	if err != nil {
 		writeErr(w, err)
@@ -74,7 +76,7 @@ func (s *server) listWAL(w http.ResponseWriter, r *http.Request) {
 func (s *server) updateSettings(w http.ResponseWriter, r *http.Request) {
 	var input types.UpdateRepoInput
 	if err := decodeJSON(w, r, &input); err != nil {
-		writeErr(w, types.ErrInvalidName)
+		writeErr(w, err)
 		return
 	}
 	repo, err := s.svc.UpdateRepo(r.Context(), types.AccountID(chi.URLParam(r, "account_id")),

@@ -1,4 +1,4 @@
-/* Tokyo Night: https://github.com/folke/tokyonight.nvim */
+
 :root {
   --sl-color-accent-low: #242e48;
   --sl-color-accent: #7aa2f7;
@@ -136,7 +136,7 @@ starlight-toc a[aria-current='true'] { color: var(--sl-color-accent-high); backg
 .docs-colophon { display: flex; justify-content: space-between; margin-top: 3rem; padding-top: 1.2rem; border-top: 1px solid var(--sl-color-hairline); font-size: .68rem; color: var(--sl-color-gray-3); }
 .docs-colophon a { color: var(--sl-color-gray-3); text-decoration: none; }
 .colophon-separator { color: var(--sl-color-gray-4); padding: 0 .4rem; }
-/* The introduction is a working map of the docs, inside the same reading shell. */
+
 [data-has-hero] { --sl-content-width: 65rem; }
 .home-hero { display: grid; grid-template-columns: 1.1fr 1fr; align-items: center; gap: 3rem; padding: 2.6rem 0 3rem; }
 .hero-copy .eyebrow { font-size: .61rem; color: var(--sl-color-gray-2); letter-spacing: .09em; }

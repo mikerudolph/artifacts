@@ -7,7 +7,6 @@ import (
 	"github.com/mikerudolph/artifacts/internal/types"
 )
 
-// CreateNamespace creates a namespace after validating its name.
 func (s *Services) CreateNamespace(ctx context.Context, account types.AccountID, name string, j types.Jurisdiction) (types.Namespace, error) {
 	nsName, err := types.ParseNamespaceName(name)
 	if err != nil {
@@ -27,7 +26,6 @@ func (s *Services) CreateNamespace(ctx context.Context, account types.AccountID,
 	})
 }
 
-// GetNamespace returns a namespace by name.
 func (s *Services) GetNamespace(ctx context.Context, account types.AccountID, name string) (types.Namespace, error) {
 	nsName, err := types.ParseNamespaceName(name)
 	if err != nil {
@@ -36,7 +34,6 @@ func (s *Services) GetNamespace(ctx context.Context, account types.AccountID, na
 	return s.meta.Namespaces().GetByName(ctx, account, nsName)
 }
 
-// ListNamespaces lists namespaces for an account.
 func (s *Services) ListNamespaces(ctx context.Context, account types.AccountID, page types.CursorPage) ([]types.Namespace, types.CursorResult, error) {
 	return s.meta.Namespaces().List(ctx, account, page)
 }

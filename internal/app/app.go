@@ -26,7 +26,6 @@ import (
 	"github.com/mikerudolph/artifacts/internal/ui"
 )
 
-// Handler builds the combined REST + git HTTP handler.
 func Handler(ctx context.Context, cfg config.Config) (http.Handler, error) {
 	return buildHandler(ctx, cfg, false)
 }
@@ -64,7 +63,7 @@ func buildHandler(ctx context.Context, cfg config.Config, dev bool) (http.Handle
 		if err != nil {
 			return err
 		}
-		return cache.Read(ctx, repo, visit)
+		return cache.ReadContent(ctx, repo, visit)
 	}
 	if !dev && cfg.Auth.Mode == "token" && cfg.Auth.APIToken != "" {
 		if err := ensureAPIToken(ctx, mdb, types.AccountID(cfg.Account.DefaultID), cfg.Auth.APIToken); err != nil {
@@ -73,7 +72,8 @@ func buildHandler(ctx context.Context, cfg config.Config, dev bool) (http.Handle
 	}
 	rest := api.NewWithDependencies(svc, cfg, api.Dependencies{
 		ReadGit: reader, Jobs: runner, Repository: cache, Authorizer: auth.NewControlAuthorizer(mdb.APITokens()),
-		StreamIdle: cfg.HTTP.StreamIdleTimeout,
+		StreamIdle:     cfg.HTTP.StreamIdleTimeout,
+		RepoAuthorizer: auth.NewRepoAuthorizer(mdb.RepoTokens(), time.Now),
 	})
 	git := githttp.NewRepositoryWithIdleTimeout(cache, svc, auth.NewRepoAuthorizer(mdb.RepoTokens(), time.Now), dev, cfg.HTTP.StreamIdleTimeout)
 	browser, err := devBrowser(dev, rest)
@@ -84,7 +84,7 @@ func buildHandler(ctx context.Context, cfg config.Config, dev bool) (http.Handle
 	if dev {
 		h = devHostGuard(h)
 	}
-	return h, nil
+	return &maintainedHandler{Handler: h, manager: cache}, nil
 }
 
 func devHostGuard(next http.Handler) http.Handler {
@@ -170,7 +170,6 @@ func (t tokenLookup) Lookup(ctx context.Context, _, _, plaintext string) (types.
 	return tok.Scope, nil
 }
 
-// WriteUsage prints CLI help.
 func WriteUsage(w io.Writer) {
 	_, _ = fmt.Fprint(w, `artifacts — cloud-agnostic versioned git storage
 

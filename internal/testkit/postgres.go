@@ -10,7 +10,6 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-// Postgres starts a Postgres 16 container and returns a DSN. Skips without Docker.
 func Postgres(tb testing.TB) string {
 	tb.Helper()
 	DockerAvailable(tb)

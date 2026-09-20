@@ -11,7 +11,7 @@ import (
 func (s *server) createToken(w http.ResponseWriter, r *http.Request) {
 	var in types.CreateTokenInput
 	if err := decodeJSON(w, r, &in); err != nil {
-		writeErr(w, types.ErrInvalidName)
+		writeErr(w, err)
 		return
 	}
 	acct := types.AccountID(chi.URLParam(r, "account_id"))

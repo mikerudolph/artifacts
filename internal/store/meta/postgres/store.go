@@ -21,7 +21,6 @@ type store struct {
 	p *pgxpool.Pool
 }
 
-// Open connects to Postgres. Call Migrate first.
 func Open(ctx context.Context, dsn string) (meta.V2Store, error) {
 	pool, err := pgxpool.New(ctx, dsn)
 	if err != nil {
@@ -34,7 +33,6 @@ func Open(ctx context.Context, dsn string) (meta.V2Store, error) {
 	return &store{q: pool, p: pool}, nil
 }
 
-// Close releases the pool. Safe on a transaction-bound store.
 func (s *store) Close() {
 	if s.p != nil {
 		s.p.Close()

@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/mikerudolph/artifacts/internal/api/envelope"
+	"github.com/mikerudolph/artifacts/internal/types"
 )
 
 func writeOK(w http.ResponseWriter, status int, v any) {
@@ -30,13 +31,21 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, v any) error {
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(v); err != nil {
-		return err
+		return jsonInputError(err)
 	}
 	if err := dec.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
 		if err == nil {
-			return errors.New("request body must contain one JSON value")
+			return &types.InputError{Message: "request body must contain one JSON value"}
 		}
-		return err
+		return jsonInputError(err)
 	}
 	return nil
+}
+
+func jsonInputError(err error) error {
+	var limit *http.MaxBytesError
+	if errors.As(err, &limit) {
+		return &types.InputError{Message: "JSON body exceeds 2 MiB", TooLarge: true}
+	}
+	return &types.InputError{Message: "invalid JSON request: " + err.Error()}
 }

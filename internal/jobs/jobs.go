@@ -13,17 +13,15 @@ import (
 )
 
 var (
-	// ErrInvalidURL is a bad import source.
 	ErrInvalidURL = errors.New("invalid url")
-	// ErrRemoteAuth means the remote requires credentials.
+
 	ErrRemoteAuth = errors.New("remote auth required")
-	// ErrUpstream means the remote could not be reached.
+
 	ErrUpstream = errors.New("upstream unavailable")
-	// ErrBusy means the repo is importing or forking.
+
 	ErrBusy = errors.New("operation in progress")
 )
 
-// Runner runs fork, import, and delete jobs.
 type Runner struct {
 	meta      meta.Store
 	objects   object.Store
@@ -34,22 +32,18 @@ type Runner struct {
 	resolver  ipResolver
 }
 
-// ImportPublisher publishes a remote through the immutable pack WAL.
 type ImportPublisher interface {
 	ImportControlled(context.Context, types.Repo, types.ImportSpec) (string, error)
 }
 
-// RepositoryUpgrader converts legacy storage before snapshotting.
 type RepositoryUpgrader interface {
 	Upgrade(context.Context, types.Repo) (types.Repo, error)
 }
 
-// New constructs a Runner.
 func New(m meta.Store, objects object.Store, publicURL string) *Runner {
 	return &Runner{meta: m, objects: objects, publicURL: publicURL, now: time.Now}
 }
 
-// NewWithPublisher constructs a runner with durable import publication.
 func NewWithPublisher(m meta.Store, objects object.Store, publicURL string, publisher ImportPublisher) *Runner {
 	r := New(m, objects, publicURL)
 	r.imports = publisher
@@ -102,7 +96,6 @@ func busy(status types.RepoStatus) error {
 	return nil
 }
 
-// List returns durable jobs for a repository.
 func (r *Runner) List(ctx context.Context, repo types.RepoID) ([]types.Job, error) {
 	return r.meta.Jobs().ListByRepo(ctx, repo)
 }

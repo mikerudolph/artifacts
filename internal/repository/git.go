@@ -12,13 +12,16 @@ import (
 	"github.com/mikerudolph/artifacts/internal/types"
 )
 
-// RPC streams a read-only stateless Git service against a synchronized cache.
 func (m *Manager) RPC(ctx context.Context, repo types.Repo, service string, input io.Reader, output io.Writer, protocol string) error {
 	path, unlock, err := m.lockedPath(repo)
 	if err != nil {
 		return err
 	}
 	defer unlock()
+	repo, err = m.currentRepo(ctx, repo)
+	if err != nil {
+		return err
+	}
 	if err := m.ensure(ctx, repo, path); err != nil {
 		return err
 	}

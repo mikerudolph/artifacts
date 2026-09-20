@@ -1,8 +1,7 @@
 @import '@fontsource/barlow-semi-condensed/latin-500.css';
 @import '@fontsource/barlow-semi-condensed/latin-600.css';
 
-/* Artifacts / Orbital. Space-game atmosphere, documentation-first density.
-   Layout and reading defaults live in custom.css; this is the brand layer. */
+
 :root {
   --font-display: 'Barlow Semi Condensed', 'Arial Narrow', sans-serif;
   --sl-font-mono: ui-monospace, 'SFMono-Regular', 'SF Mono', Menlo, Consolas, monospace;
@@ -110,12 +109,12 @@ starlight-toc a[aria-current='true'] { color: var(--frame-accent); }
 .pagination-links .link-title { font-family: var(--font-display); font-size: 1.2rem; letter-spacing: .025em; }
 .docs-colophon { font-family: var(--sl-font-mono); font-size: .6rem; letter-spacing: .025em; }
 
-/* The main visual is a repository, presented with the language of a star map. */
+
 .home-hero { position: relative; isolation: isolate; grid-template-columns: 1fr 1.06fr; gap: 1rem; padding: 3rem 0 3.2rem; min-height: 36rem; }
 .home-hero::before {
   content: ''; position: absolute; z-index: -1; inset: -2.25rem -2.75rem 0; pointer-events: none;
   background: radial-gradient(ellipse at 82% 39%, color-mix(in srgb, var(--sl-color-accent) 13%, transparent), transparent 54%), linear-gradient(160deg, transparent 45%, color-mix(in srgb, var(--accent-lilac) 4%, transparent) 65%, transparent 80%);
-  /* The off-center radial mask alone is still opaque at the inline edges. */
+
   mask-image: radial-gradient(ellipse 75% 75% at 65% 35%, #000 30%, transparent 100%), linear-gradient(to right, transparent, #000 12%, #000 76%, transparent);
   mask-composite: intersect;
 }
@@ -162,7 +161,7 @@ starlight-toc a[aria-current='true'] { color: var(--frame-accent); }
 .model-note { border-radius: 0; border: 1px solid var(--sl-color-hairline); border-left: 2px solid var(--accent-lilac); background: color-mix(in srgb, var(--surface-raised) 65%, transparent); }
 .reference-links a { transition: color 160ms ease; }
 
-/* Preserve all continuous SVG choreography; only change the player enclosure. */
+
 artifact-diagram[data-story] figure { position: relative; border-radius: 0; border-color: var(--sl-color-gray-5); background: linear-gradient(130deg, color-mix(in srgb, var(--sl-color-accent) 4%, var(--surface-code)), var(--surface-code) 65%); }
 artifact-diagram[data-story] figure::before { content: ''; position: absolute; z-index: 1; top: 0; left: 0; width: 24px; height: 1px; background: var(--frame-accent); pointer-events: none; }
 artifact-diagram[data-story] .diagram-heading { border-bottom: 1px solid var(--sl-color-hairline); margin-bottom: .85rem; padding-block: 1.05rem; }

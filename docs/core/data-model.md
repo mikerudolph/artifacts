@@ -83,9 +83,9 @@ Store original output bytes when using Git. Encoding a PDF as base64 in a JSON f
 
 One commit should contain a coherent version that a consumer can use: for example, the report, its machine-readable findings, and a manifest that references both. Publishing them together prevents a reader pinned to that commit from seeing mismatched versions.
 
-**REST commits replace the file tree with the supplied file set.** To retain `inputs/brief.md` when publishing a new report, include that input file in the request too. The omitted file remains in older commits, but disappears from the new tree. Use Git for incremental edits, binary files, executable modes, larger trees, and ordinary merges. Read the [write contract](/artifacts/core/writing-files/) before building updates.
+**REST commits preserve untouched files.** Send the report you changed without resending `inputs/brief.md`. Use `deletes` for removal and `replace: true` only for deliberate full-tree replacement. Use Git for binary files, file-mode changes, larger updates, and merges. Read the [write contract](/artifacts/core/writing-files/) before building updates.
 
-Choose one owner for each writable branch when practical. The REST API does not expose an expected-head or idempotency field. Two applications can each produce valid snapshots while overwriting one another's intended current state. Serialize writes in your application or isolate workers in repositories and collect their results.
+Supply `expected_head` when writing changes derived from a version you read. Competing writers then receive a conflict instead of silently replacing newer work. Use `Idempotency-Key` for retries of the same publication. Artifacts detects conflicts; your application or Git workflow still decides how to reconcile them.
 
 ## Plan schema evolution and discovery
 

@@ -82,8 +82,8 @@ curl --fail-with-body -sS -X POST "$REPO_API/commits" \
 
 Expect HTTP `201`, `success: true`, a 40-character `result.sha`, and `result.sequence: 1`. That SHA is a normal Git commit. The sequence records the repository's first durable publication.
 
-:::caution[REST writes are complete snapshots]
-Every `POST /commits` supplies the complete file tree for that commit. Files omitted from a later request are removed from the new tree. Include every file you want to keep, or use Git for incremental edits. See [write files](/artifacts/core/writing-files/).
+:::note[REST writes preserve untouched files]
+`POST /commits` updates only supplied paths. Remove files explicitly with `deletes`; use `expected_head` to detect concurrent changes and `Idempotency-Key` for safe retries. Full-tree replacement requires `replace: true`. See [write files](/artifacts/core/writing-files/).
 :::
 
 ## Read the published files

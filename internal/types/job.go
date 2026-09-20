@@ -2,7 +2,6 @@ package types
 
 import "time"
 
-// JobKind is a background control-plane job.
 type JobKind string
 
 const (
@@ -11,7 +10,6 @@ const (
 	JobDelete JobKind = "delete"
 )
 
-// JobPhase is a background job lifecycle.
 type JobPhase string
 
 const (
@@ -21,7 +19,6 @@ const (
 	JobFailed    JobPhase = "failed"
 )
 
-// Job is a durable background job.
 type Job struct {
 	ID        JobID     `json:"id"`
 	RepoID    RepoID    `json:"repo_id"`

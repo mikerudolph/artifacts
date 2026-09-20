@@ -25,7 +25,7 @@ Orchestrator                 Artifacts                    Worker
     │  validate + record result │                           │
 ```
 
-The worker's ordinary Git edits preserve bootstrap files. If a worker uses REST instead, it needs trusted control-plane access or backend mediation and must submit the whole desired file tree. Repository credentials only work on Git.
+Both Git edits and ordinary REST commits preserve untouched bootstrap files. A REST worker can use its repository write credential, supply only changed files, and include `expected_head` and `Idempotency-Key` for concurrency and retry handling.
 
 ## Run the executable reference
 

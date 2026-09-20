@@ -25,7 +25,7 @@ account: acme                     tenant / authentication boundary
 | --- | --- | --- |
 | Account | Tenant-bound REST authentication and repository ownership. | Which application tenant maps to this account. |
 | Namespace | A named group of repositories within an account. | Group by workload, environment, or team. |
-| Repository | An isolated Git history and repository-scoped Git credentials. | The unit of access, collaboration, and retention. |
+| Repository | An isolated Git history and repository-scoped REST/Git credentials. | The unit of access, collaboration, and retention. |
 | File | Bytes at a path in a committed tree. | Format, schema, validation, and meaning. |
 | Commit | A versioned tree, parent history, message, and author. | What belongs in one publication. |
 | Ref | A name such as `main` that points to a commit. | Which branch is the working or published version. |
@@ -43,7 +43,7 @@ Changing a file creates new objects instead of mutating the previous snapshot. U
 
 ## One history, two interfaces
 
-Use the **REST API** to create and find repositories, issue credentials, publish small file snapshots, read content, and manage lifecycle. Use **Git smart HTTP** for clone, fetch, and push with existing tools. Both publish into the same history.
+Use the **REST API** to create and find repositories, issue credentials, publish small file changes, read content, and manage lifecycle. Use **Git smart HTTP** for clone, fetch, and push with existing tools. Both publish into the same history.
 
 ```text
 Your backend ── REST commit ──┐
@@ -72,3 +72,13 @@ The current implementation is single-node. Plan your deployment around one servi
 ## Choose the next step
 
 If you have not made a commit yet, follow the [quickstart](/artifacts/getting-started/). Once that works, [model your data](/artifacts/core/data-model/) before choosing your repository layout. That decision determines who can read the work, how writers coordinate, and how long you keep it.
+
+### Publication and read costs
+
+Each REST commit or Git push uploads a pack of newly reachable objects and its index. Previously published history stays in earlier packs. Packs contain their own delta bases, so decoding a pack does not require another pack. A ref-only publication may upload an empty pack.
+
+The serving process checks for compaction work at startup and once a minute. Repositories with at least 32 publications since their last checkpoint qualify; each pass handles up to eight repositories. Compaction creates a full checkpoint outside the write request. Original packs remain available for fork snapshots and event replay. Manual `artifacts compact` remains available.
+
+Content reads load cached pack indexes and fetch the byte ranges needed for the requested Git objects. The reader verifies decoded object hashes and keeps up to eight 256 KiB blocks for its current pack. It switches to the full disk cache for objects larger than 8 MiB, preserving disk-backed reads for large files. Git clone/fetch/push still use the full local cache. All caches are disposable.
+
+Postgres remains the authority for refs, publication order, and credentials. These changes do not change the supported single-serving-node deployment model.

@@ -1,6 +1,5 @@
 package types
 
-// Scope is a repo token permission.
 type Scope string
 
 const (
@@ -8,7 +7,6 @@ const (
 	ScopeWrite Scope = "write"
 )
 
-// ParseScope validates a token scope. Empty defaults to write.
 func ParseScope(s string) (Scope, error) {
 	switch s {
 	case "", string(ScopeWrite):
@@ -20,7 +18,6 @@ func ParseScope(s string) (Scope, error) {
 	}
 }
 
-// TokenState is the lifecycle of a repo token.
 type TokenState string
 
 const (
@@ -29,7 +26,6 @@ const (
 	TokenRevoked TokenState = "revoked"
 )
 
-// ParseTokenState validates a stored token state.
 func ParseTokenState(s string) (TokenState, error) {
 	switch s {
 	case string(TokenActive):
@@ -45,7 +41,6 @@ func ParseTokenState(s string) (TokenState, error) {
 
 const tokenStateAll TokenState = "all"
 
-// ParseTokenListState accepts active, expired, revoked, or all. Empty defaults to active.
 func ParseTokenListState(s string) (TokenState, error) {
 	if s == "all" {
 		return tokenStateAll, nil
@@ -56,12 +51,10 @@ func ParseTokenListState(s string) (TokenState, error) {
 	return ParseTokenState(s)
 }
 
-// IsTokenStateAll reports whether a list filter includes every state.
 func IsTokenStateAll(s TokenState) bool {
 	return s == tokenStateAll
 }
 
-// RepoStatus is the control-plane lifecycle of a repository.
 type RepoStatus string
 
 const (
@@ -74,7 +67,6 @@ const (
 	RepoDeleted   RepoStatus = "deleted"
 )
 
-// ParseRepoStatus validates a repository status.
 func ParseRepoStatus(s string) (RepoStatus, error) {
 	switch RepoStatus(s) {
 	case RepoReady, RepoCreating, RepoImporting, RepoForking, RepoDeleting, RepoFailed, RepoDeleted:
@@ -84,7 +76,6 @@ func ParseRepoStatus(s string) (RepoStatus, error) {
 	}
 }
 
-// Jurisdiction restricts where a namespace's data may live. Empty is unrestricted.
 type Jurisdiction string
 
 const (
@@ -92,7 +83,6 @@ const (
 	JurisdictionUS Jurisdiction = "us"
 )
 
-// ParseJurisdiction validates a jurisdiction. Empty is unrestricted.
 func ParseJurisdiction(s string) (Jurisdiction, error) {
 	switch s {
 	case "":
@@ -104,7 +94,6 @@ func ParseJurisdiction(s string) (Jurisdiction, error) {
 	}
 }
 
-// RepoSortField is a list-repos sort key.
 type RepoSortField string
 
 const (
@@ -114,7 +103,6 @@ const (
 	SortName       RepoSortField = "name"
 )
 
-// ParseRepoSortField validates a sort field. Empty defaults to created_at.
 func ParseRepoSortField(s string) (RepoSortField, error) {
 	switch s {
 	case "", string(SortCreatedAt):
@@ -126,7 +114,6 @@ func ParseRepoSortField(s string) (RepoSortField, error) {
 	}
 }
 
-// SortDirection is asc or desc.
 type SortDirection string
 
 const (
@@ -134,7 +121,6 @@ const (
 	SortDesc SortDirection = "desc"
 )
 
-// ParseSortDirection validates a sort direction. Empty defaults to desc.
 func ParseSortDirection(s string) (SortDirection, error) {
 	switch s {
 	case "", string(SortDesc):
