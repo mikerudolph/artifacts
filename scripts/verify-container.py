@@ -34,6 +34,7 @@ prefix = "artifacts-container-" + secrets.token_hex(5)
 containers, checks, secret_values = [], [], []
 volumes = []
 network = prefix + "-network"
+minio_image = "artifacts-test-minio:2025-09-07"
 completed = False
 servers = []
 base = "/client/v4/accounts/local/artifacts"
@@ -46,7 +47,10 @@ env.pop("AWS_SESSION_TOKEN", None)
 def command(args, **kwargs):
     result = subprocess.run(args, capture_output=True, text=True, **kwargs)
     if result.returncode:
-        raise RuntimeError("command failed: " + args[0])
+        detail = (result.stdout + "\n" + result.stderr).strip()
+        for value in secret_values:
+            detail = detail.replace(value, "<redacted>")
+        raise RuntimeError("command failed: " + args[0] + "\n" + detail[-4096:])
     return result.stdout.strip()
 
 def check(name, condition):
@@ -196,6 +200,7 @@ console.log(JSON.stringify(result));
 
 try:
     command(["docker", "network", "create", network])
+    command(["docker", "build", "-t", minio_image, str(root / "test/minio")])
     name = prefix + "-postgres"
     command(["docker", "run", "-d", "--rm", "--name", name, "--network", network, "-e", "POSTGRES_PASSWORD",
              "-e", "POSTGRES_USER=artifacts", "-e", "POSTGRES_DB=artifacts",
@@ -209,7 +214,7 @@ try:
     storage = prefix + "-minio"
     command(["docker", "run", "-d", "--rm", "--name", storage, "--network", network,
              "-e", "MINIO_ROOT_USER", "-e", "MINIO_ROOT_PASSWORD", "-p", "127.0.0.1::9000",
-             "quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e",
+             minio_image,
              "server", "/data"], env=env)
     containers.append(storage)
     s3_port = command(["docker", "port", storage, "9000/tcp"]).rsplit(":", 1)[1]

@@ -1,0 +1,10 @@
+Source: https://github.com/mikerudolph/artifacts/actions/runs/37404425750
+Commit: 1acc1ab1279aad459259e88d2e5d9e65f21c2a02
+Selected test failure lines:
+2026-10-06T02:33:17.2126230Z --- FAIL: TestConformance (0.51s)
+2026-10-06T02:33:17.2126783Z     s3_test.go:96: minio container: generic container: create container: Error response from daemon: unauthorized: access to the requested resource is not authorized
+2026-10-06T02:33:17.2127186Z --- FAIL: TestLegacyObjectChecksumVerification (0.51s)
+2026-10-06T02:33:17.2127918Z     s3_test.go:141: minio container: generic container: create container: Error response from daemon: unauthorized: access to the requested resource is not authorized
+2026-10-06T02:33:17.2130036Z --- FAIL: TestMinIO (0.72s)
+2026-10-06T02:33:17.2130762Z     testkit_test.go:40: minio container: generic container: create container: Error response from daemon: unauthorized: access to the requested resource is not authorized
+2026-10-06T02:33:17.6356682Z make: *** [Makefile:21: test] Error 1

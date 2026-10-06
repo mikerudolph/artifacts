@@ -123,4 +123,4 @@ With Docker running, run the verification suite from the repository root:
 make verify
 ```
 
-This runs formatting, vet, lint, race tests, coverage checks, and Go file-size checks. Read [AGENTS.md](AGENTS.md) for contributor guidance and [GOALS.md](GOALS.md) for product direction.
+This runs formatting, vet, lint, race tests, coverage checks, and Go file-size checks, building the pinned [MinIO test fixture](test/minio/README.md) before tests. Before running focused Go tests that use S3, run `make test-deps` once. Read [AGENTS.md](AGENTS.md) for contributor guidance and [GOALS.md](GOALS.md) for product direction.

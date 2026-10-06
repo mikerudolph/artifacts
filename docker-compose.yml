@@ -16,7 +16,8 @@ services:
       retries: 20
 
   minio:
-    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+    build: ./test/minio
+    image: artifacts-test-minio:2025-09-07
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: artifacts
@@ -27,7 +28,7 @@ services:
     volumes:
       - minio-data:/data
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:9000/minio/health/ready"]
       interval: 3s
       timeout: 5s
       retries: 20

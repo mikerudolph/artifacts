@@ -3,7 +3,7 @@ GOLANGCI_LINT_VERSION := v2.5.0
 GOTESTCOVERAGE_VERSION := v2.17.0
 MAX_FILE_LINES := 400
 
-.PHONY: verify fmt vet lint test coverage complexity run
+.PHONY: verify fmt vet lint test-deps test coverage complexity run
 
 verify: fmt vet lint test coverage complexity
 
@@ -17,10 +17,13 @@ vet:
 lint:
 	go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION) run ./...
 
-test:
+test-deps:
+	docker build -t artifacts-test-minio:2025-09-07 test/minio
+
+test: test-deps
 	go test ./... -race -count=1
 
-coverage:
+coverage: test-deps
 	go test ./... -race -count=1 -coverprofile=cover.out -covermode=atomic -coverpkg=./...
 	go run github.com/vladopajic/go-test-coverage/v2@$(GOTESTCOVERAGE_VERSION) --config=.testcoverage.yml
 

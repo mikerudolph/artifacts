@@ -1,0 +1,12 @@
+{
+  "id": "sha256:dda664ce736f2781a1c9ca8c29d19830c7f0b1a64cb1b6cc0ab02a923c39fb6b",
+  "architecture": "arm64",
+  "files": {
+    "test/minio/Dockerfile": "0d273eea9728b23928867481e8207cabca11b1ddc479b5137d7fb6238916471b",
+    "test/minio/README.md": "9a0bbb4079b914b18f2fea18f029e475ad4dfd9ec988150b7a935c23f4921c95",
+    "Makefile": "f9bc5994f135b83183e22d2bae165d0572aebae9dbfc965e4f401c1cb5fbe71c",
+    "docker-compose.yml": "e190c7a12deebf8057b978dc385ceb794f36b0df8905116b995c149c3c335b03",
+    "scripts/verify-container.py": "e8fe02b783b6c149ddb70601eaed0ceba748e5733f4e5c75670683b365c41693",
+    "internal/testkit/minio.go": "31ce03e958d6f1b94215de90df0e31d77d403bca2bc22b875bcb794505df0339"
+  }
+}
