@@ -11,7 +11,7 @@ func (s *store) RunCompaction(ctx context.Context, id types.RepoID, fn func(meta
 	return s.RunInTx(ctx, func(tx meta.Store) error {
 		inner := tx.(*store)
 		var acquired bool
-		if err := inner.q.QueryRow(ctx, "SELECT pg_try_advisory_xact_lock(hashtextextended($1, 0))", "compaction/"+string(id)).Scan(&acquired); err != nil {
+		if err := inner.q.QueryRow(ctx, "SELECT pg_try_advisory_xact_lock(hashtextextended($1, 0))", s.schema+"/compaction/"+string(id)).Scan(&acquired); err != nil {
 			return err
 		}
 		if !acquired {

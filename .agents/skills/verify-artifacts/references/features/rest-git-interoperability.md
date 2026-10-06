@@ -47,7 +47,7 @@ Use a unique repository and unique file values for every run.
 ## Error-path proof
 
 - Reject an empty file list, more than 100 files, duplicate paths, `.git`
-  paths, parent traversal, invalid branches, and more than 1 MiB of content.
+  paths, parent traversal, invalid branches, and more than 1 MiB of JSON string content.
 - Reject JSON larger than 2 MiB, unknown fields, malformed JSON, and trailing
   JSON values.
 - A failed publication must not advance authoritative refs or WAL sequence.

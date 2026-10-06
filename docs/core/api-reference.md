@@ -96,11 +96,11 @@ Deletion tombstones the repository and revokes credentials before `202` is retur
 }
 ```
 
-`files` creates/updates selected paths; untouched paths are preserved. Optional `deletes` removes exact file paths. Accepts at most 100 combined changes, 1 MiB decoded string content, and 2 MiB JSON. At least one change is required unless `replace: true`, which explicitly replaces the whole tree and permits an empty file set. Replacement cannot also specify deletes.
+`files` creates/updates selected paths; untouched paths are preserved. Optional `deletes` removes exact file paths. Accepts at most 100 combined changes. JSON is limited to 1 MiB decoded string content and 2 MiB wire bytes. Multipart accepts up to 512 MiB raw file content by default, with a JSON manifest first and named binary file parts. At least one change is required unless `replace: true`, which explicitly replaces the whole tree and permits an empty file set. Replacement cannot also specify deletes.
 
 `branch` defaults to the repository default; `message` defaults to `Initial artifacts`; author name/email default to `Artifacts Agent` / `agent@artifacts.local`. Optional `author.date` is an RFC 3339 timestamp and otherwise uses current time.
 
-The JSON result is `{"sha":"<commit-sha>","sequence":1}`. Optional `expected_head` checks the full commit SHA; empty requires a nonexistent branch. New branches inherit the default branch unless `base` specifies a commit. `Idempotency-Key` safely replays successful publications. Repository write credentials can call this route. Merge and binary encodings are unsupported. See [write files](/artifacts/core/writing-files/) for details and migration from implicit snapshot replacement.
+The JSON result is `{"sha":"<commit-sha>","sequence":1}`. Optional `expected_head` checks the full commit SHA; empty requires a nonexistent branch. New branches inherit the default branch unless `base` specifies a commit. `Idempotency-Key` safely replays successful publications. Repository write credentials can call this route. Optional file mode strings are `100644` and `100755`. Multipart sizes may be omitted for streams; known sizes must match actual bytes. JSON/base64 and merges are unsupported. See [write files](/artifacts/core/writing-files/) for details and migration from implicit snapshot replacement.
 
 ## Content and history
 

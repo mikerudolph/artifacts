@@ -68,7 +68,7 @@ func TestCLIConfigurationErrors(t *testing.T) {
 	t.Setenv("ARTIFACTS_STORAGE", "invalid")
 	out, errb := &bytes.Buffer{}, &bytes.Buffer{}
 	ctx := context.Background()
-	if runServe(ctx, errb) != 1 || runDev(ctx, nil, errb) != 1 || runMigrate(errb) != 1 {
+	if runServe(ctx, errb) != 1 || runDev(ctx, nil, errb) != 1 || runMigrate(ctx, nil, errb) != 1 {
 		t.Fatal("configuration error was not returned")
 	}
 	if runToken(ctx, []string{"create"}, out, errb) != 1 {

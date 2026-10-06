@@ -28,6 +28,10 @@ func (r repositoryContent) WAL(_ context.Context, repo types.Repo) ([]types.Pack
 }
 
 func repositoryAPI(t *testing.T, content RepositoryContent) http.Handler {
+	return repositoryAPIConfigured(t, content, config.Config{Auth: config.Auth{Mode: "none"}})
+}
+
+func repositoryAPIConfigured(t *testing.T, content RepositoryContent, cfg config.Config) http.Handler {
 	t.Helper()
 	dsn := testkit.Postgres(t)
 	if err := postgres.Migrate(dsn); err != nil {
@@ -43,7 +47,7 @@ func repositoryAPI(t *testing.T, content RepositoryContent) http.Handler {
 		}
 	})
 	services := service.New(metadata, time.Now, "http://example.test")
-	return NewWithDependencies(services, config.Config{Auth: config.Auth{Mode: "none"}}, Dependencies{Repository: content})
+	return NewWithDependencies(services, cfg, Dependencies{Repository: content, StreamIdle: cfg.HTTP.StreamIdleTimeout})
 }
 
 func TestRepositoryPublicationRoutes(t *testing.T) {

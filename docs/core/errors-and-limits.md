@@ -11,7 +11,9 @@ JSON endpoints wrap failures in `success: false`, `result: null`, and an `errors
 | --- | --- | --- |
 | `400` | `10101` | Invalid name. |
 | `400` | `10100` | Malformed JSON or invalid commit input; `kind: invalid_input`, with a field pointer where available. |
-| `413` | `10100` | JSON body, change count, or decoded content exceeds its limit; `kind: payload_too_large`. |
+| `413` | `10100` | JSON or multipart body, change count, or file content exceeds its limit; `kind: payload_too_large`. |
+| `408` | `10100` | Multipart ingress stalled; `kind: upload_timeout`. Retry the complete unchanged operation with its original key. |
+| `503` | `10400` | Multipart admission, disk capacity, or total deadline unavailable; `kind: upload_unavailable`, with `Retry-After`. A timed-out finalization may have committed; recover with the same key and content. |
 | `403` | `10107` | Credential or repository is read-only; `kind: forbidden`. |
 | `409` | `10304` | Expected head changed (`kind: head_conflict`, includes `current_head`) or publication state changed (`publication_conflict`). Reconcile before retrying. |
 | `409` | `10305` | Idempotency key reused with different input; `kind: idempotency_conflict`. |
@@ -35,8 +37,11 @@ Git uses its own protocol responses: invalid/expired/revoked credentials return 
 | Surface | Limit / default | Integration consequence |
 | --- | --- | --- |
 | REST commit changes | Up to 100 writes + deletions. | Untouched files do not count. Empty replacement and deletion of the last file are supported. |
-| REST commit content | 1 MiB total decoded string bytes. | Count UTF-8 bytes, not characters. |
+| JSON commit content | 1 MiB total decoded string bytes. | Count UTF-8 bytes, not characters. |
 | JSON request body | 2 MiB. | Includes JSON escapes, paths, and metadata; unknown fields are rejected. |
+| Multipart commit content | 512 MiB raw content by default; 256 KiB manifest; wire limit adds 2 MiB. | Configure `ARTIFACTS_COMMIT_MAX_BYTES`; actual bytes are counted, including unknown-size streams. |
+| Multipart active operations | 2 per process by default. | 503 `upload_unavailable` with `Retry-After`; retry unchanged content with the same key. |
+| Multipart total deadline | 15 minutes by default. | `ARTIFACTS_COMMIT_TIMEOUT`; a lost finalization response requires keyed replay. |
 | Git receive stream | 512 MiB. | Split unusually large publications or reconsider artifact size. |
 | Stream inactivity | 30 seconds by default. | Configurable with `ARTIFACTS_STREAM_IDLE_TIMEOUT`; not a fixed total transfer duration. |
 | Import operation | 2 minutes, 1,000,000 objects, 512 MiB size budget. | Set outer quotas and suitable client/proxy deadlines. |

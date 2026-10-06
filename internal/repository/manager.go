@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sync"
 	"syscall"
+	"time"
 
 	gogit "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -22,8 +22,6 @@ type Manager struct {
 	meta    meta.V2Store
 	objects object.Store
 	root    string
-	mu      sync.Mutex
-	locks   map[string]*sync.Mutex
 }
 
 func New(metadata meta.V2Store, objects object.Store, root string) (*Manager, error) {
@@ -37,7 +35,7 @@ func New(metadata meta.V2Store, objects object.Store, root string) (*Manager, er
 	if err := os.MkdirAll(abs, 0o750); err != nil {
 		return nil, err
 	}
-	return &Manager{meta: metadata, objects: objects, root: abs, locks: map[string]*sync.Mutex{}}, nil
+	return &Manager{meta: metadata, objects: objects, root: abs}, nil
 }
 
 func (m *Manager) Upgrade(ctx context.Context, repo types.Repo) (types.Repo, error) {
@@ -81,6 +79,10 @@ func (m *Manager) Evict(repo types.Repo) error {
 }
 
 func (m *Manager) lockedPath(repo types.Repo) (string, func(), error) {
+	return m.lockedPathContext(context.Background(), repo)
+}
+
+func (m *Manager) lockedPathContext(ctx context.Context, repo types.Repo) (string, func(), error) {
 	if repo.AccountID == "" || repo.ID == "" {
 		return "", nil, errors.New("account and repository id are required")
 	}
@@ -89,28 +91,18 @@ func (m *Manager) lockedPath(repo types.Repo) (string, func(), error) {
 	if !within(m.root, path) {
 		return "", nil, errors.New("invalid cache path")
 	}
-	m.mu.Lock()
-	lock := m.locks[key]
-	if lock == nil {
-		lock = &sync.Mutex{}
-		m.locks[key] = lock
-	}
-	m.mu.Unlock()
-	lock.Lock()
-	lockFile, err := m.lockFile(key)
+	lockFile, err := m.lockFile(ctx, key)
 	if err != nil {
-		lock.Unlock()
 		return "", nil, err
 	}
 	unlock := func() {
 		_ = syscall.Flock(int(lockFile.Fd()), syscall.LOCK_UN)
 		_ = lockFile.Close()
-		lock.Unlock()
 	}
 	return path, unlock, nil
 }
 
-func (m *Manager) lockFile(key string) (*os.File, error) {
+func (m *Manager) lockFile(ctx context.Context, key string) (*os.File, error) {
 	name := filepath.Join(m.root, ".locks", filepath.FromSlash(key)+".lock")
 	if err := os.MkdirAll(filepath.Dir(name), 0o750); err != nil {
 		return nil, err
@@ -119,11 +111,28 @@ func (m *Manager) lockFile(key string) (*os.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
+	if err := acquireFileLock(ctx, f); err != nil {
 		_ = f.Close()
 		return nil, err
 	}
 	return f, nil
+}
+
+func acquireFileLock(ctx context.Context, f *os.File) error {
+	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
+		if !errors.Is(err, syscall.EWOULDBLOCK) {
+			return err
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(10 * time.Millisecond):
+		}
+	}
 }
 
 func within(root, path string) bool {

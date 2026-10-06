@@ -35,7 +35,7 @@ Your backend can publish files with an HTTP request. A worker can clone those fi
 
 <ConceptFigure kind="interfaces" />
 
-Git is optional for an application that only needs REST. It becomes useful when a worker already uses Git tools, needs to publish binary files, or wants a local workspace. Either way, the files and commits belong to one shared history.
+Git is optional for an application that only needs REST. It becomes useful when a worker already uses Git tools, wants a local workspace, or needs merges. Either way, the files and commits belong to one shared history.
 
 REST updates preserve paths you didn't change. Updating `report.md` leaves `brief.md` in place. Deletion and full replacement are explicit operations. If a change depends on a version you read, send its SHA as `expected_head` so another writer's changes produce a conflict you can resolve. The [writing guide](/artifacts/core/writing-files/) explains version checks and safe retries.
 

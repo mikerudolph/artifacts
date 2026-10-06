@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -20,10 +21,11 @@ import (
 )
 
 type memoryMeta struct {
-	refs        map[types.RepoID]map[string]string
-	packs       map[types.RepoID][]types.PackWAL
-	checkpoints map[types.RepoID]types.Checkpoint
-	forks       map[types.RepoID]types.ForkLineage
+	checkpointMu sync.RWMutex
+	refs         map[types.RepoID]map[string]string
+	packs        map[types.RepoID][]types.PackWAL
+	checkpoints  map[types.RepoID]types.Checkpoint
+	forks        map[types.RepoID]types.ForkLineage
 }
 
 func newMemoryMeta() *memoryMeta {
@@ -115,10 +117,14 @@ func (s memoryWAL) List(_ context.Context, repo types.RepoID, after, through int
 type memoryCheckpoints struct{ m *memoryMeta }
 
 func (s memoryCheckpoints) Put(_ context.Context, cp types.Checkpoint) error {
+	s.m.checkpointMu.Lock()
+	defer s.m.checkpointMu.Unlock()
 	s.m.checkpoints[cp.RepoID] = cp
 	return nil
 }
 func (s memoryCheckpoints) Get(_ context.Context, repo types.RepoID) (types.Checkpoint, error) {
+	s.m.checkpointMu.RLock()
+	defer s.m.checkpointMu.RUnlock()
 	cp, ok := s.m.checkpoints[repo]
 	if !ok {
 		return types.Checkpoint{}, meta.ErrNotFound

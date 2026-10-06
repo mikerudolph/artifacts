@@ -74,6 +74,9 @@ func TestCoreIntegration(t *testing.T) {
 	if response.StatusCode != http.StatusNotFound {
 		t.Fatalf("repository final state %d, want 404", response.StatusCode)
 	}
+	if code := run(t.Context(), []string{"verify-binary", "--size-mib", "1", "--evidence", t.TempDir()}, stdout, stderr); code != 0 {
+		t.Fatalf("verify binary code=%d stderr=%s", code, stderr)
+	}
 }
 
 func size(info os.FileInfo) int64 {

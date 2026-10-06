@@ -1,0 +1,12 @@
+$ git clone <remote> <scratch>
+Cloning into '/var/folders/fp/4qg3kz2s2w567t3t7m08hzf00000gn/T/artifacts-verify-3954639296'...
+$ git rev-parse HEAD
+88b9b13f631d1f5b485f6198745194310a2d62fc
+$ git add
+$ git -c
+[main 3967d0b] add result
+ 1 file changed, 1 insertion(+)
+ create mode 100644 result.txt
+$ git push origin HEAD:main
+To http://127.0.0.1:61708/git/local/agent-9f90a2a9ee69/core-9f90a2a9ee69.git
+   88b9b13..3967d0b  HEAD -> main

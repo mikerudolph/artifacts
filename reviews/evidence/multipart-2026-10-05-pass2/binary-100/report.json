@@ -1,0 +1,215 @@
+{
+  "run_id": "ab2654456af1",
+  "started_at": "2026-10-06T00:39:11.41858Z",
+  "finished_at": "2026-10-06T00:39:49.25583Z",
+  "configuration": {
+    "url": "http://127.0.0.1:58612",
+    "account": "local",
+    "api_token": "\u003credacted\u003e"
+  },
+  "classification": "none",
+  "steps": [
+    {
+      "name": "doctor",
+      "success": true,
+      "duration_ms": 2,
+      "detail": "http://127.0.0.1:58612"
+    },
+    {
+      "name": "REST create repository",
+      "success": true,
+      "duration_ms": 4,
+      "detail": "repository=agent-ab2654456af1/core-ab2654456af1"
+    },
+    {
+      "name": "REST commit",
+      "success": true,
+      "duration_ms": 30,
+      "detail": "sha=1e10935894129470397be8e428aa7f288e4499a0 sequence=1"
+    },
+    {
+      "name": "REST read",
+      "success": true,
+      "duration_ms": 5,
+      "detail": "path=README.md"
+    },
+    {
+      "name": "create Git credential",
+      "success": true,
+      "duration_ms": 1,
+      "detail": "scope=write"
+    },
+    {
+      "name": "Git clone",
+      "success": true,
+      "duration_ms": 135,
+      "detail": "cloned repository"
+    },
+    {
+      "name": "Git verify REST commit",
+      "success": true,
+      "duration_ms": 44,
+      "detail": "head=1e10935894129470397be8e428aa7f288e4499a0"
+    },
+    {
+      "name": "Git commit and push",
+      "success": true,
+      "duration_ms": 288,
+      "detail": "sha=5df05ae58da76093b2170e777834012dab80f3c3"
+    },
+    {
+      "name": "REST readback",
+      "success": true,
+      "duration_ms": 10,
+      "detail": "path=result.txt"
+    },
+    {
+      "name": "refs and WAL visibility",
+      "success": true,
+      "duration_ms": 3,
+      "detail": "refs=2 wal=2"
+    },
+    {
+      "name": "generate binary fixture",
+      "success": true,
+      "duration_ms": 105,
+      "detail": "bytes=104857553 sha256=9cc20c310bf609e8e1233b1b9b2d17101ca7b2ff172b278fcdb4b1bc0b480653"
+    },
+    {
+      "name": "multipart commit",
+      "success": true,
+      "duration_ms": 8233,
+      "detail": "status=201 sha=c44ad2d1eafe31da6e7ef5fc6e02b0664e2e93a0 bytes=104857600 sequence=3"
+    },
+    {
+      "name": "binary REST readback",
+      "success": true,
+      "duration_ms": 4340,
+      "detail": "sha=c44ad2d1eafe31da6e7ef5fc6e02b0664e2e93a0 bytes=104857553"
+    },
+    {
+      "name": "Git verifies binary and mode",
+      "success": true,
+      "duration_ms": 4971,
+      "detail": "binary.sh executable"
+    },
+    {
+      "name": "Git changes binary",
+      "success": true,
+      "duration_ms": 14239,
+      "detail": "sha=fd5ce8e439d03d6207d122cc80c0e50021b84833"
+    },
+    {
+      "name": "REST reads Git binary",
+      "success": true,
+      "duration_ms": 2248,
+      "detail": "sha=fd5ce8e439d03d6207d122cc80c0e50021b84833 bytes=104857554"
+    },
+    {
+      "name": "multipart retry after Git advancement",
+      "success": true,
+      "duration_ms": 3144,
+      "detail": "publications=4"
+    },
+    {
+      "name": "delete repository",
+      "success": true,
+      "duration_ms": 14,
+      "detail": "final server state checked"
+    }
+  ],
+  "assertions": [
+    {
+      "name": "repository has Git remote",
+      "passed": true,
+      "detail": "remote present"
+    },
+    {
+      "name": "REST content matches README.md",
+      "passed": true,
+      "detail": "content matched"
+    },
+    {
+      "name": "Git sees REST content",
+      "passed": true,
+      "detail": "README matched"
+    },
+    {
+      "name": "Git sees REST SHA",
+      "passed": true,
+      "detail": "SHA matched"
+    },
+    {
+      "name": "REST content matches result.txt",
+      "passed": true,
+      "detail": "content matched"
+    },
+    {
+      "name": "main ref exposes Git push",
+      "passed": true,
+      "detail": "refs/heads/main matched"
+    },
+    {
+      "name": "WAL exposes REST and Git publications",
+      "passed": true,
+      "detail": "at least two publications"
+    },
+    {
+      "name": "multipart commit accepted",
+      "passed": true,
+      "detail": "HTTP 201; expected 201"
+    },
+    {
+      "name": "REST binary checksum matches c44ad2d1eafe31da6e7ef5fc6e02b0664e2e93a0",
+      "passed": true,
+      "detail": "byte count and SHA-256 matched"
+    },
+    {
+      "name": "Git binary checksum matches REST",
+      "passed": true,
+      "detail": "SHA-256 matched"
+    },
+    {
+      "name": "Git sees executable mode",
+      "passed": true,
+      "detail": "100755"
+    },
+    {
+      "name": "REST binary checksum matches fd5ce8e439d03d6207d122cc80c0e50021b84833",
+      "passed": true,
+      "detail": "byte count and SHA-256 matched"
+    },
+    {
+      "name": "binary retry returns original publication",
+      "passed": true,
+      "detail": "original SHA and sequence"
+    },
+    {
+      "name": "changed keyed binary request conflicts",
+      "passed": true,
+      "detail": "HTTP 409"
+    },
+    {
+      "name": "stale binary expected head conflicts",
+      "passed": true,
+      "detail": "HTTP 409"
+    },
+    {
+      "name": "binary retries publish no additional commits",
+      "passed": true,
+      "detail": "exactly four REST/Git publications"
+    },
+    {
+      "name": "repository absent after cleanup",
+      "passed": true,
+      "detail": "GET returned not found"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "git.log",
+      "sha256": "5fa95db914e63afce160e6ddeec7437ab0966e61fe4131d85e2dd510b7db4455",
+      "size": 843
+    }
+  ]
+}

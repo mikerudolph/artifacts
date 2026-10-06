@@ -1,0 +1,146 @@
+{
+  "run_id": "c4430a33d470",
+  "started_at": "2026-10-06T00:34:05.522204Z",
+  "finished_at": "2026-10-06T00:34:42.218505Z",
+  "configuration": {
+    "url": "http://127.0.0.1:57858",
+    "account": "local",
+    "api_token": "\u003credacted\u003e"
+  },
+  "classification": "assertion",
+  "failure": "multipart commit accepted",
+  "steps": [
+    {
+      "name": "doctor",
+      "success": true,
+      "duration_ms": 3,
+      "detail": "http://127.0.0.1:57858"
+    },
+    {
+      "name": "REST create repository",
+      "success": true,
+      "duration_ms": 16,
+      "detail": "repository=agent-c4430a33d470/core-c4430a33d470"
+    },
+    {
+      "name": "REST commit",
+      "success": true,
+      "duration_ms": 77,
+      "detail": "sha=c2d008377e178ff96daf37fc93e11b52f11a849c sequence=1"
+    },
+    {
+      "name": "REST read",
+      "success": true,
+      "duration_ms": 16,
+      "detail": "path=README.md"
+    },
+    {
+      "name": "create Git credential",
+      "success": true,
+      "duration_ms": 2,
+      "detail": "scope=write"
+    },
+    {
+      "name": "Git clone",
+      "success": true,
+      "duration_ms": 93,
+      "detail": "cloned repository"
+    },
+    {
+      "name": "Git verify REST commit",
+      "success": true,
+      "duration_ms": 15,
+      "detail": "head=c2d008377e178ff96daf37fc93e11b52f11a849c"
+    },
+    {
+      "name": "Git commit and push",
+      "success": true,
+      "duration_ms": 305,
+      "detail": "sha=0d75d0add719f990454d23faeb26088d0551ebd2"
+    },
+    {
+      "name": "REST readback",
+      "success": true,
+      "duration_ms": 11,
+      "detail": "path=result.txt"
+    },
+    {
+      "name": "refs and WAL visibility",
+      "success": true,
+      "duration_ms": 4,
+      "detail": "refs=2 wal=2"
+    },
+    {
+      "name": "generate binary fixture",
+      "success": true,
+      "duration_ms": 1357,
+      "detail": "bytes=536870865 sha256=a5eec1cbc47df9fe391a8ea31f2ab9bed998a4b86f79373bf2b06666f1707fac"
+    },
+    {
+      "name": "multipart commit",
+      "success": false,
+      "duration_ms": 34774,
+      "detail": "sha= bytes=536870912 sequence=0"
+    },
+    {
+      "name": "delete repository",
+      "success": true,
+      "duration_ms": 7,
+      "detail": "final server state checked"
+    }
+  ],
+  "assertions": [
+    {
+      "name": "repository has Git remote",
+      "passed": true,
+      "detail": "remote present"
+    },
+    {
+      "name": "REST content matches README.md",
+      "passed": true,
+      "detail": "content matched"
+    },
+    {
+      "name": "Git sees REST content",
+      "passed": true,
+      "detail": "README matched"
+    },
+    {
+      "name": "Git sees REST SHA",
+      "passed": true,
+      "detail": "SHA matched"
+    },
+    {
+      "name": "REST content matches result.txt",
+      "passed": true,
+      "detail": "content matched"
+    },
+    {
+      "name": "main ref exposes Git push",
+      "passed": true,
+      "detail": "refs/heads/main matched"
+    },
+    {
+      "name": "WAL exposes REST and Git publications",
+      "passed": true,
+      "detail": "at least two publications"
+    },
+    {
+      "name": "multipart commit accepted",
+      "passed": false,
+      "detail": "HTTP 201"
+    },
+    {
+      "name": "repository absent after cleanup",
+      "passed": true,
+      "detail": "GET returned not found"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "git.log",
+      "sha256": "e2bd81e99849d8bc00abc6d5df001722898cf505bb03ed245d7345c347720977",
+      "size": 434
+    }
+  ]
+}

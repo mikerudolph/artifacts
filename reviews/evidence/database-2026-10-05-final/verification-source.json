@@ -1,0 +1,9 @@
+{
+  "scripts/verify-container.py": "d3ccd6bd2b4e3eb6b1d2604cce19018bdc0f948ad3f3f15be03cfb0b4693294b",
+  "internal/repository/manager_test.go": "2c73b9f998b24b9ae472ff37e4c1ca83b8b131914af3021a8803169779f12715",
+  "internal/store/meta/postgres/named_schema_test.go": "8e812dab1a66f165ed3992390fc0edbe7ff1789864a1573e9193fbd1efbef50c",
+  "internal/store/meta/postgres/iam_test.go": "215cde923a06765826a16a5d80235ed099178c195cad18a1846b9544b834a3e7",
+  "internal/store/meta/postgres/iam_connection_test.go": "24d64c215b0578109c4ec5493854ba2ddf36d9db4dc7732d0aff3e8df8ef24ff",
+  ".agents/skills/verify-artifacts/SKILL.md": "185af79ba10b308ba318ad7fa4377ee0279edfb470107e890957ce6d9fe75194",
+  ".agents/skills/verify-artifacts/references/features/database-deployment.md": "8fd8df398fbe3a589428747104233b9c8f86e34109dd4a33fc438c71d5ec4226"
+}

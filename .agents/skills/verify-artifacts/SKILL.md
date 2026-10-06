@@ -1,6 +1,6 @@
 ---
 name: verify-artifacts
-description: Validate a running Artifacts instance through its real REST and Git surfaces, preserve redacted evidence, and distinguish product failures from target, authentication, and evidence failures. Use for end-to-end change verification; do not use as a substitute for make verify.
+description: Validate a running Artifacts instance through real REST and Git, including streaming multipart binary commits, database schema isolation, IAM connection recovery, and durable retries. Preserve redacted evidence and distinguish product failures from target, authentication, and evidence failures. Use for end-to-end change verification; do not use as a substitute for make verify.
 ---
 
 # Verify Artifacts
@@ -11,6 +11,7 @@ Use the repository harness to prove observable behavior against a running Artifa
 
 - For the feature contract and expected surfaces, start with [references/features/README.md](references/features/README.md), then read only the feature references relevant to the request.
 - Before interpreting, copying, or comparing a completed run, read [references/evidence-schema.md](references/evidence-schema.md).
+- For database authentication or migration changes, read [database deployment](references/features/database-deployment.md). Local PostgreSQL and a signed-token test do not establish successful AWS authentication.
 
 ## Prepare and launch
 
@@ -49,6 +50,14 @@ The drive must prove the complete public workflow: REST repository creation, RES
 The command uses a unique repository name and attempts cleanup after both success and failure. Do not manually delete neighboring repositories when investigating a cleanup failure.
 
 ## Preserve and report evidence
+
+For multipart uploads or large binary changes, run the binary drive after doctor; it includes the core workflow and adds byte-count/SHA-256 checks, executable mode, Git binary edits, and keyed retries after branch advancement:
+
+```bash
+go run ./examples/agent-harness verify-binary --evidence DIR --size-mib 100
+```
+
+Read [binary commits](references/features/binary-commits.md) for fixture sizing, capacity evidence, recovery checks, and interpretation. Use a fresh evidence directory for each run. The size is aggregate raw file content; use 512 only against a target configured to accept it with adequate disk capacity.
 
 Keep `DIR` outside any temporary clone or disposable service directory. Confirm that `report.json`, `report.md`, and `git.log` remain after cleanup. Reports and logs must contain no control token, repository credential, credential-bearing URL, or authorization header.
 

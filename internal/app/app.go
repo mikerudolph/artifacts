@@ -172,7 +172,7 @@ func WriteUsage(w io.Writer) {
 Usage:
   artifacts serve
   artifacts dev [--addr 127.0.0.1:8080]
-  artifacts migrate
+  artifacts migrate [--create-schema]
   artifacts bootstrap --account ACCOUNT
   artifacts token create --account ACCOUNT
   artifacts compact --account ACCOUNT --namespace NAMESPACE --repo REPO
@@ -181,11 +181,11 @@ Usage:
 
 func openMetadata(ctx context.Context, cfg config.Postgres) (meta.V2Store, error) {
 	if !cfg.SkipMigrations {
-		if err := postgres.Migrate(cfg.DSN); err != nil {
+		if err := postgres.MigrateConfigured(ctx, cfg, false); err != nil {
 			return nil, err
 		}
 	}
-	mdb, err := postgres.Open(ctx, cfg.DSN)
+	mdb, err := postgres.OpenConfigured(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}

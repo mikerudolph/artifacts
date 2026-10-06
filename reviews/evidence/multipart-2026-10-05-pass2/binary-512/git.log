@@ -1,0 +1,25 @@
+$ git clone <remote> <scratch>
+Cloning into '/var/folders/fp/4qg3kz2s2w567t3t7m08hzf00000gn/T/artifacts-verify-1310801931'...
+$ git rev-parse HEAD
+c9fc402b6f9c35693f9487499fee280527008467
+$ git add
+$ git -c
+[main 161be46] add result
+ 1 file changed, 1 insertion(+)
+ create mode 100644 result.txt
+$ git push origin HEAD:main
+To http://127.0.0.1:58612/git/local/agent-e3be4abb43fa/core-e3be4abb43fa.git
+   c9fc402..161be46  HEAD -> main
+$ git fetch
+From http://127.0.0.1:58612/git/local/agent-e3be4abb43fa/core-e3be4abb43fa
+   161be46..f7cbc02  main       -> origin/main
+$ git reset
+Updating files:  33% (1/3)Updating files:  66% (2/3)Updating files: 100% (3/3)Updating files: 100% (3/3), done.
+HEAD is now at f7cbc02 binary verification
+$ git add
+$ git -c
+[main 7de30a5] change binary
+ 1 file changed, 0 insertions(+), 0 deletions(-)
+$ git push
+To http://127.0.0.1:58612/git/local/agent-e3be4abb43fa/core-e3be4abb43fa.git
+   f7cbc02..7de30a5  HEAD -> main

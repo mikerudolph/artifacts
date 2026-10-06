@@ -12,6 +12,17 @@ const DefaultIdleTimeout = 30 * time.Second
 type Stream struct {
 	controller *http.ResponseController
 	idle       time.Duration
+	deadline   time.Time
+}
+
+func (s *Stream) Deadline(deadline time.Time) { s.deadline = deadline }
+
+func (s *Stream) nextDeadline() time.Time {
+	next := time.Now().Add(s.idle)
+	if !s.deadline.IsZero() && s.deadline.Before(next) {
+		return s.deadline
+	}
+	return next
 }
 
 func New(w http.ResponseWriter, idle time.Duration) *Stream {
@@ -35,11 +46,11 @@ func (s *Stream) Close() {
 }
 
 func (s *Stream) setRead() error {
-	return ignoreUnsupported(s.controller.SetReadDeadline(time.Now().Add(s.idle)))
+	return ignoreUnsupported(s.controller.SetReadDeadline(s.nextDeadline()))
 }
 
 func (s *Stream) setWrite() error {
-	return ignoreUnsupported(s.controller.SetWriteDeadline(time.Now().Add(s.idle)))
+	return ignoreUnsupported(s.controller.SetWriteDeadline(s.nextDeadline()))
 }
 
 func ignoreUnsupported(err error) error {

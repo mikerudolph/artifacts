@@ -26,6 +26,7 @@ type Config struct {
 	Cache    Cache
 	Postgres Postgres
 	Account  Account
+	Uploads  Uploads
 }
 
 type HTTP struct {
@@ -65,8 +66,12 @@ type S3 struct {
 }
 
 type Postgres struct {
-	DSN            string
-	SkipMigrations bool
+	DSN              string
+	SkipMigrations   bool
+	Auth             string
+	Region           string
+	Schema           string
+	MigrationTimeout time.Duration
 }
 
 type Account struct {
@@ -92,15 +97,25 @@ func LoadNoAuth() (Config, error) {
 }
 
 func load() (Config, error) {
+	uploads, err := loadUploads()
+	if err != nil {
+		return Config{}, err
+	}
 	skip, err := strconv.ParseBool(env("ARTIFACTS_SKIP_MIGRATIONS", "false"))
 	if err != nil {
 		return Config{}, fmt.Errorf("ARTIFACTS_SKIP_MIGRATIONS must be true or false")
 	}
+	database, err := loadDatabase()
+	if err != nil {
+		return Config{}, err
+	}
+	database.SkipMigrations = skip
 	shutdown := durationEnv("ARTIFACTS_SHUTDOWN_TIMEOUT", 30*time.Second)
 	if shutdown <= 0 {
 		return Config{}, fmt.Errorf("ARTIFACTS_SHUTDOWN_TIMEOUT must be a positive duration")
 	}
 	return Config{
+		Uploads: uploads,
 		HTTP: HTTP{
 			Addr:              env("ARTIFACTS_HTTP_ADDR", defaultAddr),
 			PublicURL:         strings.TrimRight(env("ARTIFACTS_PUBLIC_URL", defaultURL), "/"),
@@ -125,7 +140,7 @@ func load() (Config, error) {
 			},
 		},
 		Cache:    Cache{Path: env("ARTIFACTS_CACHE_DIR", "./cache")},
-		Postgres: Postgres{DSN: firstEnv("DATABASE_URL", "ARTIFACTS_DATABASE_URL"), SkipMigrations: skip},
+		Postgres: database,
 		Account:  Account{DefaultID: env("ARTIFACTS_DEFAULT_ACCOUNT", defaultAcct)},
 	}, nil
 }
@@ -159,13 +174,16 @@ func (c Config) validate(allowNoAuth bool) error {
 	if err := c.HTTP.validate(); err != nil {
 		return err
 	}
+	if err := c.Uploads.Defaults().validate(); err != nil {
+		return err
+	}
 	if c.Cache.Path == "" {
 		return fmt.Errorf("ARTIFACTS_CACHE_DIR is required")
 	}
 	if c.Account.DefaultID == "" {
 		return fmt.Errorf("ARTIFACTS_DEFAULT_ACCOUNT is required")
 	}
-	return nil
+	return c.Postgres.Validate()
 }
 
 func (h HTTP) validate() error {
@@ -222,9 +240,12 @@ func truthy(v string) bool {
 }
 
 func LoadDatabase() (Postgres, error) {
-	dsn := firstEnv("DATABASE_URL", "ARTIFACTS_DATABASE_URL")
-	if dsn == "" {
+	cfg, err := loadDatabase()
+	if err != nil {
+		return cfg, err
+	}
+	if cfg.DSN == "" {
 		return Postgres{}, fmt.Errorf("DATABASE_URL is required")
 	}
-	return Postgres{DSN: dsn}, nil
+	return cfg, nil
 }

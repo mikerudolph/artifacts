@@ -14,9 +14,10 @@ import (
 )
 
 type server struct {
-	svc  *service.Services
-	cfg  config.Config
-	deps Dependencies
+	svc         *service.Services
+	cfg         config.Config
+	deps        Dependencies
+	uploadSlots chan struct{}
 }
 
 type ControlAuthorizer interface {
@@ -45,7 +46,8 @@ func New(svc *service.Services, cfg config.Config) http.Handler {
 }
 
 func NewWithDependencies(svc *service.Services, cfg config.Config, deps Dependencies) http.Handler {
-	s := &server{svc: svc, cfg: cfg, deps: deps}
+	cfg.Uploads = cfg.Uploads.Defaults()
+	s := &server{svc: svc, cfg: cfg, deps: deps, uploadSlots: make(chan struct{}, cfg.Uploads.Concurrent)}
 	r := chi.NewRouter()
 	r.Route("/client/v4/accounts/{account_id}/artifacts", func(r chi.Router) {
 		r.With(s.auth).Post("/namespaces", s.createNamespace)

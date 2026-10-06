@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/mikerudolph/artifacts/internal/types"
@@ -15,6 +16,10 @@ func (s *server) routeRepo(r *http.Request) (types.Repo, error) {
 func (s *server) createCommit(w http.ResponseWriter, r *http.Request) {
 	if s.deps.Repository == nil {
 		writeErr(w, errJobs)
+		return
+	}
+	if strings.HasPrefix(strings.ToLower(r.Header.Get("Content-Type")), "multipart/") {
+		s.createMultipartCommit(w, r)
 		return
 	}
 	var input types.CommitInput

@@ -33,7 +33,7 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	case "bootstrap":
 		return runBootstrap(ctx, args[1:], stdout, stderr)
 	case "migrate":
-		return runMigrate(stderr)
+		return runMigrate(ctx, args[1:], stderr)
 	case "token":
 		return runToken(ctx, args[1:], stdout, stderr)
 	default:
@@ -128,13 +128,19 @@ func loopbackAddress(addr string) bool {
 	return ip != nil && ip.IsLoopback()
 }
 
-func runMigrate(stderr io.Writer) int {
+func runMigrate(ctx context.Context, args []string, stderr io.Writer) int {
+	set := flag.NewFlagSet("migrate", flag.ContinueOnError)
+	set.SetOutput(stderr)
+	create := set.Bool("create-schema", false, "create the explicitly selected database schema")
+	if err := set.Parse(args); err != nil || set.NArg() != 0 {
+		return 2
+	}
 	cfg, err := config.LoadDatabase()
 	if err != nil {
 		_, _ = fmt.Fprintln(stderr, err)
 		return 1
 	}
-	if err := postgres.Migrate(cfg.DSN); err != nil {
+	if err := postgres.MigrateConfigured(ctx, cfg, *create); err != nil {
 		_, _ = fmt.Fprintln(stderr, err)
 		return 1
 	}
@@ -167,12 +173,12 @@ func runToken(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 		return 1
 	}
 	if !cfg.Postgres.SkipMigrations {
-		if err := postgres.Migrate(cfg.Postgres.DSN); err != nil {
+		if err := postgres.MigrateConfigured(ctx, cfg.Postgres, false); err != nil {
 			_, _ = fmt.Fprintln(stderr, err)
 			return 1
 		}
 	}
-	metadata, err := postgres.Open(ctx, cfg.Postgres.DSN)
+	metadata, err := postgres.OpenConfigured(ctx, cfg.Postgres)
 	if err != nil {
 		_, _ = fmt.Fprintln(stderr, err)
 		return 1
@@ -211,12 +217,12 @@ func runCompact(ctx context.Context, args []string, stderr io.Writer) int {
 		return 1
 	}
 	if !cfg.Postgres.SkipMigrations {
-		if err := postgres.Migrate(cfg.Postgres.DSN); err != nil {
+		if err := postgres.MigrateConfigured(ctx, cfg.Postgres, false); err != nil {
 			_, _ = fmt.Fprintln(stderr, err)
 			return 1
 		}
 	}
-	metadata, err := postgres.Open(ctx, cfg.Postgres.DSN)
+	metadata, err := postgres.OpenConfigured(ctx, cfg.Postgres)
 	if err != nil {
 		_, _ = fmt.Fprintln(stderr, err)
 		return 1

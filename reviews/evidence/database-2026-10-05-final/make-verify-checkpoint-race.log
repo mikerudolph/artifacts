@@ -1,0 +1,203 @@
+gofmt -w .
+go run golang.org/x/tools/cmd/goimports@v0.36.0 -w .
+go vet ./...
+go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.5.0 run ./...
+0 issues.
+go test ./... -race -count=1
+ok  	github.com/mikerudolph/artifacts/cmd/artifacts	1.466s
+ok  	github.com/mikerudolph/artifacts/examples/agent-harness	8.362s
+ok  	github.com/mikerudolph/artifacts/examples/memory-mcp	31.679s
+ok  	github.com/mikerudolph/artifacts/internal/api	64.845s
+ok  	github.com/mikerudolph/artifacts/internal/api/envelope	1.919s
+ok  	github.com/mikerudolph/artifacts/internal/app	25.731s
+ok  	github.com/mikerudolph/artifacts/internal/auth	1.559s
+ok  	github.com/mikerudolph/artifacts/internal/commitupload	1.705s
+ok  	github.com/mikerudolph/artifacts/internal/config	1.834s
+ok  	github.com/mikerudolph/artifacts/internal/githttp	2.726s
+ok  	github.com/mikerudolph/artifacts/internal/httpstream	2.178s
+ok  	github.com/mikerudolph/artifacts/internal/jobs	37.580s
+ok  	github.com/mikerudolph/artifacts/internal/netpolicy	1.194s
+ok  	github.com/mikerudolph/artifacts/internal/repository	42.519s
+ok  	github.com/mikerudolph/artifacts/internal/service	2.300s
+ok  	github.com/mikerudolph/artifacts/internal/store/git	2.135s
+ok  	github.com/mikerudolph/artifacts/internal/store/meta	1.975s
+ok  	github.com/mikerudolph/artifacts/internal/store/meta/postgres	41.686s
+ok  	github.com/mikerudolph/artifacts/internal/store/object	1.184s
+ok  	github.com/mikerudolph/artifacts/internal/store/object/fs	1.444s
+ok  	github.com/mikerudolph/artifacts/internal/store/object/objecttest	1.807s
+ok  	github.com/mikerudolph/artifacts/internal/store/object/s3	5.369s
+ok  	github.com/mikerudolph/artifacts/internal/store/packread	1.454s
+ok  	github.com/mikerudolph/artifacts/internal/testkit	4.782s
+ok  	github.com/mikerudolph/artifacts/internal/types	1.316s
+ok  	github.com/mikerudolph/artifacts/internal/ui	1.305s
+?   	github.com/mikerudolph/artifacts/migrations	[no test files]
+go test ./... -race -count=1 -coverprofile=cover.out -covermode=atomic -coverpkg=./...
+ok  	github.com/mikerudolph/artifacts/cmd/artifacts	1.501s	coverage: 0.1% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/examples/agent-harness	8.640s	coverage: 34.0% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/examples/memory-mcp	33.022s	coverage: 26.6% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/internal/api	60.654s	coverage: 34.5% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/internal/api/envelope	3.787s	coverage: 0.4% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/internal/app	27.322s	coverage: 32.6% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/internal/auth	3.220s	coverage: 1.3% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/internal/commitupload	3.611s	coverage: 2.1% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/internal/config	2.649s	coverage: 1.7% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/internal/githttp	4.296s	coverage: 5.3% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/internal/httpstream	2.581s	coverage: 0.4% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/internal/jobs	32.897s	coverage: 7.9% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/internal/netpolicy	1.539s	coverage: 0.1% of statements in ./...
+==================
+WARNING: DATA RACE
+Read at 0x00c0002be960 by goroutine 380:
+  runtime.mapaccess1_faststr()
+      /Users/mike/.local/share/mise/installs/go/1.25.14/src/internal/runtime/maps/runtime_faststr_swiss.go:103 +0x28c
+  github.com/mikerudolph/artifacts/internal/repository.memoryCheckpoints.Get()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/manager_test.go:122 +0x8c
+  github.com/mikerudolph/artifacts/internal/repository.(*Manager).packHistory()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/read_remote.go:74 +0xc8
+  github.com/mikerudolph/artifacts/internal/repository.(*Manager).installHistory()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/rebuild.go:16 +0xb0
+  github.com/mikerudolph/artifacts/internal/repository.(*Manager).ensureSnapshot()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/manager.go:165 +0x35c
+  github.com/mikerudolph/artifacts/internal/repository.(*Manager).prepare()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/snapshot.go:23 +0x1a4
+  github.com/mikerudolph/artifacts/internal/repository.(*Manager).ensure()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/manager.go:144 +0x238
+  github.com/mikerudolph/artifacts/internal/repository.(*Manager).Read()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/manager.go:62 +0x170
+  github.com/mikerudolph/artifacts/internal/repository.TestConcurrentCacheOperationsAndCorruptReplay.func1()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/concurrency_integrity_test.go:76 +0xac
+  github.com/mikerudolph/artifacts/internal/repository.TestConcurrentCacheOperationsAndCorruptReplay.func4()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/concurrency_integrity_test.go:81 +0x70
+  github.com/mikerudolph/artifacts/internal/repository.TestConcurrentCacheOperationsAndCorruptReplay.gowrap1()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/concurrency_integrity_test.go:81 +0x40
+
+Previous write at 0x00c0002be960 by goroutine 381:
+  runtime.mapaccess2_faststr()
+      /Users/mike/.local/share/mise/installs/go/1.25.14/src/internal/runtime/maps/runtime_faststr_swiss.go:162 +0x29c
+  github.com/mikerudolph/artifacts/internal/repository.memoryCheckpoints.Put()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/manager_test.go:118 +0x60
+  github.com/mikerudolph/artifacts/internal/repository.(*Manager).compactLocked()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/commit.go:195 +0x2f4
+  github.com/mikerudolph/artifacts/internal/repository.(*Manager).packAndUpload()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/publish.go:134 +0x30c
+  github.com/mikerudolph/artifacts/internal/repository.(*Manager).compactLocked()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/commit.go:191 +0x178
+  github.com/mikerudolph/artifacts/internal/repository.(*Manager).Compact()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/commit.go:183 +0x480
+  github.com/mikerudolph/artifacts/internal/repository.TestConcurrentCacheOperationsAndCorruptReplay.func2()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/concurrency_integrity_test.go:77 +0xa4
+  github.com/mikerudolph/artifacts/internal/repository.TestConcurrentCacheOperationsAndCorruptReplay.func4()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/concurrency_integrity_test.go:81 +0x70
+  github.com/mikerudolph/artifacts/internal/repository.TestConcurrentCacheOperationsAndCorruptReplay.gowrap1()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/concurrency_integrity_test.go:81 +0x40
+
+Goroutine 380 (running) created at:
+  github.com/mikerudolph/artifacts/internal/repository.TestConcurrentCacheOperationsAndCorruptReplay()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/concurrency_integrity_test.go:81 +0x7ec
+  github.com/mikerudolph/artifacts/internal/repository.(*Manager).Commit()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/commit.go:34 +0x4c8
+  github.com/mikerudolph/artifacts/internal/repository.TestConcurrentCacheOperationsAndCorruptReplay()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/concurrency_integrity_test.go:68 +0x4c0
+  testing.tRunner()
+      /Users/mike/.local/share/mise/installs/go/1.25.14/src/testing/testing.go:1934 +0x164
+  testing.(*T).Run.gowrap1()
+      /Users/mike/.local/share/mise/installs/go/1.25.14/src/testing/testing.go:1997 +0x3c
+
+Goroutine 381 (finished) created at:
+  github.com/mikerudolph/artifacts/internal/repository.TestConcurrentCacheOperationsAndCorruptReplay()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/concurrency_integrity_test.go:81 +0x7ec
+  github.com/mikerudolph/artifacts/internal/repository.(*Manager).Commit()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/commit.go:34 +0x4c8
+  github.com/mikerudolph/artifacts/internal/repository.TestConcurrentCacheOperationsAndCorruptReplay()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/concurrency_integrity_test.go:68 +0x4c0
+  testing.tRunner()
+      /Users/mike/.local/share/mise/installs/go/1.25.14/src/testing/testing.go:1934 +0x164
+  testing.(*T).Run.gowrap1()
+      /Users/mike/.local/share/mise/installs/go/1.25.14/src/testing/testing.go:1997 +0x3c
+==================
+==================
+WARNING: DATA RACE
+Read at 0x00c000284c20 by goroutine 380:
+  github.com/mikerudolph/artifacts/internal/repository.memoryCheckpoints.Get()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/manager_test.go:122 +0x9c
+  github.com/mikerudolph/artifacts/internal/repository.(*Manager).packHistory()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/read_remote.go:74 +0xc8
+  github.com/mikerudolph/artifacts/internal/repository.(*Manager).installHistory()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/rebuild.go:16 +0xb0
+  github.com/mikerudolph/artifacts/internal/repository.(*Manager).ensureSnapshot()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/manager.go:165 +0x35c
+  github.com/mikerudolph/artifacts/internal/repository.(*Manager).prepare()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/snapshot.go:23 +0x1a4
+  github.com/mikerudolph/artifacts/internal/repository.(*Manager).ensure()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/manager.go:144 +0x238
+  github.com/mikerudolph/artifacts/internal/repository.(*Manager).Read()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/manager.go:62 +0x170
+  github.com/mikerudolph/artifacts/internal/repository.TestConcurrentCacheOperationsAndCorruptReplay.func1()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/concurrency_integrity_test.go:76 +0xac
+  github.com/mikerudolph/artifacts/internal/repository.TestConcurrentCacheOperationsAndCorruptReplay.func4()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/concurrency_integrity_test.go:81 +0x70
+  github.com/mikerudolph/artifacts/internal/repository.TestConcurrentCacheOperationsAndCorruptReplay.gowrap1()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/concurrency_integrity_test.go:81 +0x40
+
+Previous write at 0x00c000284c20 by goroutine 381:
+  github.com/mikerudolph/artifacts/internal/repository.memoryCheckpoints.Put()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/manager_test.go:118 +0x70
+  github.com/mikerudolph/artifacts/internal/repository.(*Manager).compactLocked()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/commit.go:195 +0x2f4
+  github.com/mikerudolph/artifacts/internal/repository.(*Manager).packAndUpload()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/publish.go:134 +0x30c
+  github.com/mikerudolph/artifacts/internal/repository.(*Manager).compactLocked()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/commit.go:191 +0x178
+  github.com/mikerudolph/artifacts/internal/repository.(*Manager).Compact()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/commit.go:183 +0x480
+  github.com/mikerudolph/artifacts/internal/repository.TestConcurrentCacheOperationsAndCorruptReplay.func2()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/concurrency_integrity_test.go:77 +0xa4
+  github.com/mikerudolph/artifacts/internal/repository.TestConcurrentCacheOperationsAndCorruptReplay.func4()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/concurrency_integrity_test.go:81 +0x70
+  github.com/mikerudolph/artifacts/internal/repository.TestConcurrentCacheOperationsAndCorruptReplay.gowrap1()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/concurrency_integrity_test.go:81 +0x40
+
+Goroutine 380 (running) created at:
+  github.com/mikerudolph/artifacts/internal/repository.TestConcurrentCacheOperationsAndCorruptReplay()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/concurrency_integrity_test.go:81 +0x7ec
+  github.com/mikerudolph/artifacts/internal/repository.(*Manager).Commit()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/commit.go:34 +0x4c8
+  github.com/mikerudolph/artifacts/internal/repository.TestConcurrentCacheOperationsAndCorruptReplay()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/concurrency_integrity_test.go:68 +0x4c0
+  testing.tRunner()
+      /Users/mike/.local/share/mise/installs/go/1.25.14/src/testing/testing.go:1934 +0x164
+  testing.(*T).Run.gowrap1()
+      /Users/mike/.local/share/mise/installs/go/1.25.14/src/testing/testing.go:1997 +0x3c
+
+Goroutine 381 (finished) created at:
+  github.com/mikerudolph/artifacts/internal/repository.TestConcurrentCacheOperationsAndCorruptReplay()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/concurrency_integrity_test.go:81 +0x7ec
+  github.com/mikerudolph/artifacts/internal/repository.(*Manager).Commit()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/commit.go:34 +0x4c8
+  github.com/mikerudolph/artifacts/internal/repository.TestConcurrentCacheOperationsAndCorruptReplay()
+      /Users/mike/Projects/github.com/mikerudolph/artifacts/internal/repository/concurrency_integrity_test.go:68 +0x4c0
+  testing.tRunner()
+      /Users/mike/.local/share/mise/installs/go/1.25.14/src/testing/testing.go:1934 +0x164
+  testing.(*T).Run.gowrap1()
+      /Users/mike/.local/share/mise/installs/go/1.25.14/src/testing/testing.go:1997 +0x3c
+==================
+--- FAIL: TestConcurrentCacheOperationsAndCorruptReplay (1.01s)
+    testing.go:1617: race detected during execution of test
+FAIL
+coverage: 24.1% of statements in ./...
+FAIL	github.com/mikerudolph/artifacts/internal/repository	36.998s
+ok  	github.com/mikerudolph/artifacts/internal/service	1.864s	coverage: 4.6% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/internal/store/git	2.042s	coverage: 2.7% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/internal/store/meta	2.138s	coverage: 0.3% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/internal/store/meta/postgres	37.346s	coverage: 11.1% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/internal/store/object	1.621s	coverage: 0.3% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/internal/store/object/fs	1.892s	coverage: 3.1% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/internal/store/object/objecttest	1.870s	coverage: 2.6% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/internal/store/object/s3	5.735s	coverage: 3.8% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/internal/store/packread	1.524s	coverage: 2.2% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/internal/testkit	5.170s	coverage: 0.7% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/internal/types	2.043s	coverage: 1.2% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/internal/ui	1.364s	coverage: 3.9% of statements in ./...
+?   	github.com/mikerudolph/artifacts/migrations	[no test files]
+FAIL
+make: *** [coverage] Error 1

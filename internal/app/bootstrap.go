@@ -43,7 +43,7 @@ func bootstrap(ctx context.Context, account types.AccountID) error {
 	if err != nil {
 		return err
 	}
-	metadata, err := postgres.Open(ctx, cfg.DSN)
+	metadata, err := postgres.OpenConfigured(ctx, cfg)
 	if err != nil {
 		return err
 	}

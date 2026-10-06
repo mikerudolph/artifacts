@@ -1,6 +1,10 @@
 package types
 
-import "time"
+import (
+	"context"
+	"io"
+	"time"
+)
 
 type ImportSpec struct {
 	URL           string
@@ -13,21 +17,32 @@ type ImportSpec struct {
 }
 
 type CommitFile struct {
-	Path    string `json:"path"`
-	Content string `json:"content"`
+	Path    string        `json:"path"`
+	Content string        `json:"content"`
+	Mode    string        `json:"mode,omitempty"`
+	Source  *CommitSource `json:"-"`
+}
+
+type CommitSource struct {
+	Open   func() (io.ReadCloser, error)
+	Size   int64
+	SHA256 string
 }
 
 type CommitInput struct {
-	Deletes              []string     `json:"deletes,omitempty"`
-	Replace              bool         `json:"replace,omitempty"`
-	ExpectedHead         *string      `json:"expected_head,omitempty"`
-	Base                 string       `json:"base,omitempty"`
-	IdempotencyKey       string       `json:"-"`
-	RepositoryCredential bool         `json:"-"`
-	Branch               string       `json:"branch"`
-	Message              string       `json:"message"`
-	Author               Signature    `json:"author"`
-	Files                []CommitFile `json:"files"`
+	Deletes              []string                    `json:"deletes,omitempty"`
+	Replace              bool                        `json:"replace,omitempty"`
+	ExpectedHead         *string                     `json:"expected_head,omitempty"`
+	Base                 string                      `json:"base,omitempty"`
+	IdempotencyKey       string                      `json:"-"`
+	RepositoryCredential bool                        `json:"-"`
+	Branch               string                      `json:"branch"`
+	Message              string                      `json:"message"`
+	Author               Signature                   `json:"author"`
+	Files                []CommitFile                `json:"files"`
+	Multipart            bool                        `json:"-"`
+	ContentLimit         int64                       `json:"-"`
+	Authorize            func(context.Context) error `json:"-"`
 }
 
 type CommitResult struct {

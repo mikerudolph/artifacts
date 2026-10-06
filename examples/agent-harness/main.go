@@ -46,17 +46,28 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		}
 		_, _ = fmt.Fprintf(stdout, "healthy account=%s target=%s\n", cfg.account, result)
 		return 0
-	case "verify-core":
+	case "verify-core", "verify-binary":
 		set := flag.NewFlagSet("verify-core", flag.ContinueOnError)
 		set.SetOutput(stderr)
 		evidence := set.String("evidence", "", "evidence output directory")
+		size := set.Int64("size-mib", 100, "aggregate binary verification upload size in MiB (1 to 512)")
 		if err := set.Parse(args[1:]); err != nil || *evidence == "" || set.NArg() != 0 {
 			writeUsage(stderr)
 			return 2
 		}
-		report, err := verifyCore(ctx, client, *evidence)
+		var report report
+		if args[0] == "verify-binary" {
+			if *size < 1 || *size > 512 {
+				writeUsage(stderr)
+				return 2
+			}
+			client.client.Timeout = 20 * time.Minute
+			report, err = verifyDrive(ctx, client, *evidence, *size<<20)
+		} else {
+			report, err = verifyCore(ctx, client, *evidence)
+		}
 		if err != nil {
-			_, _ = fmt.Fprintf(stderr, "verify-core: %s: %v\n", report.Classification, err)
+			_, _ = fmt.Fprintf(stderr, "%s: %s: %v\n", args[0], report.Classification, err)
 			return 1
 		}
 		_, _ = fmt.Fprintf(stdout, "verified run=%s evidence=%s\n", report.RunID, *evidence)
@@ -82,7 +93,7 @@ func newHarness(cfg configuration) harness {
 }
 
 func writeUsage(w io.Writer) {
-	_, _ = fmt.Fprintln(w, "usage: agent-harness doctor | verify-core --evidence DIR")
+	_, _ = fmt.Fprintln(w, "usage: agent-harness doctor | verify-core --evidence DIR | verify-binary --evidence DIR [--size-mib 100]")
 }
 
 func env(key, fallback string) string {

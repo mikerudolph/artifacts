@@ -16,7 +16,41 @@ The Dockerfile pins its Go and Alpine base images by digest, includes Git and CA
 
 This repository does not yet publish a supported registry image. Push your built image to your registry and use that immutable image digest for setup jobs and all serving instances.
 
-## Initialize an empty database
+## Install into an existing database
+
+A fresh database is optional. Artifacts can own a dedicated schema in a database that already contains another application. Provision separate migration and runtime logins through your database provider. An administrator can create the schema owned by the migration role:
+
+```sql
+GRANT CONNECT ON DATABASE appdb TO artifacts_migration, artifacts_runtime;
+CREATE SCHEMA artifacts AUTHORIZATION artifacts_migration;
+GRANT USAGE ON SCHEMA artifacts TO artifacts_runtime;
+```
+
+Set `DATABASE_URL` to the migration login for `appdb`, and use the same schema setting for every Artifacts command and server:
+
+```bash
+export ARTIFACTS_DATABASE_SCHEMA=artifacts
+docker run --rm --read-only \
+  --env DATABASE_URL --env ARTIFACTS_DATABASE_SCHEMA \
+  "$ARTIFACTS_IMAGE" migrate
+```
+
+The migration role needs ownership of its schema and objects, but does not need database ownership or database `CREATE` when the schema already exists. Alternatively, an identity with database `CREATE` can run `migrate --create-schema` to create a missing schema owned by that identity. Normal migration and serving fail if the selected schema is absent or inaccessible. Artifacts does not create roles or change neighboring applications' grants. Select an empty schema; unrelated tables, functions, types, or migration ledgers cause migration to fail.
+
+After migration, run these grants as the migration role:
+
+```sql
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA artifacts TO artifacts_runtime;
+REVOKE INSERT, UPDATE, DELETE ON artifacts.schema_migrations FROM artifacts_runtime;
+ALTER DEFAULT PRIVILEGES IN SCHEMA artifacts
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO artifacts_runtime;
+```
+
+The runtime role needs no schema `CREATE`, ownership, or database `CREATE`. Run bootstrap and serving with this login and `ARTIFACTS_DATABASE_SCHEMA=artifacts`; set `ARTIFACTS_SKIP_MIGRATIONS=true` for serving, token creation, and compaction. Default privileges must be set by the role that creates future migration objects. Current migrations create no sequences.
+
+Keep the schema setting in the shared environment for migration jobs, bootstrap jobs, and all servers. Pass `--env ARTIFACTS_DATABASE_SCHEMA` to every Docker command below when using a named schema. Independent installations also need separate object-storage prefixes and cache roots. This installs a new Artifacts instance; moving an existing installation from `public` requires a separate data-movement procedure. Merely changing the setting does not relocate tables or repository history.
+
+## Existing default-schema deployments
 
 Create the database and its owner role through your database provider. Inject the owner's connection string as `DATABASE_URL` in a one-off migration job, then run:
 
@@ -54,6 +88,31 @@ docker run --rm --read-only \
 Alternatively, mount a secret file readable by UID 10001 and set `ARTIFACTS_BOOTSTRAP_TOKEN_FILE` to its container path. Set exactly one token source. Tokens must contain 32–4096 bytes without embedded whitespace; surrounding whitespace is trimmed. Bootstrap stores only the token hash and never prints the token.
 
 Rerunning bootstrap with the same account and token succeeds, including concurrent retries. Reusing that token for another account fails atomically. Supplying a new token adds another credential; it does not revoke old credentials. Bootstrap requires a current schema and does not run migrations. This creates account access, not sample repositories. Give the secret to your application as its control-plane credential; workers should receive [repository-scoped credentials](/artifacts/core/authentication/).
+
+## RDS and Aurora IAM authentication
+
+IAM authentication is independent of schema selection. Enable IAM database authentication on the RDS PostgreSQL instance or Aurora PostgreSQL cluster, then grant `rds_iam` to each database login that will use IAM. Keep migration and runtime permissions separate; IAM login does not replace SQL grants. See AWS's [database account setup](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.IAMDBAuth.DBAccounts.html).
+
+```sql
+GRANT rds_iam TO artifacts_migration, artifacts_runtime;
+```
+
+Give each workload role `rds-db:connect` for its specific database user. The policy resource uses the database resource ID (or Aurora cluster resource ID), not the instance display name. For example, substitute your region, account, resource ID, and username into `arn:aws:rds-db:us-east-1:123456789012:dbuser:db-RESOURCE_ID/artifacts_runtime`. See AWS's [IAM policy format](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.IAMDBAuth.IAMPolicy.html).
+
+Mount a trusted RDS CA bundle readable by the image's non-root user. Configure the direct writer endpoint, database, and appropriate login without a password:
+
+```bash
+export ARTIFACTS_DATABASE_AUTH=rds-iam
+export ARTIFACTS_DATABASE_REGION=us-east-1
+export ARTIFACTS_DATABASE_SCHEMA=artifacts
+export DATABASE_URL='postgres://artifacts_runtime@cluster.example.us-east-1.rds.amazonaws.com:5432/appdb?sslmode=verify-full&sslrootcert=/etc/rds/global-bundle.pem&pool_max_conns=10'
+```
+
+Use the actual RDS/Aurora endpoint rather than a custom DNS alias or IP address, with TLS certificate and hostname verification. Provision the CA bundle through deployment configuration; Artifacts does not download it at startup. AWS provides [verified TLS connection guidance](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.IAMDBAuth.Connecting.AWSCLI.PostgreSQL.html). Pass the database auth, region, and schema variables into every container, mount the CA file at the configured path, and expose the workload identity to the SDK. Use the migration username and workload role for `migrate`; use the runtime identity for bootstrap and serving.
+
+The SDK credential chain supports workload roles and configured AWS profiles. Database signing uses `ARTIFACTS_DATABASE_REGION`, falling back to standard SDK region configuration; `S3_REGION` does not set it. Omit static AWS credentials when using a workload role. Omit database passwords, including matching password-file entries and `PGPASSWORD`. Connections sign on creation; existing sessions are reused, and newly opened connections retrieve credentials through the refreshable provider. There is no application-level transaction replay after connection loss. Preserve the original idempotency key when recovering an uncertain supported REST write.
+
+Local verification covers both connection hooks over TLS, renewed signing credentials, schema isolation, and real REST/Git traffic. Real AWS login, workload-role renewal, failover, and RDS Proxy remain unverified. Qualify the direct writer endpoint first. Proxy endpoints require their own policy and acceptance run, including migration/session pinning; this change does not add Aurora topology discovery or failover plugins.
 
 ## Start servers
 
@@ -96,5 +155,7 @@ With Docker, Go, Git, and Python 3 installed, run the owned-container acceptance
 ```bash
 python3 scripts/verify-container.py --image "$ARTIFACTS_IMAGE" --evidence /tmp/artifacts-container-evidence
 ```
+
+For installation alongside an existing application, add `--database-schema artifacts` and use a fresh evidence directory. That mode creates conflicting table and migration-ledger names in `public`, migrates with a schema owner lacking database `CREATE`, runs with a restricted runtime login, and checks the neighboring application's data before and after the REST/Git workflow.
 
 It provisions disposable Postgres and MinIO, runs migration/bootstrap retries, starts two non-root servers with read-only root filesystems, exercises real REST/Git operations, verifies readiness and restart recovery, and removes its containers and network. The evidence directory remains. This test does not deploy to a Kubernetes cluster or ECS account.

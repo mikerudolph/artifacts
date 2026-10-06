@@ -16,79 +16,92 @@ const (
 )
 
 func (m *Manager) Commit(ctx context.Context, repo types.Repo, input types.CommitInput) (types.CommitResult, error) {
-	path, unlock, err := m.lockedPath(repo)
+	digest, err := commitDigest(input)
+	if err != nil {
+		return types.CommitResult{}, err
+	}
+	if result, found, err := m.replayCommit(ctx, repo, input, digest); found || err != nil {
+		return result, err
+	}
+	path, unlock, err := m.lockedPathContext(ctx, repo)
 	if err != nil {
 		return types.CommitResult{}, err
 	}
 	defer unlock()
-	if input.IdempotencyKey != "" {
-		result, err := meta.Idempotent(ctx, m.meta, "commit/"+string(repo.AccountID)+"/"+string(repo.ID), input.IdempotencyKey, input, func(tx meta.Store) (types.CommitResult, error) {
-			inner := &Manager{meta: tx.(meta.V2Store), objects: m.objects, root: m.root}
-			return inner.commitLocked(ctx, repo, input, path)
-		})
-		if err != nil {
-			_ = os.RemoveAll(path)
-		}
+	if result, found, err := m.replayCommit(ctx, repo, input, digest); found || err != nil {
 		return result, err
 	}
-	return m.commitLocked(ctx, repo, input, path)
+	candidate, err := m.prepareCommit(ctx, repo, input, path)
+	if err != nil {
+		_ = os.RemoveAll(path)
+		if result, found, replayErr := m.replayCommit(ctx, repo, input, digest); found || replayErr != nil {
+			return result, replayErr
+		}
+		return types.CommitResult{}, err
+	}
+	result, err := m.publishCommit(ctx, repo, input, candidate, digest)
+	if err != nil || result.SHA != candidate.sha {
+		_ = os.RemoveAll(path)
+	} else if err := writeCacheState(path, result.Sequence, candidate.branch); err != nil {
+		_ = os.RemoveAll(path)
+	}
+	return result, err
 }
 
-func (m *Manager) commitLocked(ctx context.Context, repo types.Repo, input types.CommitInput, path string) (types.CommitResult, error) {
+type preparedCommit struct {
+	publication types.Publication
+	sha         string
+	branch      string
+}
+
+func (m *Manager) prepareCommit(ctx context.Context, repo types.Repo, input types.CommitInput, path string) (preparedCommit, error) {
+	var candidate preparedCommit
 	repo, refs, err := m.commitSnapshot(ctx, repo, input)
 	if err != nil {
-		return types.CommitResult{}, err
+		return candidate, err
 	}
 	branch, err := validateCommit(repo, input)
 	if err != nil {
-		return types.CommitResult{}, err
+		return candidate, err
 	}
 	if err := m.ensureSnapshot(ctx, repo, refs, path); err != nil {
-		return types.CommitResult{}, err
+		return candidate, err
 	}
 	work, err := os.MkdirTemp(m.root, ".rest-commit-*")
 	if err != nil {
-		return types.CommitResult{}, err
+		return candidate, err
 	}
 	defer func() { _ = os.RemoveAll(work) }()
 	before, err := listRefs(ctx, path)
 	if err != nil {
-		return types.CommitResult{}, err
+		return candidate, err
 	}
 	ref := "refs/heads/" + branch
 	old := currentRef(ctx, path, ref)
 	parent, err := commitParent(ctx, repo, input, path, old)
 	if err != nil {
-		return types.CommitResult{}, err
+		return candidate, err
 	}
 	sha, err := writeCommit(ctx, path, work, parent, input)
 	if err != nil {
-		return types.CommitResult{}, err
+		return candidate, err
 	}
 	args := []string{"--git-dir=" + path, "update-ref", ref, sha}
 	if old != "" {
 		args = append(args, old)
 	}
 	if _, err := runGit(ctx, nil, args...); err != nil {
-		return types.CommitResult{}, err
+		return candidate, err
 	}
 	pack, err := m.incrementalPack(ctx, repo, path, before, map[string]string{ref: sha})
 	if err != nil {
-		_ = os.RemoveAll(path)
-		return types.CommitResult{}, err
+		return candidate, err
 	}
-	sequence, err := m.meta.WAL().Publish(ctx, types.Publication{
+	candidate = preparedCommit{sha: sha, branch: repo.DefaultBranch, publication: types.Publication{
 		Pack: pack, Updates: []types.RefUpdate{{Name: ref, OldSHA: old, NewSHA: sha}},
 		ExpectedSequence: repo.WALSequence, AllowReadOnly: repo.WALSequence == 0 && !input.RepositoryCredential,
-	})
-	if err != nil {
-		_ = os.RemoveAll(path)
-		return types.CommitResult{}, err
-	}
-	if err := writeCacheState(path, sequence, repo.DefaultBranch); err != nil {
-		_ = os.RemoveAll(path)
-	}
-	return types.CommitResult{SHA: sha, Sequence: sequence}, nil
+	}}
+	return candidate, nil
 }
 
 func commitParent(ctx context.Context, repo types.Repo, input types.CommitInput, path, old string) (string, error) {

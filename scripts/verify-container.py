@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import pathlib
+import re
 import secrets
 import shutil
 import socket
@@ -17,12 +18,21 @@ root = pathlib.Path.cwd()
 parser = argparse.ArgumentParser()
 parser.add_argument("--image", required=True)
 parser.add_argument("--evidence", required=True)
+parser.add_argument("--binary-size-mib", type=int, action="append", default=[])
+parser.add_argument("--database-schema", default="")
 args = parser.parse_args()
+if args.database_schema and (not re.fullmatch(r"[a-z_][a-z0-9_]{0,62}", args.database_schema)
+                             or args.database_schema.startswith("pg_") or args.database_schema == "information_schema"):
+    parser.error("database schema must be a lowercase non-system identifier")
+schema = args.database_schema or "public"
+if any(size < 1 or size > 512 for size in args.binary_size_mib):
+    parser.error("binary sizes must be between 1 and 512 MiB")
 evidence = pathlib.Path(args.evidence).resolve()
 evidence.mkdir(parents=True, exist_ok=True)
 scratch = pathlib.Path(tempfile.mkdtemp(prefix="artifacts-container-"))
 prefix = "artifacts-container-" + secrets.token_hex(5)
 containers, checks, secret_values = [], [], []
+volumes = []
 network = prefix + "-network"
 completed = False
 servers = []
@@ -81,11 +91,17 @@ def launch(node):
     node_env = dict(env, DATABASE_URL=runtime_dsn, ARTIFACTS_API_TOKEN="",
                     ARTIFACTS_SKIP_MIGRATIONS="true", ARTIFACTS_HTTP_ADDR=":8080")
     keys = ["DATABASE_URL", "ARTIFACTS_API_TOKEN", "ARTIFACTS_SKIP_MIGRATIONS",
+            "ARTIFACTS_DATABASE_SCHEMA", "ARTIFACTS_DATABASE_AUTH",
             "ARTIFACTS_HTTP_ADDR", "ARTIFACTS_PUBLIC_URL", "ARTIFACTS_STORAGE", "S3_BUCKET",
             "S3_REGION", "S3_ENDPOINT", "S3_USE_PATH_STYLE", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"]
+    cache = ["--tmpfs", "/var/cache/artifacts:rw,uid=10001,gid=10001,mode=0700"]
+    if args.binary_size_mib:
+        volume = prefix + "-cache-" + str(len(volumes))
+        command(["docker", "volume", "create", volume])
+        volumes.append(volume)
+        cache = ["--mount", f"type=volume,src={volume},dst=/var/cache/artifacts"]
     command(["docker", "run", "-d", "--name", name, "--network", network, "--read-only",
-             "--cap-drop=ALL", "--security-opt=no-new-privileges", "--tmpfs",
-             "/var/cache/artifacts:rw,uid=10001,gid=10001,mode=0700", "-p",
+             "--cap-drop=ALL", "--security-opt=no-new-privileges", *cache, "-p",
              "127.0.0.1:" + origins[node].rsplit(":",1)[1] + ":8080",
              *[part for key in keys for part in ["-e", key]], args.image], env=node_env)
     containers.append(name)
@@ -106,10 +122,13 @@ def stop(name):
     command(["docker", "rm", name])
     containers.remove(name)
 
-def setup(*arguments, token_value=token, expected=0):
+def setup(*arguments, token_value=token, expected=0, database_dsn=None):
     setup_env = dict(env, ARTIFACTS_BOOTSTRAP_TOKEN=token_value)
+    if database_dsn:
+        setup_env["DATABASE_URL"] = database_dsn
     result = subprocess.run(["docker", "run", "--rm", "--read-only", "--network", network,
                              "-e", "DATABASE_URL", "-e", "ARTIFACTS_BOOTSTRAP_TOKEN",
+                             "-e", "ARTIFACTS_DATABASE_SCHEMA", "-e", "ARTIFACTS_DATABASE_AUTH",
                              args.image, *arguments], env=setup_env, capture_output=True, text=True)
     check("setup command " + arguments[0], result.returncode == expected)
     check("setup output redacts credentials", not any(value in result.stdout + result.stderr for value in secret_values))
@@ -120,6 +139,60 @@ def git(*args, expect_success=True):
     if expect_success and result.returncode:
         raise AssertionError("Git operation failed")
     return result
+
+def database_sql(query):
+    return command(["docker", "exec", "-i", name, "psql", "-U", "artifacts", "-d", "artifacts", "-At", "-v", "ON_ERROR_STOP=1"], input=query)
+
+def provision_schema():
+    if not args.database_schema:
+        return
+    owner_password = secrets.token_hex(24)
+    secret_values.append(owner_password)
+    database_sql(f"CREATE ROLE migration LOGIN PASSWORD '{owner_password}'; CREATE SCHEMA {schema} AUTHORIZATION migration; "
+                 "CREATE TABLE public.accounts(sentinel text); INSERT INTO public.accounts VALUES ('untouched'); "
+                 "CREATE TABLE public.schema_migrations(version bigint,dirty boolean); INSERT INTO public.schema_migrations VALUES (999,false);")
+    env["DATABASE_URL"] = f"postgres://migration:{owner_password}@{name}/artifacts?sslmode=disable&pool_max_conns=4"
+    check("migration role does not need database CREATE", database_sql("SELECT has_database_privilege('migration','artifacts','CREATE')") == "f")
+
+def check_neighbor():
+    if args.database_schema:
+        state = database_sql("SELECT sentinel FROM public.accounts; SELECT version FROM public.schema_migrations; "
+                             "SELECT count(*) FROM pg_tables WHERE schemaname='public';")
+        check("neighboring application data and migration ledger unchanged", state == "untouched\n999\n2")
+
+def verify_binary_clients():
+    repo_name = "clients-" + secrets.token_hex(4)
+    path = "/namespaces/binary-clients/repos/" + repo_name
+    created = api(0, "POST", "/namespaces/binary-clients/repos", body={"name": repo_name})
+    credential = created["credential"]["plaintext"]
+    secret_values.extend([credential, credential.split("?")[0]])
+    payload = scratch / "client-source.bin"
+    payload.write_bytes(bytes(range(256)))
+    client_env = dict(env, REPO_API=origins[0] + base + path, ARTIFACTS_TOKEN=credential,
+                      OPERATION_ID="node-client", EXPECTED_HEAD="", UPLOAD_FILE=str(payload))
+    node_source = """
+import { commitFiles, fromFile, fromStream } from './examples/binary-commits/commit.mjs';
+const result = await commitFiles(process.env.REPO_API, {
+  token: process.env.ARTIFACTS_TOKEN,
+  idempotencyKey: process.env.OPERATION_ID,
+  expectedHead: process.env.EXPECTED_HEAD,
+  files: [
+    {path: 'node.bin', content: await fromFile(process.env.UPLOAD_FILE)},
+    {path: 'stream.bin', content: fromStream(async function* () { yield new Uint8Array([0, 255]); })},
+  ],
+});
+console.log(JSON.stringify(result));
+"""
+    first = json.loads(command(["node", "--input-type=module"], input=node_source, env=client_env))
+    check("Node helper streams file bytes", request(1, "GET", path + "/file?path=node.bin", credential) == (200, bytes(range(256))))
+    check("Node helper accepts unknown-size stream", request(1, "GET", path + "/file?path=stream.bin", credential) == (200, bytes([0, 255])))
+    python_env = dict(client_env, OPERATION_ID="python-client", EXPECTED_HEAD=first["sha"])
+    command(["python3", "examples/binary-commits/upload.py"], env=python_env)
+    check("Python example streams file bytes", request(1, "GET", path + "/file?path=report.pdf", credential) == (200, bytes(range(256))))
+    replay = json.loads(command(["node", "--input-type=module"], input=node_source, env=client_env))
+    check("Node helper replays after Python publication", replay == first and len(api(0, "GET", path + "/wal")) == 2)
+    api(0, "DELETE", path, want=202)
+    check("client example repository cleaned up", request(1, "GET", path)[0] == 404)
 
 try:
     command(["docker", "network", "create", network])
@@ -150,27 +223,31 @@ try:
     command(["docker", "exec", "-e", "MC_HOST_local", storage, "mc", "mb", "local/artifacts"], env=bucket_env)
     origins = [f"http://127.0.0.1:{free_port()}" for _ in range(2)]
     env.update(DATABASE_URL=f"postgres://artifacts:{password}@{name}/artifacts?sslmode=disable",
+        ARTIFACTS_DATABASE_SCHEMA=args.database_schema, ARTIFACTS_DATABASE_AUTH="dsn",
         ARTIFACTS_PUBLIC_URL=origins[0], ARTIFACTS_URL=origins[0], ARTIFACTS_ACCOUNT="local",
         ARTIFACTS_DEFAULT_ACCOUNT="local", ARTIFACTS_AUTH="token", ARTIFACTS_API_TOKEN=token,
         ARTIFACTS_STORAGE="s3", S3_BUCKET="artifacts", S3_REGION="us-east-1",
         S3_ENDPOINT=f"http://{storage}:9000", S3_USE_PATH_STYLE="true", S3_PREFIX="")
+    provision_schema()
     setup("bootstrap", "--account", "local", expected=1)
     setup("migrate")
     setup("migrate")
     with concurrent.futures.ThreadPoolExecutor(2) as pool:
         list(pool.map(lambda _: setup("bootstrap", "--account", "local"), range(2)))
     setup("bootstrap", "--account", "other", expected=1)
-    state = command(["docker", "exec", "-i", name, "psql", "-U", "artifacts", "-d", "artifacts", "-At"],
-        input="SELECT count(*) FROM api_tokens; SELECT count(*) FROM accounts WHERE id='other';")
+    state = database_sql(f"SELECT count(*) FROM {schema}.api_tokens; SELECT count(*) FROM {schema}.accounts WHERE id='other';")
     check("bootstrap retries preserve one token and rejected account rolls back", state == "1\n0")
     runtime_password = secrets.token_hex(24)
     secret_values.append(runtime_password)
     runtime_dsn = f"postgres://runtime:{runtime_password}@{name}/artifacts?sslmode=disable"
-    command(["docker", "exec", "-i", name, "psql", "-U", "artifacts", "-d", "artifacts", "-v", "ON_ERROR_STOP=1"],
-        input=f"CREATE ROLE runtime LOGIN PASSWORD '{runtime_password}'; GRANT CONNECT ON DATABASE artifacts TO runtime; GRANT USAGE ON SCHEMA public TO runtime; GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO runtime; GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO runtime;")
-    permission = command(["docker", "exec", "-i", name, "psql", "-U", "artifacts", "-d", "artifacts", "-At"],
-        input="SELECT has_schema_privilege('runtime', 'public', 'CREATE');")
+    database_sql(f"CREATE ROLE runtime LOGIN PASSWORD '{runtime_password}'; GRANT CONNECT ON DATABASE artifacts TO runtime; GRANT USAGE ON SCHEMA {schema} TO runtime; GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA {schema} TO runtime; REVOKE INSERT, UPDATE, DELETE ON {schema}.schema_migrations FROM runtime;")
+    permission = database_sql(f"SELECT has_schema_privilege('runtime', '{schema}', 'CREATE');")
     check("runtime role cannot create schema objects", permission == "f")
+    if args.database_schema:
+        check("runtime cannot change neighboring application or migration history", database_sql(
+            f"SELECT has_table_privilege('runtime','public.accounts','UPDATE'); SELECT has_table_privilege('runtime','{schema}.schema_migrations','UPDATE');") == "f\nf")
+        setup("bootstrap", "--account", "local", database_dsn=runtime_dsn)
+        check_neighbor()
     image_info = json.loads(command(["docker", "image", "inspect", args.image]))[0]
     (evidence / "image.json").write_text(json.dumps({"id":image_info["Id"], "architecture":image_info["Architecture"], "user":image_info["Config"]["User"]}, indent=2)+"\n")
     paths = sorted([*pathlib.Path("internal").rglob("*.go"), *pathlib.Path("cmd").rglob("*.go"),
@@ -207,6 +284,20 @@ try:
     for artifact in report["artifacts"]:
         data = (evidence / "core" / artifact["path"]).read_bytes()
         check("evidence integrity " + artifact["path"], len(data) == artifact["size"] and hashlib.sha256(data).hexdigest() == artifact["sha256"])
+    for binary_size in args.binary_size_mib:
+        binary_dir = evidence / f"binary-{binary_size}"
+        print(f"Verifying {binary_size} MiB multipart commits", flush=True)
+        command(["go", "run", "./examples/agent-harness", "verify-binary", "--size-mib",
+                 str(binary_size), "--evidence", str(binary_dir)], env=env)
+        binary_report = json.loads((binary_dir / "report.json").read_text())
+        check(f"binary {binary_size} MiB workflow and cleanup", binary_report["classification"] == "none"
+              and all(item["passed"] for item in binary_report["assertions"]))
+        for artifact in binary_report["artifacts"]:
+            data = (binary_dir / artifact["path"]).read_bytes()
+            check(f"binary {binary_size} evidence integrity " + artifact["path"],
+                  len(data) == artifact["size"] and hashlib.sha256(data).hexdigest() == artifact["sha256"])
+    if args.binary_size_mib:
+        verify_binary_clients()
     collection = "/namespaces/multi/repos"
     repo_name = "run-" + secrets.token_hex(4)
     path = collection + "/" + repo_name
@@ -248,15 +339,18 @@ try:
     check("repository cleanup visible on node 0", request(0, "GET", path)[0] == 404)
     for server in servers:
         stop(server)
+    check_neighbor()
     completed = True
     print(f"PASS: {len(checks)} container assertions", flush=True)
 finally:
     for container in reversed(containers):
         subprocess.run(["docker", "rm", "-f", "-v", container], capture_output=True)
     cleanup = all(subprocess.run(["docker", "inspect", container], capture_output=True).returncode != 0 for container in containers)
+    for volume in volumes:
+        cleanup = subprocess.run(["docker", "volume", "rm", volume], capture_output=True).returncode == 0 and cleanup
     cleanup = subprocess.run(["docker", "network", "rm", network], capture_output=True).returncode == 0 and cleanup
     shutil.rmtree(scratch)
-    checks.append({"name": "owned containers, network, and scratch removed", "passed": cleanup})
+    checks.append({"name": "owned containers, volumes, network, and scratch removed", "passed": cleanup})
     (evidence / "checks.json").write_text(json.dumps({"passed": completed and cleanup and all(c["passed"] for c in checks), "checks": checks}, indent=2) + "\n")
     for file in evidence.rglob("*"):
         if file.is_file():

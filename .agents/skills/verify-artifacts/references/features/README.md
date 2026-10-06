@@ -8,8 +8,10 @@ only the document needed for the verification being performed.
 | Repository lifecycle | [repository-lifecycle.md](repository-lifecycle.md) | Creating, finding, configuring, or deleting a tenant-scoped repository |
 | REST/Git interoperability | [rest-git-interoperability.md](rest-git-interoperability.md) | Proving content published through one interface is visible through the other |
 | Credentials | [credentials.md](credentials.md) | Authenticating REST or Git and checking repository credential boundaries |
+| Binary commits | [binary-commits.md](binary-commits.md) | Streaming multipart writes, binary/mode round trips, large fixtures, and keyed upload retries |
+| Database deployment | [database-deployment.md](database-deployment.md) | Installation in an existing database, schema boundaries, runtime roles, IAM renewal, and recovery |
 
-The core drive crosses all three features:
+The core drive crosses repository, content, and credential behavior:
 
 1. Create a uniquely named repository over REST.
 2. Publish and read bootstrap content over REST.

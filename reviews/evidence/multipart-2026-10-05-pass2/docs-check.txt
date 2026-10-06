@@ -1,0 +1,87 @@
+
+> artifacts-docs@0.0.0 check
+> npm run build && node scripts/check-links.mjs && node scripts/check-diagrams.mjs && node --test scripts/diagram-*.test.mjs
+
+
+> artifacts-docs@0.0.0 build
+> astro sync --force && astro build
+
+21:39:08 [WARN] [content] data store cleared (force)
+21:39:08 [content] Syncing content
+21:39:08 [content] Synced content
+21:39:08 [types] Generated 497ms
+21:39:09 [content] Syncing content
+21:39:09 [content] Synced content
+21:39:09 [types] Generated 580ms
+21:39:09 [build] output: "static"
+21:39:09 [build] mode: "static"
+21:39:09 [build] directory: /Users/mike/Projects/github.com/mikerudolph/artifacts/docs-site/dist/
+21:39:09 [build] Collecting build info...
+21:39:09 [build] ✓ Completed in 679ms.
+21:39:09 [build] Building static entrypoints...
+21:39:10 [vite] ✓ built in 338ms
+21:39:10 [vite] ✓ built in 98ms
+21:39:10 [build] Rearranging server assets...
+
+ generating static routes 
+21:39:10   ├─ /404.html (+11ms) 
+21:39:10   ├─ /core/data-model/index.html (+6ms) 
+21:39:10   ├─ /developer-tools/index.html (+1ms) 
+21:39:10   ├─ /onboarding/index.html (+1ms) 
+21:39:10   ├─ /core/api-reference/index.html (+11ms) 
+21:39:10   ├─ /core/authentication/index.html (+2ms) 
+21:39:10   ├─ /core/concepts/index.html (+8ms) 
+21:39:10   ├─ /core/configuration/index.html (+3ms) 
+21:39:10   ├─ /core/deployment/index.html (+3ms) 
+21:39:10   ├─ /core/errors-and-limits/index.html (+4ms) 
+21:39:10   ├─ /core/forks-and-imports/index.html (+8ms) 
+21:39:10   ├─ /core/git/index.html (+23ms) 
+21:39:10   ├─ /core/integration/index.html (+3ms) 
+21:39:10   ├─ /core/reading-files/index.html (+2ms) 
+21:39:10   ├─ /core/repositories/index.html (+2ms) 
+21:39:10   ├─ /core/writing-files/index.html (+2ms) 
+21:39:10   ├─ /developer-tools/local-development/index.html (+3ms) 
+21:39:10   ├─ /developer-tools/web-ui/index.html (+2ms) 
+21:39:10   ├─ /examples/index.html (+2ms) 
+21:39:10   ├─ /examples/agent-sessions/index.html (+1ms) 
+21:39:10   ├─ /examples/personal-memory/index.html (+1ms) 
+21:39:10   ├─ /examples/snapshot-handoffs/index.html (+1ms) 
+21:39:10   ├─ /getting-started/index.html (+1ms) 
+21:39:10   ├─ /index.html (+4ms) 
+21:39:10   ├─ /storage/index.html (+7ms) 
+21:39:10 ✓ Completed in 149ms.
+
+21:39:10 [build] ✓ Completed in 609ms.
+21:39:10 [starlight:pagefind] Building search index with Pagefind...
+21:39:10 [starlight:pagefind] Found 25 HTML files.
+21:39:10 [starlight:pagefind] Finished building search index in 124ms.
+21:39:10 [@astrojs/sitemap] `sitemap-index.xml` created at `dist`
+21:39:10 [build] 22 page(s) built in 1.43s
+21:39:10 [build] Complete!
+Checked 25 HTML pages, 889 internal links, and 17 local assets; all targets, anchors, stylesheets, fonts, and page titles are valid.
+Checked 4 SVG explainers and 19 steps: motion tracks, responsive scenes, controls, static fallbacks, and SVG references are valid.
+✔ easing has continuous intermediate positions and gentle endpoints (0.480125ms)
+✔ consecutive chapters preserve objects instead of fading them out and back in (1.092833ms)
+✔ staggered arrivals and delayed departures interpolate without snapping (0.115667ms)
+✔ eviction removes only the missing interval and replay restores the same object (0.065042ms)
+✔ last chapter keeps normal motion speed, then holds the completed mechanism (0.066583ms)
+✔ autoplays every step, holds the final state, and loops without input (0.635125ms)
+✔ slow frame rates do not slow the timeline (0.074542ms)
+✔ a long frame does not skip multiple concepts (0.054917ms)
+✔ seeking keeps playback running unless the reader explicitly paused (0.05625ms)
+✔ pause preserves elapsed time and instances remain independent (0.053459ms)
+✔ invalid scenes are rejected (0.183667ms)
+✔ the agent reads before working, then returns both files before publishing (0.495584ms)
+✔ publication changes the head and changed files together, preserving plan and history (0.086ms)
+✔ the next run continues from the published snapshot without rewinding history (0.192125ms)
+✔ file motion and snapshot stacking contain continuous intermediate positions (0.271875ms)
+✔ the two output tiles have separate flight windows (1.553833ms)
+✔ invalid clocks start safely and all example hashes are short hexadecimal (0.53975ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 178.3425

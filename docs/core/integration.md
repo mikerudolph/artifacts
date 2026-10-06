@@ -81,7 +81,7 @@ Your application decides when to record that SHA as the completed or approved re
 
 If another process produces the report, your backend issues a repository write credential with a suitable expiry and passes it to the worker through a secret channel. Keep the account control token in your backend.
 
-The worker can use REST to publish text changes, or Git to clone, edit, and push. After publishing, it returns the commit SHA to your backend. Your backend reads that version, validates the result, and updates the application record.
+The worker can use REST to publish text or binary changes, or Git to clone, edit, and push. After publishing, it returns the commit SHA to your backend. Your backend reads that version, validates the result, and updates the application record.
 
 A repository credential covers the repository's permitted content operations; it does not authorize account management. Account control tokens do not authenticate Git. See [authentication](/artifacts/core/authentication/) for issuing, using, renewing, and revoking repository credentials.
 

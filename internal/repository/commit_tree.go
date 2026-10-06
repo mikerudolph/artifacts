@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"path"
 	"path/filepath"
 	"strings"
@@ -29,23 +30,41 @@ func validateCommit(repo types.Repo, input types.CommitInput) (string, error) {
 	if err := validateCommitSHAs(input); err != nil {
 		return "", err
 	}
+	return branch, validateCommitChanges(input)
+}
+
+func validateCommitChanges(input types.CommitInput) error {
 	seen := map[string]bool{}
-	total := 0
+	total := int64(0)
 	for i, file := range input.Files {
 		if err := validateChangePath(file.Path, fmt.Sprintf("/files/%d/path", i), seen); err != nil {
-			return "", err
+			return err
 		}
-		total += len(file.Content)
+		if file.Mode != "" && file.Mode != "100644" && file.Mode != "100755" {
+			return &types.InputError{Field: fmt.Sprintf("/files/%d/mode", i), Message: "mode must be 100644 or 100755"}
+		}
+		size := int64(len(file.Content))
+		if file.Source != nil {
+			size = file.Source.Size
+		}
+		if size < 0 || size > commitByteLimit(input)-total {
+			return &types.InputError{Field: fmt.Sprintf("/files/%d", i), Message: "commit content exceeds byte limit", TooLarge: true}
+		}
+		total += size
 	}
 	for i, name := range input.Deletes {
 		if err := validateChangePath(name, fmt.Sprintf("/deletes/%d", i), seen); err != nil {
-			return "", err
+			return err
 		}
 	}
-	if total > maxCommitBytes {
-		return "", &types.InputError{Field: "/files", Message: "decoded content exceeds 1 MiB", TooLarge: true}
+	return nil
+}
+
+func commitByteLimit(input types.CommitInput) int64 {
+	if input.Multipart && input.ContentLimit > 0 {
+		return input.ContentLimit
 	}
-	return branch, nil
+	return maxCommitBytes
 }
 
 func validateCommitSHAs(input types.CommitInput) error {
@@ -101,13 +120,16 @@ func writeCommit(ctx context.Context, gitDir, work, parent string, input types.C
 		return "", err
 	}
 	for _, file := range input.Files {
-		blob, err := runGit(ctx, strings.NewReader(file.Content), "--git-dir="+gitDir, "hash-object", "-w", "--stdin")
+		blob, err := hashCommitFile(ctx, gitDir, file)
 		if err != nil {
 			return "", err
 		}
 		mode := modes[file.Path]
 		if mode != "100755" {
 			mode = "100644"
+		}
+		if file.Mode != "" {
+			mode = file.Mode
 		}
 		if _, err := runGitEnv(ctx, nil, env, "", "--git-dir="+gitDir, "update-index", "--add", "--cacheinfo", mode, strings.TrimSpace(string(blob)), file.Path); err != nil {
 			return "", err
@@ -118,6 +140,19 @@ func writeCommit(ctx context.Context, gitDir, work, parent string, input types.C
 		return "", err
 	}
 	return createCommit(ctx, gitDir, strings.TrimSpace(string(tree)), parent, input)
+}
+
+func hashCommitFile(ctx context.Context, gitDir string, file types.CommitFile) ([]byte, error) {
+	var reader io.Reader = strings.NewReader(file.Content)
+	if file.Source != nil {
+		source, err := file.Source.Open()
+		if err != nil {
+			return nil, err
+		}
+		defer func() { _ = source.Close() }()
+		reader = source
+	}
+	return runGit(ctx, reader, "--git-dir="+gitDir, "hash-object", "-w", "--stdin")
 }
 
 func validateTreeChanges(modes map[string]string, files []types.CommitFile) error {

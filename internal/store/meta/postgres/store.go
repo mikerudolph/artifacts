@@ -3,10 +3,12 @@ package postgres
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/mikerudolph/artifacts/internal/config"
 	"github.com/mikerudolph/artifacts/internal/store/meta"
 )
 
@@ -17,20 +19,32 @@ type querier interface {
 }
 
 type store struct {
-	q querier
-	p *pgxpool.Pool
+	q      querier
+	p      *pgxpool.Pool
+	schema string
 }
 
 func Open(ctx context.Context, dsn string) (meta.V2Store, error) {
-	pool, err := pgxpool.New(ctx, dsn)
+	return OpenConfigured(ctx, config.Postgres{DSN: dsn})
+}
+
+func OpenConfigured(ctx context.Context, cfg config.Postgres) (meta.V2Store, error) {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	settings, err := connectionConfig(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
-	if err := pool.Ping(ctx); err != nil {
-		pool.Close()
-		return nil, err
+	pool, err := pgxpool.NewWithConfig(ctx, settings)
+	if err != nil {
+		return nil, databaseError(err)
 	}
-	return &store{q: pool, p: pool}, nil
+	var schema string
+	if err := pool.QueryRow(ctx, "SELECT coalesce(current_schema(), '')").Scan(&schema); err != nil {
+		pool.Close()
+		return nil, databaseError(err)
+	}
+	return &store{q: pool, p: pool, schema: schema}, nil
 }
 
 func (s *store) Close() {
@@ -69,7 +83,7 @@ func (s *store) RunInTx(ctx context.Context, fn func(meta.Store) error) error {
 	if err != nil {
 		return err
 	}
-	inner := &store{q: tx}
+	inner := &store{q: tx, schema: s.schema}
 	if err := fn(inner); err != nil {
 		_ = tx.Rollback(ctx)
 		return err

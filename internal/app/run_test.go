@@ -48,9 +48,17 @@ func TestRunMigrateAndHandlerErrors(t *testing.T) {
 }
 
 func TestCLIProductionPaths(t *testing.T) {
+	for _, schema := range []string{"", "artifacts"} {
+		t.Run("schema="+schema, func(t *testing.T) { testCLIProductionSchema(t, schema) })
+	}
+}
+
+func testCLIProductionSchema(t *testing.T, schema string) {
+	t.Helper()
 	dsn := testkit.Postgres(t)
 	data, cache := t.TempDir(), t.TempDir()
 	t.Setenv("DATABASE_URL", dsn)
+	t.Setenv("ARTIFACTS_DATABASE_SCHEMA", schema)
 	t.Setenv("ARTIFACTS_AUTH", "none")
 	t.Setenv("ARTIFACTS_STORAGE", "fs")
 	t.Setenv("ARTIFACTS_DATA_DIR", data)
@@ -58,18 +66,17 @@ func TestCLIProductionPaths(t *testing.T) {
 	t.Setenv("ARTIFACTS_PUBLIC_URL", "http://127.0.0.1:8080")
 	ctx := context.Background()
 	out, errb := &bytes.Buffer{}, &bytes.Buffer{}
+	if schema != "" && Run(ctx, []string{"migrate", "--create-schema"}, out, errb) != 0 {
+		t.Fatal(errb.String())
+	}
 	if code := Run(ctx, []string{"token", "create", "--account", "tenant-a"}, out, errb); code != 0 || !strings.HasPrefix(out.String(), "art_api_v1_") {
 		t.Fatalf("token create %d %q %q", code, out.String(), errb.String())
 	}
-	metadata, err := postgres.Open(ctx, dsn)
+	metadata, err := postgres.OpenConfigured(ctx, config.Postgres{DSN: dsn, Schema: schema})
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() {
-		if closer, ok := metadata.(interface{ Close() }); ok {
-			closer.Close()
-		}
-	}()
+	defer closeMetadata(metadata)
 	if err := ensureAPIToken(ctx, metadata, "tenant-a", "legacy-token"); err != nil {
 		t.Fatal(err)
 	}

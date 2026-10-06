@@ -25,6 +25,10 @@ type driveState struct {
 }
 
 func verifyCore(ctx context.Context, h harness, evidence string) (report, error) {
+	return verifyDrive(ctx, h, evidence, 0)
+}
+
+func verifyDrive(ctx context.Context, h harness, evidence string, binaryBytes int64) (report, error) {
 	runID, err := uniqueID()
 	if err != nil {
 		return report{}, err
@@ -36,6 +40,9 @@ func verifyCore(ctx context.Context, h harness, evidence string) (report, error)
 		return report{}, err
 	}
 	err = runCore(ctx, h, record, &state)
+	if err == nil && binaryBytes > 0 {
+		err = runBinary(ctx, h, record, &state, binaryBytes)
+	}
 	cleanupErr := cleanup(ctx, h, record, state)
 	if cleanupErr != nil {
 		if err != nil {

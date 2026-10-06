@@ -6,14 +6,16 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/mikerudolph/artifacts/migrations"
 )
 
 func (s *store) CheckSchema(ctx context.Context) error {
 	var version uint
 	var dirty bool
-	if err := s.q.QueryRow(ctx, "SELECT version, dirty FROM schema_migrations").Scan(&version, &dirty); err != nil {
-		return fmt.Errorf("database schema unavailable; run artifacts migrate: %w", err)
+	table := pgx.Identifier{s.schema, "schema_migrations"}.Sanitize()
+	if err := s.q.QueryRow(ctx, "SELECT version, dirty FROM "+table).Scan(&version, &dirty); err != nil {
+		return fmt.Errorf("database schema unavailable; run artifacts migrate: %w", databaseError(err))
 	}
 	if dirty || version != latestMigration() {
 		return fmt.Errorf("database schema is not current; run artifacts migrate")

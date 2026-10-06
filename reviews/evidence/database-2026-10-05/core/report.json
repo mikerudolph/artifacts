@@ -1,0 +1,128 @@
+{
+  "run_id": "9f90a2a9ee69",
+  "started_at": "2026-10-06T02:06:07.461927Z",
+  "finished_at": "2026-10-06T02:06:08.067049Z",
+  "configuration": {
+    "url": "http://127.0.0.1:61708",
+    "account": "local",
+    "api_token": "\u003credacted\u003e"
+  },
+  "classification": "none",
+  "steps": [
+    {
+      "name": "doctor",
+      "success": true,
+      "duration_ms": 5,
+      "detail": "http://127.0.0.1:61708"
+    },
+    {
+      "name": "REST create repository",
+      "success": true,
+      "duration_ms": 11,
+      "detail": "repository=agent-9f90a2a9ee69/core-9f90a2a9ee69"
+    },
+    {
+      "name": "REST commit",
+      "success": true,
+      "duration_ms": 39,
+      "detail": "sha=88b9b13f631d1f5b485f6198745194310a2d62fc sequence=1"
+    },
+    {
+      "name": "REST read",
+      "success": true,
+      "duration_ms": 7,
+      "detail": "path=README.md"
+    },
+    {
+      "name": "create Git credential",
+      "success": true,
+      "duration_ms": 2,
+      "detail": "scope=write"
+    },
+    {
+      "name": "Git clone",
+      "success": true,
+      "duration_ms": 116,
+      "detail": "cloned repository"
+    },
+    {
+      "name": "Git verify REST commit",
+      "success": true,
+      "duration_ms": 20,
+      "detail": "head=88b9b13f631d1f5b485f6198745194310a2d62fc"
+    },
+    {
+      "name": "Git commit and push",
+      "success": true,
+      "duration_ms": 380,
+      "detail": "sha=3967d0bc5b9d602ff678d319bb4cf0090a4609f8"
+    },
+    {
+      "name": "REST readback",
+      "success": true,
+      "duration_ms": 4,
+      "detail": "path=result.txt"
+    },
+    {
+      "name": "refs and WAL visibility",
+      "success": true,
+      "duration_ms": 4,
+      "detail": "refs=2 wal=2"
+    },
+    {
+      "name": "delete repository",
+      "success": true,
+      "duration_ms": 8,
+      "detail": "final server state checked"
+    }
+  ],
+  "assertions": [
+    {
+      "name": "repository has Git remote",
+      "passed": true,
+      "detail": "remote present"
+    },
+    {
+      "name": "REST content matches README.md",
+      "passed": true,
+      "detail": "content matched"
+    },
+    {
+      "name": "Git sees REST content",
+      "passed": true,
+      "detail": "README matched"
+    },
+    {
+      "name": "Git sees REST SHA",
+      "passed": true,
+      "detail": "SHA matched"
+    },
+    {
+      "name": "REST content matches result.txt",
+      "passed": true,
+      "detail": "content matched"
+    },
+    {
+      "name": "main ref exposes Git push",
+      "passed": true,
+      "detail": "refs/heads/main matched"
+    },
+    {
+      "name": "WAL exposes REST and Git publications",
+      "passed": true,
+      "detail": "at least two publications"
+    },
+    {
+      "name": "repository absent after cleanup",
+      "passed": true,
+      "detail": "GET returned not found"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "git.log",
+      "sha256": "e1982a82c35ec2b6d38bd27ac3f2cb2707d42dc6c277a0b730df4817cd1a7886",
+      "size": 435
+    }
+  ]
+}

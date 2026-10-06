@@ -92,7 +92,7 @@ func (s *store) Put(ctx context.Context, key string, r io.Reader, size int64) er
 	if err := object.ValidateKey(key); err != nil {
 		return err
 	}
-	body, checksum, actualSize, cleanup, err := stageUpload(r, size)
+	body, checksum, actualSize, cleanup, err := stageUpload(uploadReader{ctx, r}, size)
 	if err != nil {
 		return err
 	}
@@ -122,6 +122,18 @@ func (s *store) Put(ctx context.Context, key string, r io.Reader, size int64) er
 		return object.ErrImmutableConflict
 	}
 	return err
+}
+
+type uploadReader struct {
+	ctx    context.Context
+	reader io.Reader
+}
+
+func (r uploadReader) Read(p []byte) (int, error) {
+	if err := r.ctx.Err(); err != nil {
+		return 0, err
+	}
+	return r.reader.Read(p)
 }
 
 func stageUpload(r io.Reader, expected int64) (*os.File, []byte, int64, func(), error) {
