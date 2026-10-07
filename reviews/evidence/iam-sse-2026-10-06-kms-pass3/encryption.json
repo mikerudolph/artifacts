@@ -1,0 +1,72 @@
+{
+  "mode": "aws:kms",
+  "objects_checked": 16,
+  "provider": "owned MinIO with local test key",
+  "aws_kms_verified": false,
+  "observed": [
+    {
+      "mode": "aws:kms",
+      "key_id": "arn:aws:kms:artifacts-test"
+    },
+    {
+      "mode": "aws:kms",
+      "key_id": "arn:aws:kms:artifacts-test"
+    },
+    {
+      "mode": "aws:kms",
+      "key_id": "arn:aws:kms:artifacts-test"
+    },
+    {
+      "mode": "aws:kms",
+      "key_id": "arn:aws:kms:artifacts-test"
+    },
+    {
+      "mode": "aws:kms",
+      "key_id": "arn:aws:kms:artifacts-test"
+    },
+    {
+      "mode": "aws:kms",
+      "key_id": "arn:aws:kms:artifacts-test"
+    },
+    {
+      "mode": "aws:kms",
+      "key_id": "arn:aws:kms:artifacts-test"
+    },
+    {
+      "mode": "aws:kms",
+      "key_id": "arn:aws:kms:artifacts-test"
+    },
+    {
+      "mode": "aws:kms",
+      "key_id": "arn:aws:kms:artifacts-test"
+    },
+    {
+      "mode": "aws:kms",
+      "key_id": "arn:aws:kms:artifacts-test"
+    },
+    {
+      "mode": "aws:kms",
+      "key_id": "arn:aws:kms:artifacts-test"
+    },
+    {
+      "mode": "aws:kms",
+      "key_id": "arn:aws:kms:artifacts-test"
+    },
+    {
+      "mode": "aws:kms",
+      "key_id": "arn:aws:kms:artifacts-test"
+    },
+    {
+      "mode": "aws:kms",
+      "key_id": "arn:aws:kms:artifacts-test"
+    },
+    {
+      "mode": "aws:kms",
+      "key_id": "arn:aws:kms:artifacts-test"
+    },
+    {
+      "mode": "aws:kms",
+      "key_id": "arn:aws:kms:artifacts-test"
+    }
+  ]
+}

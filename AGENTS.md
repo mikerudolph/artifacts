@@ -97,6 +97,12 @@ Amends: D13 for database connection and installation setup. Share database authe
 
 Install into an existing database using a dedicated schema owned by the migration identity. Explicit migration setup may create the selected schema; ordinary serving must not create it. Runtime and bootstrap identities need data access without schema ownership. Reject unrelated populated target schemas, preserve neighboring applications, and do not automatically relocate an existing installation. Separate independent installations' object prefixes and local caches. Validate schema isolation, concurrent migrations, restricted roles, connection refresh, cancellation, redaction, and real REST/Git behavior locally; actual IAM-enabled RDS and proxy behavior require separate AWS evidence. This change does not establish replica routing, automatic transaction recovery, or mixed-release upgrades.
 
+### D16 (2026-10-06): Allow explicit IAM TLS verification choices
+
+Amends: D15 only for database TLS verification policy. Accept `require`, `verify-ca`, and `verify-full` in IAM mode while rejecting `disable`, `allow`, and `prefer`, including configurations pgx would internally upgrade. Require TLS without a plaintext fallback on every command and connection. Keep `verify-full` with a trusted CA as the recommendation; permit operators to choose encryption without certificate verification or chain verification without hostname verification. Log one redacted startup warning per process when server identity is not fully verified. Preserve endpoint, password, signing, schema, and transaction-recovery constraints from D15.
+
+The trade-off is deployment compatibility for environments that do not distribute RDS CA bundles: TLS encryption alone does not authenticate the server and cannot prevent server impersonation. Validate signed tokens over local TLS for both connectors and every database command, certificate and hostname rejection in verified modes, refusal of plaintext negotiation, environment/service-file mode selection, warning redaction, and renewed connections. Actual AWS login and workload renewal still require separate AWS evidence. See the [current deployment contract](docs/core/deployment.md#rds-and-aurora-iam-authentication).
+
 ## Working rules
 
 1. Trace the current behavior and relevant tests before editing. Keep existing user work intact. Carry authorized work through implementation and verification; surface material ambiguity without stopping independent work.

@@ -1,10 +1,12 @@
 # Database deployment verification
 
-Read `docs/core/configuration.md` and `docs/core/deployment.md` for the current contract. Database credentials and schema selection apply to every command. A named schema is a new installation boundary, not a relocation tool for existing `public` data. Changes to this contract must preserve the append-only decision register, including D15.
+Read `docs/core/configuration.md` and `docs/core/deployment.md` for the current contract. Database credentials and schema selection apply to every command. A named schema is a new installation boundary, not a relocation tool for existing `public` data. Changes to this contract must preserve the append-only decision register, including D15 and its TLS amendment D16.
 
 ## Local acceptance
 
 Run `make verify` for configuration rejection, both physical-connection signing hooks over local TLS, credential refresh, cancellation during handshake/lock waits, concurrent migrations, upgrades, and separate schema permissions. The fake PostgreSQL authentication endpoint checks signed credentials on the wire; it does not validate AWS authorization.
+
+For IAM TLS changes, cover `require` without a CA and `verify-ca`/`verify-full` with a trusted CA through both connection paths. Prove chain and hostname failures occur only where the selected mode checks them, and prove TLS refusal never exposes the token in plaintext. Reject `disable`, `allow`, and `prefer` through URI, keyword, environment, and service-file settings, including pgx's internal mode upgrades. Exercise every database command against the TLS authentication fixture; its deliberate post-token rejection proves connection setup, not command completion against RDS. Check that the startup warning appears once per process for weaker verification, remains absent for `verify-full`, and contains no connection or credential details.
 
 Build the current image and use a fresh persistent evidence directory:
 
@@ -32,6 +34,8 @@ For an authorized target, record the region, endpoint class, database engine/ver
 4. Repeat after workload credentials actually rotate or expire and are renewed. Record timestamps and backend-session changes, never token contents. A static developer key cannot establish workload-role renewal.
 5. Exercise a scoped network interruption or an explicitly authorized test failover. Confirm eventual new connections and readiness, then reconcile uncertain publications with their original keys. Do not interpret a transport error as proof of rollback or expect automatic replay of arbitrary transactions.
 6. Test denied IAM permission, wrong region/user, untrusted CA, and hostname mismatch with task-owned identities/configuration. Confirm bounded failure and redacted output. Do not alter shared policies or terminate unrelated sessions.
+
+If qualifying `require`, repeat command setup and renewed connections with no CA settings. Record that server identity verification is disabled; do not claim that successful encryption proves protection from server impersonation. For `verify-ca`, prove untrusted chains fail while hostname mismatch alone is permitted. Keep `verify-full` as the recommended deployment baseline.
 
 Proxy acceptance is separate: use the proxy endpoint for signing, the corresponding resource policy, and the intended proxy authentication mode. Repeat connection renewal and REST/Git checks; measure session pinning before making pooling claims. Do not infer proxy acceptance from a direct RDS pass.
 

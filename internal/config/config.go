@@ -63,6 +63,8 @@ type S3 struct {
 	SecretKey    string
 	Prefix       string
 	UsePathStyle bool
+	SSE          string
+	SSEKMSKeyID  string
 }
 
 type Postgres struct {
@@ -137,6 +139,8 @@ func load() (Config, error) {
 				SecretKey:    firstEnv("AWS_SECRET_ACCESS_KEY", "S3_SECRET_KEY"),
 				Prefix:       os.Getenv("S3_PREFIX"),
 				UsePathStyle: truthy(os.Getenv("S3_USE_PATH_STYLE")),
+				SSE:          os.Getenv("S3_SSE"),
+				SSEKMSKeyID:  os.Getenv("S3_SSE_KMS_KEY_ID"),
 			},
 		},
 		Cache:    Cache{Path: env("ARTIFACTS_CACHE_DIR", "./cache")},
@@ -165,8 +169,8 @@ func (c Config) validate(allowNoAuth bool) error {
 			return fmt.Errorf("ARTIFACTS_DATA_DIR is required when ARTIFACTS_STORAGE=fs")
 		}
 	case backendS3:
-		if c.Storage.S3.Bucket == "" {
-			return fmt.Errorf("S3_BUCKET is required when ARTIFACTS_STORAGE=s3")
+		if err := c.Storage.S3.Validate(); err != nil {
+			return err
 		}
 	default:
 		return fmt.Errorf("ARTIFACTS_STORAGE must be %q or %q", backendFS, backendS3)

@@ -1,0 +1,101 @@
+{
+  "run_id": "4c0bbcb6094f",
+  "started_at": "2026-10-07T00:05:50.108567Z",
+  "finished_at": "2026-10-07T00:06:50.392097Z",
+  "configuration": {
+    "url": "http://127.0.0.1:57783",
+    "account": "local",
+    "api_token": "\u003credacted\u003e"
+  },
+  "classification": "product",
+  "failure": "git -c: exit status 128",
+  "steps": [
+    {
+      "name": "doctor",
+      "success": true,
+      "duration_ms": 4,
+      "detail": "http://127.0.0.1:57783"
+    },
+    {
+      "name": "REST create repository",
+      "success": true,
+      "duration_ms": 15,
+      "detail": "repository=agent-4c0bbcb6094f/core-4c0bbcb6094f"
+    },
+    {
+      "name": "REST commit",
+      "success": true,
+      "duration_ms": 46,
+      "detail": "sha=9c8bb76222678ea611d4e6ec855de9402775561f sequence=1"
+    },
+    {
+      "name": "REST read",
+      "success": true,
+      "duration_ms": 3,
+      "detail": "path=README.md"
+    },
+    {
+      "name": "create Git credential",
+      "success": true,
+      "duration_ms": 1,
+      "detail": "scope=write"
+    },
+    {
+      "name": "Git clone",
+      "success": true,
+      "duration_ms": 92,
+      "detail": "cloned repository"
+    },
+    {
+      "name": "Git verify REST commit",
+      "success": true,
+      "duration_ms": 9,
+      "detail": "head=9c8bb76222678ea611d4e6ec855de9402775561f"
+    },
+    {
+      "name": "Git commit and push",
+      "success": false,
+      "duration_ms": 60070
+    },
+    {
+      "name": "delete repository",
+      "success": true,
+      "duration_ms": 28,
+      "detail": "final server state checked"
+    }
+  ],
+  "assertions": [
+    {
+      "name": "repository has Git remote",
+      "passed": true,
+      "detail": "remote present"
+    },
+    {
+      "name": "REST content matches README.md",
+      "passed": true,
+      "detail": "content matched"
+    },
+    {
+      "name": "Git sees REST content",
+      "passed": true,
+      "detail": "README matched"
+    },
+    {
+      "name": "Git sees REST SHA",
+      "passed": true,
+      "detail": "SHA matched"
+    },
+    {
+      "name": "repository absent after cleanup",
+      "passed": true,
+      "detail": "GET returned not found"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "git.log",
+      "sha256": "ef00efd562098c9b1b04d1432760b23af39368f1b9b39459052c42c1d7d7a7a7",
+      "size": 290
+    }
+  ]
+}

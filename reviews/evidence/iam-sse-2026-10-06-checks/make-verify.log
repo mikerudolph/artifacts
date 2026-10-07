@@ -1,0 +1,146 @@
+gofmt -w .
+go run golang.org/x/tools/cmd/goimports@v0.36.0 -w .
+go vet ./...
+go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.5.0 run ./...
+0 issues.
+docker build -t artifacts-test-minio:2025-09-07 test/minio
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 804B done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/alpine:3.23@sha256:85fe1e81d6758c208f3e1eed4338a1997e19d4be002d4dd32d3100c9a8c010a0
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/golang:1.25-alpine@sha256:1ae0735f00daffa3aaf1363a5184c0d2dc55c78e3db4ec70241cdac97bf84b59
+#3 DONE 0.0s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 2B done
+#4 DONE 0.0s
+
+#5 [build 1/3] FROM docker.io/library/golang:1.25-alpine@sha256:1ae0735f00daffa3aaf1363a5184c0d2dc55c78e3db4ec70241cdac97bf84b59
+#5 resolve docker.io/library/golang:1.25-alpine@sha256:1ae0735f00daffa3aaf1363a5184c0d2dc55c78e3db4ec70241cdac97bf84b59 done
+#5 DONE 0.0s
+
+#6 [stage-1 1/5] FROM docker.io/library/alpine:3.23@sha256:85fe1e81d6758c208f3e1eed4338a1997e19d4be002d4dd32d3100c9a8c010a0
+#6 resolve docker.io/library/alpine:3.23@sha256:85fe1e81d6758c208f3e1eed4338a1997e19d4be002d4dd32d3100c9a8c010a0 done
+#6 DONE 0.0s
+
+#7 [stage-1 2/5] RUN apk add --no-cache ca-certificates
+#7 CACHED
+
+#8 [stage-1 3/5] COPY --from=build /out/minio /out/mc /usr/local/bin/
+#8 CACHED
+
+#9 [stage-1 4/5] COPY --from=build /go/pkg/mod/github.com/minio/minio@v0.0.0-20250907161309-07c3a429bfed/LICENSE /licenses/minio-LICENSE
+#9 CACHED
+
+#10 [build 2/3] RUN go install github.com/minio/minio@v0.0.0-20250907161309-07c3a429bfed
+#10 CACHED
+
+#11 [build 3/3] RUN go install github.com/minio/mc@v0.0.0-20250813083541-7394ce0dd2a8
+#11 CACHED
+
+#12 [stage-1 5/5] COPY --from=build /go/pkg/mod/github.com/minio/mc@v0.0.0-20250813083541-7394ce0dd2a8/LICENSE /licenses/mc-LICENSE
+#12 CACHED
+
+#13 exporting to image
+#13 exporting layers done
+#13 exporting manifest sha256:74cb616916df9db85eaa40443161ebe63d1a924a8b88bd0ca70c34c67c4a2ba6 done
+#13 exporting config sha256:03f19d129c4aff3952e74ba9a71442c2e881b9db7a5fa9b2be806dad73c5027b done
+#13 exporting attestation manifest sha256:c21132f84741c9b3a453e749ffdfcdae315c9e58a61c17c06597ebbf1ca7b152 done
+#13 exporting manifest list sha256:aeb14c86bf8590fb161c0be82c0c6eeecd189320111adfb8c13cc49fefe309ec done
+#13 naming to docker.io/library/artifacts-test-minio:2025-09-07 done
+#13 unpacking to docker.io/library/artifacts-test-minio:2025-09-07 done
+#13 DONE 0.0s
+go test ./... -race -count=1
+ok  	github.com/mikerudolph/artifacts/cmd/artifacts	1.467s
+ok  	github.com/mikerudolph/artifacts/examples/agent-harness	8.675s
+ok  	github.com/mikerudolph/artifacts/examples/memory-mcp	29.089s
+ok  	github.com/mikerudolph/artifacts/internal/api	58.165s
+ok  	github.com/mikerudolph/artifacts/internal/api/envelope	2.607s
+ok  	github.com/mikerudolph/artifacts/internal/app	25.874s
+ok  	github.com/mikerudolph/artifacts/internal/auth	2.748s
+ok  	github.com/mikerudolph/artifacts/internal/commitupload	2.898s
+ok  	github.com/mikerudolph/artifacts/internal/config	3.393s
+ok  	github.com/mikerudolph/artifacts/internal/githttp	4.176s
+ok  	github.com/mikerudolph/artifacts/internal/httpstream	2.113s
+ok  	github.com/mikerudolph/artifacts/internal/jobs	29.401s
+ok  	github.com/mikerudolph/artifacts/internal/netpolicy	1.420s
+ok  	github.com/mikerudolph/artifacts/internal/repository	34.054s
+ok  	github.com/mikerudolph/artifacts/internal/service	1.958s
+ok  	github.com/mikerudolph/artifacts/internal/store/git	1.801s
+ok  	github.com/mikerudolph/artifacts/internal/store/meta	2.009s
+ok  	github.com/mikerudolph/artifacts/internal/store/meta/postgres	35.164s
+ok  	github.com/mikerudolph/artifacts/internal/store/object	1.412s
+ok  	github.com/mikerudolph/artifacts/internal/store/object/fs	1.516s
+ok  	github.com/mikerudolph/artifacts/internal/store/object/objecttest	1.470s
+ok  	github.com/mikerudolph/artifacts/internal/store/object/s3	8.152s
+ok  	github.com/mikerudolph/artifacts/internal/store/packread	1.686s
+ok  	github.com/mikerudolph/artifacts/internal/testkit	5.009s
+ok  	github.com/mikerudolph/artifacts/internal/types	1.522s
+ok  	github.com/mikerudolph/artifacts/internal/ui	1.271s
+?   	github.com/mikerudolph/artifacts/migrations	[no test files]
+go test ./... -race -count=1 -coverprofile=cover.out -covermode=atomic -coverpkg=./...
+ok  	github.com/mikerudolph/artifacts/cmd/artifacts	1.507s	coverage: 0.1% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/examples/agent-harness	7.737s	coverage: 33.9% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/examples/memory-mcp	29.199s	coverage: 26.5% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/internal/api	56.065s	coverage: 34.3% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/internal/api/envelope	2.648s	coverage: 0.4% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/internal/app	25.093s	coverage: 33.3% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/internal/auth	3.198s	coverage: 1.3% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/internal/commitupload	2.180s	coverage: 2.1% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/internal/config	3.601s	coverage: 1.8% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/internal/githttp	3.984s	coverage: 5.3% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/internal/httpstream	2.601s	coverage: 0.4% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/internal/jobs	28.430s	coverage: 7.8% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/internal/netpolicy	1.523s	coverage: 0.1% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/internal/repository	34.522s	coverage: 24.0% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/internal/service	1.743s	coverage: 4.6% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/internal/store/git	1.930s	coverage: 2.7% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/internal/store/meta	2.286s	coverage: 0.3% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/internal/store/meta/postgres	35.060s	coverage: 11.3% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/internal/store/object	1.295s	coverage: 0.3% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/internal/store/object/fs	1.872s	coverage: 3.0% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/internal/store/object/objecttest	1.492s	coverage: 2.6% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/internal/store/object/s3	7.462s	coverage: 3.9% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/internal/store/packread	2.332s	coverage: 2.2% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/internal/testkit	5.173s	coverage: 0.7% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/internal/types	2.127s	coverage: 1.2% of statements in ./...
+ok  	github.com/mikerudolph/artifacts/internal/ui	1.387s	coverage: 3.9% of statements in ./...
+?   	github.com/mikerudolph/artifacts/migrations	[no test files]
+go run github.com/vladopajic/go-test-coverage/v2@v2.17.0 --config=.testcoverage.yml
+File coverage threshold (70%) satisfied:	PASS
+Package coverage threshold (85%) satisfied:	PASS
+Total coverage threshold (85%) satisfied:	PASS
+Total test coverage: 90.0% (4268/4740)
+package LOC:
+  36 ./cmd/artifacts
+  1407 ./examples/agent-harness
+  2874 ./examples/memory-mcp
+  2777 ./internal/api
+  259 ./internal/api/envelope
+  1704 ./internal/app
+  423 ./internal/auth
+  427 ./internal/commitupload
+  613 ./internal/config
+  1015 ./internal/githttp
+  151 ./internal/httpstream
+  965 ./internal/jobs
+  60 ./internal/netpolicy
+  3706 ./internal/repository
+  1022 ./internal/service
+  700 ./internal/store/git
+  256 ./internal/store/meta
+  3114 ./internal/store/meta/postgres
+  157 ./internal/store/object
+  326 ./internal/store/object/fs
+  413 ./internal/store/object/objecttest
+  713 ./internal/store/object/s3
+  425 ./internal/store/packread
+  197 ./internal/testkit
+  860 ./internal/types
+  891 ./internal/ui
+  6 ./migrations

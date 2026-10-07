@@ -1,0 +1,9 @@
+$ git clone <remote> <scratch>
+Cloning into '/var/folders/fp/4qg3kz2s2w567t3t7m08hzf00000gn/T/artifacts-verify-725303807'...
+$ git rev-parse HEAD
+9c8bb76222678ea611d4e6ec855de9402775561f
+$ git add
+$ git -c
+error: 1Password: failed to fill whole buffer
+
+fatal: failed to write commit object

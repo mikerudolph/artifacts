@@ -99,7 +99,7 @@ GRANT rds_iam TO artifacts_migration, artifacts_runtime;
 
 Give each workload role `rds-db:connect` for its specific database user. The policy resource uses the database resource ID (or Aurora cluster resource ID), not the instance display name. For example, substitute your region, account, resource ID, and username into `arn:aws:rds-db:us-east-1:123456789012:dbuser:db-RESOURCE_ID/artifacts_runtime`. See AWS's [IAM policy format](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.IAMDBAuth.IAMPolicy.html).
 
-Mount a trusted RDS CA bundle readable by the image's non-root user. Configure the direct writer endpoint, database, and appropriate login without a password:
+For the recommended `verify-full` mode, mount a trusted RDS CA bundle readable by the image's non-root user. Configure the direct writer endpoint, database, and appropriate login without a password:
 
 ```bash
 export ARTIFACTS_DATABASE_AUTH=rds-iam
@@ -108,11 +108,32 @@ export ARTIFACTS_DATABASE_SCHEMA=artifacts
 export DATABASE_URL='postgres://artifacts_runtime@cluster.example.us-east-1.rds.amazonaws.com:5432/appdb?sslmode=verify-full&sslrootcert=/etc/rds/global-bundle.pem&pool_max_conns=10'
 ```
 
-Use the actual RDS/Aurora endpoint rather than a custom DNS alias or IP address, with TLS certificate and hostname verification. Provision the CA bundle through deployment configuration; Artifacts does not download it at startup. AWS provides [verified TLS connection guidance](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.IAMDBAuth.Connecting.AWSCLI.PostgreSQL.html). Pass the database auth, region, and schema variables into every container, mount the CA file at the configured path, and expose the workload identity to the SDK. Use the migration username and workload role for `migrate`; use the runtime identity for bootstrap and serving.
+Use the actual RDS/Aurora endpoint rather than a custom DNS alias or IP address. Provision the CA bundle through deployment configuration; Artifacts does not download it at startup. AWS provides [verified TLS connection guidance](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.IAMDBAuth.Connecting.AWSCLI.PostgreSQL.html). Pass the database auth, region, and schema variables into every container, mount the CA file at the configured path when configured, and expose the workload identity to the SDK. Use the migration username and workload role for `migrate`; use the runtime identity for bootstrap and serving.
+
+Deployments that deliberately use encryption without server verification can instead configure `sslmode=require` and omit `sslrootcert` and `PGSSLROOTCERT`. This applies to `serve`, `migrate`, `bootstrap`, `token create`, and `compact`. TLS remains mandatory, but an impersonating server could receive the signed login token and database traffic. IAM authenticates the workload to RDS; it does not replace client verification of the database server.
+
+`verify-ca` is also supported and verifies the certificate chain without checking the endpoint hostname. In pgx, `require` with CA material performs chain verification too. Artifacts logs one warning per process when IAM runs without full server identity verification. `verify-full` remains recommended; `disable`, `allow`, and `prefer` are rejected. See PostgreSQL's [TLS mode comparison](https://www.postgresql.org/docs/current/libpq-ssl.html#LIBPQ-SSL-PROTECTION) for the trade-offs.
 
 The SDK credential chain supports workload roles and configured AWS profiles. Database signing uses `ARTIFACTS_DATABASE_REGION`, falling back to standard SDK region configuration; `S3_REGION` does not set it. Omit static AWS credentials when using a workload role. Omit database passwords, including matching password-file entries and `PGPASSWORD`. Connections sign on creation; existing sessions are reused, and newly opened connections retrieve credentials through the refreshable provider. There is no application-level transaction replay after connection loss. Preserve the original idempotency key when recovering an uncertain supported REST write.
 
 Local verification covers both connection hooks over TLS, renewed signing credentials, schema isolation, and real REST/Git traffic. Real AWS login, workload-role renewal, failover, and RDS Proxy remain unverified. Qualify the direct writer endpoint first. Proxy endpoints require their own policy and acceptance run, including migration/session pinning; this change does not add Aurora topology discovery or failover plugins.
+
+## S3 server-side encryption
+
+When a bucket policy requires explicit encryption headers, configure the serving instances and compaction jobs consistently:
+
+```bash
+export S3_SSE=aws:kms
+export S3_SSE_KMS_KEY_ID=arn:aws:kms:us-east-1:123456789012:key/your-key-id
+```
+
+Pass `--env S3_SSE --env S3_SSE_KMS_KEY_ID` to Docker serving and compaction commands, or inject the same settings into your workload. Use `S3_SSE=AES256` with no key identifier for SSE-S3. Leave both unset to use the bucket's existing defaults without sending encryption headers. With `aws:kms` and no key identifier, AWS S3 uses its AWS-managed `aws/s3` key; set an explicit customer-managed key ARN when your bucket policy requires one. See the [S3 encryption request contract](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html).
+
+For SSE-KMS, provision a key in the bucket's region and grant the workload the necessary S3 access plus `kms:GenerateDataKey` for writes and `kms:Decrypt` for reads through both IAM and the KMS key policy. Use a full key ARN to avoid alias resolution surprises, particularly across accounts. Configure bucket policy to deny missing or incorrect encryption headers when enforcement is required. Artifacts does not create keys, edit policies, or fall back to weaker encryption on failure. AWS documents [SSE-KMS permissions and key selection](https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingKMSEncryption.html).
+
+The setting affects new uploads, including indexes, pack files, checkpoints, and copies. Existing objects remain under their previous encryption policy; a matching immutable object may be reused without uploading it again. Retain decrypt access to every key used by stored history, including fork ancestors. Changing this setting is not a key-rotation or historical re-encryption procedure. Encryption adds request headers without changing application object bytes, request counts, or local staging; KMS can add provider calls, cost, and quotas.
+
+Before admitting traffic, run the verification harness against an owned test repository using the intended workload role and bucket policy. Confirm object encryption metadata, REST/Git readback, compaction, and reconstruction after cache loss. Also verify denial with missing headers or insufficient key permissions. `/readyz` only checks readability; no automatic startup write probe is performed. Local MinIO and HTTP contract tests do not establish AWS KMS permissions or policy enforcement.
 
 ## Start servers
 
@@ -157,5 +178,7 @@ python3 scripts/verify-container.py --image "$ARTIFACTS_IMAGE" --evidence /tmp/a
 ```
 
 For installation alongside an existing application, add `--database-schema artifacts` and use a fresh evidence directory. That mode creates conflicting table and migration-ledger names in `public`, migrates with a schema owner lacking database `CREATE`, runs with a restricted runtime login, and checks the neighboring application's data before and after the REST/Git workflow.
+
+Add `--s3-sse AES256` or `--s3-sse aws:kms` to verify encrypted object storage. The driver creates a disposable local MinIO encryption key, checks stored objects' encryption metadata, and exercises compaction and cold-cache recovery. This verifies the S3-compatible path, not the AWS KMS service.
 
 It provisions disposable Postgres and MinIO, runs migration/bootstrap retries, starts two non-root servers with read-only root filesystems, exercises real REST/Git operations, verifies readiness and restart recovery, and removes its containers and network. The evidence directory remains. This test does not deploy to a Kubernetes cluster or ECS account.

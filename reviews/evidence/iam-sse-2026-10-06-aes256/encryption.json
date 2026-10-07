@@ -1,0 +1,73 @@
+{
+  "mode": "AES256",
+  "objects_checked": 16,
+  "provider": "owned MinIO with local test key",
+  "aws_kms_verified": false,
+  "requested_key_id": "",
+  "observed": [
+    {
+      "mode": "AES256",
+      "key_id": null
+    },
+    {
+      "mode": "AES256",
+      "key_id": null
+    },
+    {
+      "mode": "AES256",
+      "key_id": null
+    },
+    {
+      "mode": "AES256",
+      "key_id": null
+    },
+    {
+      "mode": "AES256",
+      "key_id": null
+    },
+    {
+      "mode": "AES256",
+      "key_id": null
+    },
+    {
+      "mode": "AES256",
+      "key_id": null
+    },
+    {
+      "mode": "AES256",
+      "key_id": null
+    },
+    {
+      "mode": "AES256",
+      "key_id": null
+    },
+    {
+      "mode": "AES256",
+      "key_id": null
+    },
+    {
+      "mode": "AES256",
+      "key_id": null
+    },
+    {
+      "mode": "AES256",
+      "key_id": null
+    },
+    {
+      "mode": "AES256",
+      "key_id": null
+    },
+    {
+      "mode": "AES256",
+      "key_id": null
+    },
+    {
+      "mode": "AES256",
+      "key_id": null
+    },
+    {
+      "mode": "AES256",
+      "key_id": null
+    }
+  ]
+}

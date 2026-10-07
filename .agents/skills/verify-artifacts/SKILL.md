@@ -1,6 +1,6 @@
 ---
 name: verify-artifacts
-description: Validate a running Artifacts instance through real REST and Git, including streaming multipart binary commits, database schema isolation, IAM connection recovery, and durable retries. Preserve redacted evidence and distinguish product failures from target, authentication, and evidence failures. Use for end-to-end change verification; do not use as a substitute for make verify.
+description: Validate a running Artifacts instance through real REST and Git, including binary commits, database schema isolation, IAM TLS and renewal, S3 encryption, and durable retries. Preserve redacted evidence and distinguish product failures from target, authentication, and evidence failures. Use for end-to-end change verification; do not use as a substitute for make verify.
 ---
 
 # Verify Artifacts
@@ -12,6 +12,7 @@ Use the repository harness to prove observable behavior against a running Artifa
 - For the feature contract and expected surfaces, start with [references/features/README.md](references/features/README.md), then read only the feature references relevant to the request.
 - Before interpreting, copying, or comparing a completed run, read [references/evidence-schema.md](references/evidence-schema.md).
 - For database authentication or migration changes, read [database deployment](references/features/database-deployment.md). Local PostgreSQL and a signed-token test do not establish successful AWS authentication.
+- For S3 encryption changes, read [encrypted object storage](references/features/s3-encryption.md). Local encryption and request-header checks do not establish AWS KMS permissions.
 
 ## Prepare and launch
 

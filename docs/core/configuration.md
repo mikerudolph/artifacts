@@ -47,7 +47,9 @@ See [production deployment](/artifacts/core/deployment/) for image setup, databa
 
 Database settings apply to serving, migration, bootstrap, token creation, and compaction. Schema selection works with either authentication mode. Use one lowercase identifier, up to 63 ASCII bytes, starting with a letter or underscore; `pg_` names and `information_schema` are reserved. An explicit schema uses only that schema followed by `pg_temp`, with PostgreSQL's implicit catalog lookup first. Conflicting DSN `search_path` settings are rejected. A missing or inaccessible schema fails instead of falling back to `public`; serving never creates it automatically. Migration accepts an empty schema or a recognizable Artifacts installation and rejects unrelated objects or migration history.
 
-IAM requires one DNS endpoint, a database username, `sslmode=verify-full`, and trusted CA material. Omit static database passwords from the DSN, `PGPASSWORD`, and matching password-file entries. Supply workload identity or a local AWS profile through the SDK's normal configuration. The application signs on connection creation, reuses established sessions, and retrieves renewed AWS credentials through the provider. It does not replay failed transactions. See the [RDS IAM deployment instructions](/artifacts/core/deployment/#rds-and-aurora-iam-authentication) for grants and TLS setup.
+IAM requires one DNS endpoint, a database username, and mandatory TLS: `sslmode=require`, `verify-ca`, or `verify-full`. Recommend `verify-full` with a trusted RDS CA to verify both the certificate chain and endpoint hostname. `verify-ca` verifies the chain without checking the hostname. `require` without CA material encrypts the connection without authenticating the server, leaving it vulnerable to server impersonation. With `sslrootcert`, pgx also verifies the certificate chain in `require` mode. A process emits one startup warning if IAM uses TLS without full server identity verification. `disable`, `allow`, and `prefer` are rejected, including pgx configurations that would internally upgrade those modes; there is no plaintext fallback.
+
+Omit static database passwords from the DSN, `PGPASSWORD`, and matching password-file entries. Supply workload identity or a local AWS profile through the SDK's normal configuration. The application signs on connection creation, reuses established sessions, and retrieves renewed AWS credentials through the provider. It does not replay failed transactions. See the [RDS IAM deployment instructions](/artifacts/core/deployment/#rds-and-aurora-iam-authentication) for grants and TLS setup.
 
 The DSN can include native pgx pool options such as `pool_max_conns=10`; migration consumes those options without forwarding them as PostgreSQL session parameters. Size aggregate pools across serving instances for the database's capacity. Schema isolation does not isolate database compute, outages, or backups. Give independent installations distinct object-storage prefixes and cache roots. Changing the schema setting does not move existing data.
 
@@ -90,8 +92,14 @@ export ARTIFACTS_CACHE_DIR=/var/cache/artifacts/repos
 | `AWS_SECRET_ACCESS_KEY` | Secret key; falls back to `S3_SECRET_KEY`. |
 | `S3_PREFIX` | Optional object key prefix. |
 | `S3_USE_PATH_STYLE` | Enables path-style addressing with `1`, `true`, `yes`, or `on`; useful for compatible local services. |
+| `S3_SSE` | Optional server-side encryption request: `AES256` (SSE-S3) or `aws:kms` (SSE-KMS). Unset sends no encryption headers and preserves the bucket's default behavior. |
+| `S3_SSE_KMS_KEY_ID` | Optional KMS key ID, key ARN, or alias; requires `S3_SSE=aws:kms`. Prefer a full key ARN for an explicit customer-managed key. |
 
 Provision the bucket and access policy before starting the service. Keep object storage private; clients use Artifacts REST or Git, not direct bucket access. Changing the backend, bucket, or prefix does not migrate existing object bytes.
+
+Encryption settings apply to every new object upload, including packs, indexes, checkpoints, and copies. Invalid modes and a key identifier without `S3_SSE=aws:kms` fail configuration. Encryption or key-policy failures fail the write; Artifacts never retries with encryption disabled. Read, range-read, metadata, and delete requests do not send these write-only encryption headers.
+
+These settings do not re-encrypt existing objects or change immutable-object reuse. Keep access to the keys protecting retained history. Readiness remains a read check and does not prove encryption policy or write permissions. See [S3 encryption deployment](/artifacts/core/deployment/#s3-server-side-encryption) for permissions and verification.
 
 ## Multiple serving instances
 

@@ -1,0 +1,62 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 986B 0.0s done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/golang:1.25-alpine@sha256:1ae0735f00daffa3aaf1363a5184c0d2dc55c78e3db4ec70241cdac97bf84b59
+#2 DONE 0.6s
+
+#3 [internal] load metadata for docker.io/library/alpine:3.23@sha256:85fe1e81d6758c208f3e1eed4338a1997e19d4be002d4dd32d3100c9a8c010a0
+#3 DONE 0.6s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 138B done
+#4 DONE 0.0s
+
+#5 [stage-1 1/4] FROM docker.io/library/alpine:3.23@sha256:85fe1e81d6758c208f3e1eed4338a1997e19d4be002d4dd32d3100c9a8c010a0
+#5 resolve docker.io/library/alpine:3.23@sha256:85fe1e81d6758c208f3e1eed4338a1997e19d4be002d4dd32d3100c9a8c010a0 0.0s done
+#5 DONE 0.0s
+
+#6 [build 1/6] FROM docker.io/library/golang:1.25-alpine@sha256:1ae0735f00daffa3aaf1363a5184c0d2dc55c78e3db4ec70241cdac97bf84b59
+#6 resolve docker.io/library/golang:1.25-alpine@sha256:1ae0735f00daffa3aaf1363a5184c0d2dc55c78e3db4ec70241cdac97bf84b59 0.0s done
+#6 DONE 0.0s
+
+#7 [internal] load build context
+#7 transferring context: 23.60kB 0.0s done
+#7 DONE 0.0s
+
+#8 [build 3/6] COPY go.mod go.sum ./
+#8 CACHED
+
+#9 [build 2/6] WORKDIR /src
+#9 CACHED
+
+#10 [build 4/6] RUN go mod download
+#10 CACHED
+
+#11 [build 5/6] COPY . .
+#11 DONE 0.2s
+
+#12 [build 6/6] RUN CGO_ENABLED=0 go build -trimpath -buildvcs=false -o /artifacts ./cmd/artifacts
+#12 DONE 9.2s
+
+#13 [stage-1 2/4] RUN apk add --no-cache ca-certificates git     && addgroup -g 10001 artifacts     && adduser -D -u 10001 -G artifacts artifacts     && mkdir -p /var/lib/artifacts/objects /var/cache/artifacts/repos /var/cache/artifacts/tmp     && chown -R 10001:10001 /var/lib/artifacts /var/cache/artifacts
+#13 CACHED
+
+#14 [stage-1 3/4] COPY --from=build /artifacts /usr/local/bin/artifacts
+#14 DONE 0.0s
+
+#15 [stage-1 4/4] WORKDIR /home/artifacts
+#15 DONE 0.0s
+
+#16 exporting to image
+#16 exporting layers
+#16 exporting layers 0.5s done
+#16 exporting manifest sha256:98d5a640a88ba7f9408017758bceffd98a7d776ce06bfb98e5acde0195fa4281 done
+#16 exporting config sha256:5dbfafde04f938b2a10e1327189b45110ae8191fa810b37f2bd7101a5078e801 done
+#16 exporting attestation manifest sha256:6b607fa6b5bb2ce5ebc3ad993042a2367a7e71cbce8482452807383c10ca043d done
+#16 exporting manifest list sha256:3ffa4147c6ee6eb237ca7635d0ae08742184339424e16da0dd78b79368da28f7 done
+#16 naming to docker.io/library/artifacts-iam-sse-verify:local done
+#16 unpacking to docker.io/library/artifacts-iam-sse-verify:local 0.1s done
+#16 DONE 0.7s

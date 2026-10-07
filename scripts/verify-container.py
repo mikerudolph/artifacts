@@ -1,4 +1,5 @@
 import argparse
+import base64
 import concurrent.futures
 import hashlib
 import json
@@ -20,6 +21,7 @@ parser.add_argument("--image", required=True)
 parser.add_argument("--evidence", required=True)
 parser.add_argument("--binary-size-mib", type=int, action="append", default=[])
 parser.add_argument("--database-schema", default="")
+parser.add_argument("--s3-sse", choices=["AES256", "aws:kms"], default="")
 args = parser.parse_args()
 if args.database_schema and (not re.fullmatch(r"[a-z_][a-z0-9_]{0,62}", args.database_schema)
                              or args.database_schema.startswith("pg_") or args.database_schema == "information_schema"):
@@ -41,8 +43,14 @@ base = "/client/v4/accounts/local/artifacts"
 token, password, access, secret = [secrets.token_hex(24) for _ in range(4)]
 secret_values.extend([token, password, access, secret])
 env = dict(os.environ, POSTGRES_PASSWORD=password, MINIO_ROOT_USER=access,
-           MINIO_ROOT_PASSWORD=secret, AWS_ACCESS_KEY_ID=access, AWS_SECRET_ACCESS_KEY=secret)
+           MINIO_ROOT_PASSWORD=secret, AWS_ACCESS_KEY_ID=access, AWS_SECRET_ACCESS_KEY=secret,
+           GIT_CONFIG_GLOBAL="/dev/null", GIT_CONFIG_NOSYSTEM="1", GIT_TERMINAL_PROMPT="0")
 env.pop("AWS_SESSION_TOKEN", None)
+env.pop("MINIO_KMS_SECRET_KEY", None)
+if args.s3_sse:
+    kms_secret = "artifacts-test:" + base64.b64encode(secrets.token_bytes(32)).decode()
+    secret_values.extend([kms_secret, kms_secret.split(":", 1)[1]])
+    env["MINIO_KMS_SECRET_KEY"] = kms_secret
 
 def command(args, **kwargs):
     result = subprocess.run(args, capture_output=True, text=True, **kwargs)
@@ -97,7 +105,8 @@ def launch(node):
     keys = ["DATABASE_URL", "ARTIFACTS_API_TOKEN", "ARTIFACTS_SKIP_MIGRATIONS",
             "ARTIFACTS_DATABASE_SCHEMA", "ARTIFACTS_DATABASE_AUTH",
             "ARTIFACTS_HTTP_ADDR", "ARTIFACTS_PUBLIC_URL", "ARTIFACTS_STORAGE", "S3_BUCKET",
-            "S3_REGION", "S3_ENDPOINT", "S3_USE_PATH_STYLE", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"]
+            "S3_REGION", "S3_ENDPOINT", "S3_USE_PATH_STYLE", "S3_SSE", "S3_SSE_KMS_KEY_ID",
+            "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"]
     cache = ["--tmpfs", "/var/cache/artifacts:rw,uid=10001,gid=10001,mode=0700"]
     if args.binary_size_mib:
         volume = prefix + "-cache-" + str(len(volumes))
@@ -213,7 +222,7 @@ try:
         time.sleep(.1)
     storage = prefix + "-minio"
     command(["docker", "run", "-d", "--rm", "--name", storage, "--network", network,
-             "-e", "MINIO_ROOT_USER", "-e", "MINIO_ROOT_PASSWORD", "-p", "127.0.0.1::9000",
+             "-e", "MINIO_ROOT_USER", "-e", "MINIO_ROOT_PASSWORD", "-e", "MINIO_KMS_SECRET_KEY", "-p", "127.0.0.1::9000",
              minio_image,
              "server", "/data"], env=env)
     containers.append(storage)
@@ -232,7 +241,8 @@ try:
         ARTIFACTS_PUBLIC_URL=origins[0], ARTIFACTS_URL=origins[0], ARTIFACTS_ACCOUNT="local",
         ARTIFACTS_DEFAULT_ACCOUNT="local", ARTIFACTS_AUTH="token", ARTIFACTS_API_TOKEN=token,
         ARTIFACTS_STORAGE="s3", S3_BUCKET="artifacts", S3_REGION="us-east-1",
-        S3_ENDPOINT=f"http://{storage}:9000", S3_USE_PATH_STYLE="true", S3_PREFIX="")
+        S3_ENDPOINT=f"http://{storage}:9000", S3_USE_PATH_STYLE="true", S3_PREFIX="",
+        S3_SSE=args.s3_sse, S3_SSE_KMS_KEY_ID="artifacts-test" if args.s3_sse == "aws:kms" else "")
     provision_schema()
     setup("bootstrap", "--account", "local", expected=1)
     setup("migrate")
@@ -334,6 +344,9 @@ try:
         results = list(pool.map(lambda node: api(node, "POST", path + "/commits", worker, update, "same-operation", 201), range(2)))
     check("cross-instance idempotency returns same publication", results[0] == results[1])
     check("failed and replayed writes do not add publications", len(api(1, "GET", path + "/wal")) == 4)
+    if args.s3_sse:
+        command(["docker", "exec", servers[1], "artifacts", "compact", "--account", "local", "--namespace", "multi", "--repo", repo_name])
+        check("compaction preserves encrypted history", request(0, "GET", path + "/file?path=brief", worker) == (200, b"keep"))
     stop(servers[0])
     check("surviving instance reads acknowledged history", request(1, "GET", path + "/file?path=brief", worker) == (200, b"keep"))
     servers[0] = launch(0)
@@ -342,6 +355,21 @@ try:
     check("cross-instance retry survives restart", api(0, "POST", path + "/commits", worker, update, "same-operation", 201) == results[0])
     api(1, "DELETE", path, want=202)
     check("repository cleanup visible on node 0", request(0, "GET", path)[0] == 404)
+    if args.s3_sse:
+        rows = [json.loads(line) for line in command(["docker", "exec", "-e", "MC_HOST_local", storage,
+                "mc", "stat", "--json", "--recursive", "local/artifacts"], env=bucket_env).splitlines()]
+        check("encrypted objects were written", len(rows) > 0)
+        metadata_rows = [{key.lower(): value for key, value in row.get("metadata", {}).items()} for row in rows]
+        (evidence / "encryption.json").write_text(json.dumps({"mode": args.s3_sse, "objects_checked": len(rows),
+            "provider": "owned MinIO with local test key", "aws_kms_verified": False,
+            "requested_key_id": env["S3_SSE_KMS_KEY_ID"],
+            "observed": [{"mode": metadata.get("x-amz-server-side-encryption"),
+                          "key_id": metadata.get("x-amz-server-side-encryption-aws-kms-key-id")}
+                         for metadata in metadata_rows]}, indent=2) + "\n")
+        for metadata in metadata_rows:
+            check("stored object encryption matches configuration", metadata.get("x-amz-server-side-encryption") == args.s3_sse)
+            if args.s3_sse == "aws:kms":
+                check("stored object uses requested KMS key", metadata.get("x-amz-server-side-encryption-aws-kms-key-id") == "arn:aws:kms:artifacts-test")
     for server in servers:
         stop(server)
     check_neighbor()

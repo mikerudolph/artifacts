@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"path"
@@ -25,17 +24,23 @@ type store struct {
 	client *s3.Client
 	bucket string
 	prefix string
+	sse    s3types.ServerSideEncryption
+	kmsKey *string
 }
 
 func New(ctx context.Context, cfg config.S3) (object.Store, error) {
-	if cfg.Bucket == "" {
-		return nil, fmt.Errorf("S3 bucket is required")
+	if err := cfg.Validate(); err != nil {
+		return nil, err
 	}
 	client, err := newClient(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
-	return &store{client: client, bucket: cfg.Bucket, prefix: strings.Trim(cfg.Prefix, "/")}, nil
+	st := &store{client: client, bucket: cfg.Bucket, prefix: strings.Trim(cfg.Prefix, "/"), sse: s3types.ServerSideEncryption(cfg.SSE)}
+	if cfg.SSEKMSKeyID != "" {
+		st.kmsKey = aws.String(cfg.SSEKMSKeyID)
+	}
+	return st, nil
 }
 
 func newClient(ctx context.Context, cfg config.S3) (*s3.Client, error) {
@@ -108,7 +113,8 @@ func (s *store) Put(ctx context.Context, key string, r io.Reader, size int64) er
 	in := &s3.PutObjectInput{
 		Bucket: &s.bucket, Key: aws.String(s.full(key)), Body: body, IfNoneMatch: aws.String("*"),
 		ContentLength: aws.Int64(actualSize), ChecksumSHA256: aws.String(base64.StdEncoding.EncodeToString(checksum)),
-		Metadata: map[string]string{"sha256": hex.EncodeToString(checksum)},
+		Metadata:             map[string]string{"sha256": hex.EncodeToString(checksum)},
+		ServerSideEncryption: s.sse, SSEKMSKeyId: s.kmsKey,
 	}
 	_, err = s.client.PutObject(ctx, in)
 	if err != nil && preconditionFailed(err) {

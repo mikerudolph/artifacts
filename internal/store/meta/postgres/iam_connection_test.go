@@ -5,10 +5,12 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"database/sql"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"net"
 	"net/http/httptest"
+	"os"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -21,7 +23,7 @@ import (
 )
 
 func TestIAMSignsEachPhysicalConnection(t *testing.T) {
-	tokens, addr, roots := iamWireServer(t)
+	tokens, addr, roots, _ := iamWireServer(t, false)
 	settings, err := pgxpool.ParseConfig("postgres://worker@example.com:5432/app?sslmode=verify-full")
 	if err != nil {
 		t.Fatal(err)
@@ -30,6 +32,7 @@ func TestIAMSignsEachPhysicalConnection(t *testing.T) {
 	settings.ConnConfig.DialFunc = func(ctx context.Context, network, _ string) (net.Conn, error) {
 		return (&net.Dialer{}).DialContext(ctx, network, addr)
 	}
+	settings.ConnConfig.LookupFunc = func(context.Context, string) ([]string, error) { return []string{"127.0.0.1"}, nil }
 	var calls atomic.Int32
 	settings.BeforeConnect = iamBeforeConnect("us-west-2", aws.CredentialsProviderFunc(func(context.Context) (aws.Credentials, error) {
 		return aws.Credentials{AccessKeyID: fmt.Sprintf("key-%d", calls.Add(1)), SecretAccessKey: "test-secret"}, nil
@@ -68,12 +71,16 @@ func TestIAMSignsEachPhysicalConnection(t *testing.T) {
 	}
 }
 
-func iamWireServer(t *testing.T) (<-chan string, string, *x509.CertPool) {
+func iamWireServer(t *testing.T, rejectTLS bool) (<-chan string, string, *x509.CertPool, string) {
 	t.Helper()
 	sample := httptest.NewTLSServer(nil)
 	tlsConfig := sample.TLS.Clone()
 	roots := x509.NewCertPool()
 	roots.AddCert(sample.Certificate())
+	ca := t.TempDir() + "/ca.pem"
+	if err := os.WriteFile(ca, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: sample.Certificate().Raw}), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	sample.Close()
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -89,14 +96,14 @@ func iamWireServer(t *testing.T) (<-chan string, string, *x509.CertPool) {
 			}
 			wg.Go(func() {
 				defer func() { _ = conn.Close() }()
-				if err := serveIAMLogin(conn, tlsConfig, tokens); err != nil {
+				if err := serveIAMLogin(conn, tlsConfig, tokens); err != nil && !rejectTLS {
 					t.Error(err)
 				}
 			})
 		}
 	})
 	t.Cleanup(func() { _ = listener.Close(); wg.Wait() })
-	return tokens, listener.Addr().String(), roots
+	return tokens, listener.Addr().String(), roots, ca
 }
 
 func serveIAMLogin(conn net.Conn, settings *tls.Config, tokens chan<- string) error {

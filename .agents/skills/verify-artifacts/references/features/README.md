@@ -10,6 +10,7 @@ only the document needed for the verification being performed.
 | Credentials | [credentials.md](credentials.md) | Authenticating REST or Git and checking repository credential boundaries |
 | Binary commits | [binary-commits.md](binary-commits.md) | Streaming multipart writes, binary/mode round trips, large fixtures, and keyed upload retries |
 | Database deployment | [database-deployment.md](database-deployment.md) | Installation in an existing database, schema boundaries, runtime roles, IAM renewal, and recovery |
+| S3 encryption | [s3-encryption.md](s3-encryption.md) | SSE-S3/SSE-KMS uploads, key-policy failures, copies, compaction, and encrypted history recovery |
 
 The core drive crosses repository, content, and credential behavior:
 

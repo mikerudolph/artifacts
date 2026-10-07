@@ -18,7 +18,7 @@ import (
 
 func isolateAWS(t *testing.T) {
 	t.Helper()
-	for _, key := range []string{"AWS_REGION", "AWS_DEFAULT_REGION", "AWS_PROFILE", "AWS_SESSION_TOKEN", "PGPASSWORD", "PGSERVICE", "PGSERVICEFILE"} {
+	for _, key := range []string{"AWS_REGION", "AWS_DEFAULT_REGION", "AWS_PROFILE", "AWS_SESSION_TOKEN", "PGPASSWORD", "PGSERVICE", "PGSERVICEFILE", "PGSSLMODE", "PGSSLROOTCERT", "PGSSLNEGOTIATION"} {
 		t.Setenv(key, "")
 	}
 	t.Setenv("AWS_CONFIG_FILE", t.TempDir()+"/config")
@@ -33,8 +33,11 @@ func TestIAMConfigurationAndTLS(t *testing.T) {
 	isolateAWS(t)
 	for _, dsn := range []string{
 		"postgres://worker@db.example/app?sslmode=disable",
-		"postgres://worker@db.example/app?sslmode=require",
-		"postgres://worker@db.example/app?sslmode=verify-ca",
+		"postgres://worker@db.example/app?sslmode=allow",
+		"postgres://worker@db.example/app?sslmode=prefer",
+		"postgres://worker@db.example/app?sslmode=prefer&sslnegotiation=direct",
+		"postgres://worker@db.example/app?sslmode=allow&sslrootcert=system",
+		"postgres://worker@db.example/app?sslmode=prefer&sslrootcert=system",
 		"postgres://worker:secret@db.example/app?sslmode=verify-full",
 		"postgres://worker@127.0.0.1/app?sslmode=verify-full",
 		"host=/tmp user=worker sslmode=verify-full",

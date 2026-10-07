@@ -2,9 +2,11 @@ package postgres
 
 import (
 	"context"
+	"log/slog"
 	"net"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -14,6 +16,10 @@ import (
 	"github.com/mikerudolph/artifacts/internal/config"
 )
 
+var warnIAMTLS = sync.OnceFunc(func() {
+	slog.Warn("RDS IAM TLS is configured without full server identity verification; use sslmode=verify-full with a trusted CA")
+})
+
 func databaseIAM(ctx context.Context, cfg config.Postgres, conn *pgx.ConnConfig) (func(context.Context, *pgx.ConnConfig) error, error) {
 	if conn.Host == "" || strings.HasPrefix(conn.Host, "/") || net.ParseIP(conn.Host) != nil || conn.User == "" || len(conn.Fallbacks) != 0 {
 		return nil, setupFailure("RDS IAM requires one DNS endpoint and a database username, without connection fallbacks")
@@ -21,8 +27,8 @@ func databaseIAM(ctx context.Context, cfg config.Postgres, conn *pgx.ConnConfig)
 	if conn.Password != "" {
 		return nil, setupFailure("RDS IAM requires a connection without a static database password")
 	}
-	if conn.TLSConfig == nil || conn.TLSConfig.InsecureSkipVerify || conn.TLSConfig.ServerName != conn.Host {
-		return nil, setupFailure("RDS IAM requires sslmode=verify-full with a trusted CA and endpoint hostname verification")
+	if err := requireIAMTLS(cfg.DSN, conn); err != nil {
+		return nil, err
 	}
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
@@ -39,6 +45,9 @@ func databaseIAM(ctx context.Context, cfg config.Postgres, conn *pgx.ConnConfig)
 	}
 	if awsCfg.Region == "" {
 		return nil, setupFailure("RDS IAM requires ARTIFACTS_DATABASE_REGION or an AWS SDK region")
+	}
+	if conn.TLSConfig.InsecureSkipVerify || conn.TLSConfig.ServerName != conn.Host {
+		warnIAMTLS()
 	}
 	return iamBeforeConnect(awsCfg.Region, awsCfg.Credentials), nil
 }
