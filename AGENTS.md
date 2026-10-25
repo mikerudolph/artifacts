@@ -113,6 +113,10 @@ Credential storage owns eligibility, indexes, row locking, and bounded deletion 
 
 Write pull request descriptions in ASD-STE100 Simplified Technical English. Use short sentences, active voice, and consistent technical names. Include a table of added lines, removed lines, and net change for product code, tests, and documentation. Identify generated verification evidence separately so the table does not count it as product code. Calculate the table from the complete branch diff against the target branch. This records the contributor's requested review format and makes the change size clear. Check the description against the current diff before creating or updating a pull request.
 
+### D19 (2026-10-25): Preserve generated verification evidence outside Git
+
+Preserve redacted verification outputs in CI artifacts or a local directory outside the repository. Keep concise Markdown summaries with the tested revision, results, limitations, and CI links in Git. Evidence preservation does not require committing raw logs, generated reports, query output, or source manifests. Keep reusable scripts and regression fixtures in their owning test paths. This prevents generated output from dominating source reviews. Remove the new raw evidence from the credential-retention PR; track removal of the existing directory and assessment of historical Git storage as separate follow-up work. D18 still governs PR descriptions and line-count tables.
+
 ## Working rules
 
 1. Trace the current behavior and relevant tests before editing. Keep existing user work intact. Carry authorized work through implementation and verification; surface material ambiguity without stopping independent work.
@@ -139,7 +143,7 @@ make verify
 
 The [Makefile](Makefile), [.golangci.yml](.golangci.yml), and [.testcoverage.yml](.testcoverage.yml) own the exact checks and thresholds. They currently cover formatting/imports, vet, lint, race tests, coverage, and Go file-size limits. Do not duplicate their configuration here.
 
-For changes to public REST/Git behavior, storage durability, authentication, or recovery, also use the [verify-artifacts skill](.agents/skills/verify-artifacts/SKILL.md). Run its preflight and real REST → Git → REST workflow on an owned instance. Preserve redacted evidence and confirm cleanup. Live verification complements `make verify`; neither replaces the other.
+For changes to public REST/Git behavior, storage durability, authentication, or recovery, also use the [verify-artifacts skill](.agents/skills/verify-artifacts/SKILL.md). Run its preflight and real REST → Git → REST workflow on an owned instance. Preserve redacted evidence outside Git under D19 and confirm cleanup. Live verification complements `make verify`; neither replaces the other.
 
 For documentation-site or documentation changes that affect the site, run from `docs-site/`:
 

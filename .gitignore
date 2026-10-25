@@ -12,3 +12,4 @@ vendor/
 docs-site/.astro/
 docs-site/dist/
 docs-site/node_modules/
+/reviews/evidence/

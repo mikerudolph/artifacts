@@ -76,4 +76,4 @@ Issue #2 is ready to close when old invalid rows are pruned in bounded transacti
 
 ## Implementation outcome
 
-The implementation and available verification are recorded in [credential retention](credential-retention.md). The selected design stores `revoked_at` and indexes `LEAST(expires_at, revoked_at)`, keeping cleanup timing derived from lifecycle facts. Docker access blocked the complete required verification gate; the implementation record distinguishes the completed PostgreSQL and REST/Git checks from that remaining limit.
+The implementation and available verification are recorded in [credential retention](credential-retention.md). The selected design stores `revoked_at` and indexes `LEAST(expires_at, revoked_at)`, keeping cleanup timing derived from lifecycle facts. Docker access blocked the local verification gate; CI later passed the complete gate at `b84caf2`. Raw outputs are preserved outside Git under D19. [Issue #4](https://github.com/mikerudolph/artifacts/issues/4) tracks removal of the existing evidence directory.

@@ -40,7 +40,7 @@ Proceed only when it reports a healthy instance. Preserve its distinction betwee
 
 ## Drive the core workflow
 
-Choose a new evidence directory outside client scratch state, then run:
+Choose a new evidence directory outside the repository and client scratch state, then run:
 
 ```bash
 go run ./examples/agent-harness verify-core --evidence DIR
@@ -61,6 +61,8 @@ go run ./examples/agent-harness verify-binary --evidence DIR --size-mib 100
 Read [binary commits](references/features/binary-commits.md) for fixture sizing, capacity evidence, recovery checks, and interpretation. Use a fresh evidence directory for each run. The size is aggregate raw file content; use 512 only against a target configured to accept it with adequate disk capacity.
 
 Keep `DIR` outside any temporary clone or disposable service directory. Confirm that `report.json`, `report.md`, and `git.log` remain after cleanup. Reports and logs must contain no control token, repository credential, credential-bearing URL, or authorization header.
+
+Keep generated evidence in CI artifacts or a local directory outside the repository. Commit a concise Markdown summary with the tested revision, results, limitations, and CI links instead of raw reports and logs.
 
 Lead the result with the harness classification and the first failed assertion or step. Include the evidence directory and reproduction command. Do not claim success unless all assertions passed and cleanup confirmed the unique repository's final absence. Run `make verify` separately when the assignment also requires repository checks.
 
