@@ -78,11 +78,17 @@ type Refs interface {
 }
 
 type RepoTokens interface {
+	CredentialPruner
 	Create(ctx context.Context, tok types.RepoToken) (types.RepoToken, error)
 	GetByID(ctx context.Context, id types.TokenID) (types.RepoToken, error)
 	GetByHash(ctx context.Context, hash string) (types.RepoToken, error)
 	List(ctx context.Context, repoID types.RepoID, state types.TokenState, page types.OffsetPage) ([]types.RepoToken, types.OffsetResult, error)
 	Revoke(ctx context.Context, id types.TokenID) error
+	RevokeAll(ctx context.Context, repoID types.RepoID) error
+}
+
+type CredentialPruner interface {
+	Prune(ctx context.Context, cutoff time.Time) (int64, error)
 }
 
 type APITokens interface {

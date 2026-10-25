@@ -124,3 +124,5 @@ make verify
 ```
 
 This runs formatting, vet, lint, race tests, coverage checks, and Go file-size checks, building the pinned [MinIO test fixture](test/minio/README.md) before tests. Before running focused Go tests that use S3, run `make test-deps` once. Read [AGENTS.md](AGENTS.md) for contributor guidance and [GOALS.md](GOALS.md) for product direction.
+
+For focused database tests, `ARTIFACTS_TEST_POSTGRES_URL` can point to a task-owned PostgreSQL server using a PostgreSQL URL and a login with database creation permission. Each fixture creates a uniquely named database and removes it during cleanup. Docker remains necessary for S3/container checks and the complete `make verify` workflow; keep test credentials out of command arguments and logs.

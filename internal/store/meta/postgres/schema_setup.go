@@ -112,6 +112,21 @@ func inspectHistory(ctx context.Context, conn *pgx.Conn, schema string, tables m
 			return setupFailure("selected schema does not match its Artifacts migration history")
 		}
 	}
+	return inspectCredentialSchema(ctx, conn, schema, version)
+}
+
+func inspectCredentialSchema(ctx context.Context, conn *pgx.Conn, schema string, version uint64) error {
+	if version < 4 {
+		return nil
+	}
+	var exists bool
+	if err := conn.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM information_schema.columns
+		WHERE table_schema=$1 AND table_name='repo_tokens' AND column_name='revoked_at')`, schema).Scan(&exists); err != nil {
+		return err
+	}
+	if !exists {
+		return setupFailure("selected schema has an incompatible repo_tokens table")
+	}
 	return nil
 }
 

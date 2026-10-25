@@ -5,7 +5,8 @@
 Artifacts has two distinct credential planes:
 
 - A tenant-bound control-plane bearer token authorizes REST requests.
-- A repository-bound credential authorizes Git smart HTTP reads or writes.
+- A repository-bound credential authorizes REST content and Git smart HTTP reads
+  or writes.
 
 They are not interchangeable. Durable records contain hashes rather than
 plaintext secrets.
@@ -42,6 +43,13 @@ development server.
    package tests; require the expired credential to return `401`.
 7. List credentials and require IDs, scopes, state, creation, and expiry
    metadata while confirming plaintext is absent.
+8. For retention verification, use an owned database fixture to age expiry or
+   first revocation beyond `ARTIFACTS_CREDENTIAL_RETENTION`. Require bounded
+   background deletion, absence from credential listings, and continued `401`
+   rejection on both REST content and Git. Verify that valid credentials still
+   work, repeated revocation does not extend retention, and zero disables
+   pruning. Use two independent serving instances and more than one batch of
+   rows; preserve counts and timings without credential identifiers or hashes.
 
 ## Secret-handling rules
 
@@ -57,8 +65,8 @@ development server.
 
 - `artifacts dev` bypasses both control-plane and repository authentication, so
   it cannot prove credential boundaries.
-- REST accepts only control-plane Bearer credentials. Repository credentials
-  work only on Git smart HTTP.
+- Repository credentials also authorize REST content routes; management routes
+  require a control-plane token. See the current authentication documentation.
 - Repository credentials have `read` or `write` scope. Empty scope defaults to
   `write`.
 - TTL is expressed in seconds: zero defaults to 24 hours, with a valid range of
@@ -70,6 +78,8 @@ development server.
 - Bearer parsing for Git is case-insensitive. Basic auth uses only the password.
 - Credential list state defaults to `active`; accepted filters are `active`,
   `expired`, `revoked`, and `all`.
+- Expiry does not automatically change stored state. Background retention removes
+  eligible metadata after expiry or first revocation; listing is not an audit log.
 - Repository read-only state independently forbids Git writes even when the
   credential has write scope.
 

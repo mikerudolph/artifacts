@@ -41,23 +41,8 @@ func (r *Runner) deleteTx(ctx context.Context, tx meta.Store, id types.RepoID) e
 	if err != nil {
 		return err
 	}
-	page := types.OffsetPage{Page: 1, PerPage: 100}
-	for {
-		tokens, info, err := tx.RepoTokens().List(ctx, id, types.TokenState("all"), page)
-		if err != nil {
-			return err
-		}
-		for _, token := range tokens {
-			if token.State != types.TokenRevoked {
-				if err := tx.RepoTokens().Revoke(ctx, token.ID); err != nil {
-					return err
-				}
-			}
-		}
-		if page.Page >= info.TotalPages {
-			break
-		}
-		page.Page++
+	if err := tx.RepoTokens().RevokeAll(ctx, id); err != nil {
+		return err
 	}
 	now := time.Now().UTC()
 	if _, err := tx.Repos().Transition(ctx, id, types.RepoDeleting, types.RepoDeleted, &now); err != nil {

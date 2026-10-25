@@ -30,6 +30,7 @@ For a built executable, use `go build -o ./bin/artifacts ./cmd/artifacts` and re
 | `ARTIFACTS_DATABASE_SCHEMA` | Unset preserves the DSN's existing schema behavior. Set a dedicated schema such as `artifacts` for installation in an existing database. |
 | `ARTIFACTS_DATABASE_MIGRATION_TIMEOUT` | `15m`. Positive deadline, at most `1h`, covering connection, schema setup, lock waits, and migrations. Cancellation may leave a dirty migration requiring inspection. |
 | `ARTIFACTS_SKIP_MIGRATIONS` | `false`. Set `true` to skip automatic migrations; serving requires a current schema. |
+| `ARTIFACTS_CREDENTIAL_RETENTION` | `168h`. Repository credential metadata becomes eligible for deletion this long after expiry or first revocation, whichever occurs earlier. Nonnegative Go duration; `0` disables pruning. Does not extend authentication validity. |
 | `ARTIFACTS_SHUTDOWN_TIMEOUT` | `30s`. Positive deadline for draining active requests on SIGTERM. |
 | `ARTIFACTS_BOOTSTRAP_TOKEN` | Secret consumed only by `bootstrap`; never printed. |
 | `ARTIFACTS_BOOTSTRAP_TOKEN_FILE` | Alternative mounted secret file for `bootstrap`; do not set both sources. |
@@ -121,6 +122,8 @@ Back up **both Postgres and durable object storage**. They hold complementary pa
 
 Compaction writes a checkpoint to speed reconstruction. It does not physically purge retained history or implement garbage collection. Snapshot descendants can still depend on a deleted parent's objects, so independent age-based object deletion can break them.
 
-The current implementation does not provide mixed-release upgrade guarantees, metadata reads from database replicas, automatic recovery of interrupted imports, an automatic retention scheduler, or a physical erasure API. Read [storage architecture](/artifacts/storage/) before changing deployment topology or deleting stored data.
+Repository credential cleanup runs independently of compaction in `serve` and `dev`. Each process attempts one batch at startup and once per minute, deleting at most 1,000 eligible rows per attempt with a five-second timeout. Locked rows and failures are retried on a later attempt; a backlog can extend metadata visibility beyond the retention window. Multiple instances safely share cleanup work, with limits applying per process. Use the same retention setting across instances; disabling cleanup on one does not stop other instances from deleting eligible rows. Cleanup accesses Postgres only, without object-storage requests or repository cache materialization. See [credential retention](/artifacts/core/authentication/#issue-and-revoke-repository-credentials).
+
+The current implementation does not provide mixed-release upgrade guarantees, metadata reads from database replicas, automatic recovery of interrupted imports, automatic object/idempotency retention, or a physical erasure API. Read [storage architecture](/artifacts/storage/) before changing deployment topology or deleting stored data.
 
 Multipart uploads use unlinked temporary files under `TMPDIR`. Provision disk-backed writable scratch and cache storage; the ingress limit does not include Git objects, pack/index generation, backend staging copies, or existing repository history. Per-process admission does not establish an account-wide quota.

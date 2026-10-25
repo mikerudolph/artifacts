@@ -48,6 +48,8 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA artifacts
 
 The runtime role needs no schema `CREATE`, ownership, or database `CREATE`. Run bootstrap and serving with this login and `ARTIFACTS_DATABASE_SCHEMA=artifacts`; set `ARTIFACTS_SKIP_MIGRATIONS=true` for serving, token creation, and compaction. Default privileges must be set by the role that creates future migration objects. Current migrations create no sequences.
 
+Migration 004 adds repository credential retention metadata and indexes. Its backfill and index creation can lock a large credential table; use the existing stop/migrate/restart upgrade procedure and allow time for that work. Previously revoked credentials have no recorded revocation date, so migration conservatively records migration time; their original expiry can make them eligible sooner. Serving then removes eligible metadata in bounded background batches. Set `ARTIFACTS_CREDENTIAL_RETENTION=0` before restarting if metadata must remain available. See [authentication](/artifacts/core/authentication/#issue-and-revoke-repository-credentials) for retention and listing behavior.
+
 Keep the schema setting in the shared environment for migration jobs, bootstrap jobs, and all servers. Pass `--env ARTIFACTS_DATABASE_SCHEMA` to every Docker command below when using a named schema. Independent installations also need separate object-storage prefixes and cache roots. This installs a new Artifacts instance; moving an existing installation from `public` requires a separate data-movement procedure. Merely changing the setting does not relocate tables or repository history.
 
 ## Existing default-schema deployments

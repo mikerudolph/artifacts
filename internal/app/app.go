@@ -87,6 +87,7 @@ func buildHandler(ctx context.Context, cfg config.Config, dev bool) (http.Handle
 	}
 	built = true
 	return &maintainedHandler{Handler: h, manager: cache, shutdownTimeout: cfg.HTTP.ShutdownTimeout,
+		credentials: mdb.RepoTokens(), credentialRetention: cfg.CredentialRetention,
 		close: func() { closeMetadata(mdb) },
 		ready: func(ctx context.Context) error {
 			if err := checkSchema(ctx); err != nil {
