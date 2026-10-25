@@ -40,7 +40,9 @@ func (m *tokenMemory) GetByHash(_ context.Context, hash string) (types.RepoToken
 func (*tokenMemory) List(context.Context, types.RepoID, types.TokenState, types.OffsetPage) ([]types.RepoToken, types.OffsetResult, error) {
 	return nil, types.OffsetResult{}, nil
 }
-func (*tokenMemory) Revoke(context.Context, types.TokenID) error { return nil }
+func (*tokenMemory) Revoke(context.Context, types.TokenID) error     { return nil }
+func (*tokenMemory) RevokeAll(context.Context, types.RepoID) error   { return nil }
+func (*tokenMemory) Prune(context.Context, time.Time) (int64, error) { return 0, nil }
 
 type apiTokenMemory struct{ *tokenMemory }
 

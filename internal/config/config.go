@@ -20,13 +20,14 @@ const (
 )
 
 type Config struct {
-	HTTP     HTTP
-	Auth     Auth
-	Storage  Storage
-	Cache    Cache
-	Postgres Postgres
-	Account  Account
-	Uploads  Uploads
+	HTTP                HTTP
+	Auth                Auth
+	Storage             Storage
+	Cache               Cache
+	Postgres            Postgres
+	Account             Account
+	Uploads             Uploads
+	CredentialRetention time.Duration
 }
 
 type HTTP struct {
@@ -116,8 +117,13 @@ func load() (Config, error) {
 	if shutdown <= 0 {
 		return Config{}, fmt.Errorf("ARTIFACTS_SHUTDOWN_TIMEOUT must be a positive duration")
 	}
+	retention, err := time.ParseDuration(env("ARTIFACTS_CREDENTIAL_RETENTION", "168h"))
+	if err != nil || retention < 0 {
+		return Config{}, fmt.Errorf("ARTIFACTS_CREDENTIAL_RETENTION must be a nonnegative duration")
+	}
 	return Config{
-		Uploads: uploads,
+		CredentialRetention: retention,
+		Uploads:             uploads,
 		HTTP: HTTP{
 			Addr:              env("ARTIFACTS_HTTP_ADDR", defaultAddr),
 			PublicURL:         strings.TrimRight(env("ARTIFACTS_PUBLIC_URL", defaultURL), "/"),
@@ -154,6 +160,9 @@ func (c Config) Validate() error {
 }
 
 func (c Config) validate(allowNoAuth bool) error {
+	if c.CredentialRetention < 0 {
+		return fmt.Errorf("ARTIFACTS_CREDENTIAL_RETENTION must be a nonnegative duration")
+	}
 	switch c.Auth.Mode {
 	case authToken:
 	case authNone:

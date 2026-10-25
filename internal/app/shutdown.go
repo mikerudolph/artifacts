@@ -24,7 +24,6 @@ func serveListener(ctx context.Context, listener net.Listener, h http.Handler, s
 	go func() {
 		select {
 		case <-ctx.Done():
-			stop()
 			drained <- drainServer(srv, h)
 		case <-finished:
 			drained <- nil

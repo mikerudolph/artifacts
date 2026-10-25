@@ -156,6 +156,20 @@ func (t fakeTokens) Revoke(_ context.Context, id types.TokenID) error {
 	return nil
 }
 
+func (t fakeTokens) RevokeAll(_ context.Context, repoID types.RepoID) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	for id, tok := range t.tokens {
+		if tok.RepoID == repoID {
+			tok.State = types.TokenRevoked
+			t.tokens[id] = tok
+		}
+	}
+	return nil
+}
+
+func (t fakeTokens) Prune(context.Context, time.Time) (int64, error) { return 0, nil }
+
 func (a fakeAPI) Create(_ context.Context, tok types.APIToken) (types.APIToken, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()

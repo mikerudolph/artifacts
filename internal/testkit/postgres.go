@@ -2,6 +2,7 @@ package testkit
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -12,6 +13,9 @@ import (
 
 func Postgres(tb testing.TB) string {
 	tb.Helper()
+	if dsn := os.Getenv("ARTIFACTS_TEST_POSTGRES_URL"); dsn != "" {
+		return localPostgres(tb, dsn)
+	}
 	DockerAvailable(tb)
 	ctx := context.Background()
 	ctr, err := postgres.Run(ctx,

@@ -103,6 +103,16 @@ Amends: D15 only for database TLS verification policy. Accept `require`, `verify
 
 The trade-off is deployment compatibility for environments that do not distribute RDS CA bundles: TLS encryption alone does not authenticate the server and cannot prevent server impersonation. Validate signed tokens over local TLS for both connectors and every database command, certificate and hostname rejection in verified modes, refusal of plaintext negotiation, environment/service-file mode selection, warning redaction, and renewed connections. Actual AWS login and workload renewal still require separate AWS evidence. See the [current deployment contract](docs/core/deployment.md#rds-and-aurora-iam-authentication).
 
+### D17 (2026-10-25): Prune invalid repository credential metadata
+
+Amends: D4 only for repository credential metadata retention; binding, scope, expiry, revocation, and read-only enforcement remain unchanged. Automatically prune rows older than the configured retention after first invalidation, defined as the earlier of expiry and first revocation. Default to seven days of recent metadata for troubleshooting, with a nonnegative duration and zero disabling pruning. Repeated revocation must not extend retention. Legacy revoked credentials use migration time for their unknown revocation time, while retaining their original expiry boundary. Removal changes listing visibility and makes direct revocation of an absent ID return not found; it never extends access or permits a removed credential to authenticate.
+
+Credential storage owns eligibility, indexes, row locking, and bounded deletion transactions. Serving schedules independent, cancellable cleanup outside request and compaction paths; competing instances may split work without a new coordinator. Repository deletion revokes credentials atomically within its existing transition transaction so pruning cannot invalidate a paginated token walk. Retention is an eligibility threshold, not a deletion deadline or permanent audit history. Control tokens, idempotency records, repository erasure, and object retention remain outside this policy. Validate migration upgrades and schema isolation, cutoff boundaries, repeated revocation, competing cleaners, cancellation, repository deletion and minting races, and real REST/Git authentication. Current operator guidance belongs in [authentication](docs/core/authentication.md) and [configuration](docs/core/configuration.md).
+
+### D18 (2026-10-25): Use controlled technical English for pull requests
+
+Write pull request descriptions in ASD-STE100 Simplified Technical English. Use short sentences, active voice, and consistent technical names. Include a table of added lines, removed lines, and net change for product code, tests, and documentation. Identify generated verification evidence separately so the table does not count it as product code. Calculate the table from the complete branch diff against the target branch. This records the contributor's requested review format and makes the change size clear. Check the description against the current diff before creating or updating a pull request.
+
 ## Working rules
 
 1. Trace the current behavior and relevant tests before editing. Keep existing user work intact. Carry authorized work through implementation and verification; surface material ambiguity without stopping independent work.
@@ -115,6 +125,7 @@ The trade-off is deployment compatibility for environments that do not distribut
 8. Keep public docs and configuration descriptions aligned with the implementation. Label targets, limitations, and deferred work explicitly.
 9. Use task-owned databases, storage directories, and server processes for live tests. Do not modify a developer's global Git configuration or stop unrelated services. Keep credentials out of command arguments, output, and evidence.
 10. Report what changed, which checks ran, and any remaining limits. Distinguish implemented behavior from measured behavior and from assumptions.
+11. Follow D18 for pull request descriptions: use ASD-STE100 Simplified Technical English and include the line-count table for product code, tests, and documentation. Show generated verification evidence separately.
 
 ## Verification
 

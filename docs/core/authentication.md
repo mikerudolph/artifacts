@@ -69,6 +69,10 @@ The issue response contains `id`, `plaintext`, `scope`, and `expires_at`. Creati
 | `scope` | `read` for clone/fetch; `write` for clone/fetch/push. | `write` |
 | `ttl` | Seconds, from `60` to `31536000`. | `86400` (24 hours), including when set to `0`. |
 
+Expired and revoked credentials stop authorizing access immediately. Their metadata remains visible until background cleanup removes it. `ARTIFACTS_CREDENTIAL_RETENTION` defaults to `168h` (seven days) after the earlier of expiry or first revocation; repeating revocation does not restart that window. Set a nonnegative Go duration to change it, or `0` to disable cleanup. This retention does not extend credential access.
+
+Cleanup runs in bounded batches, so a backlog or stopped service can delay removal beyond the retention window. After removal, the credential disappears from listings and revoking its ID returns `404`; using it still returns `401`. Listings are operational metadata rather than a permanent audit log. The `active` state continues to mean not explicitly revoked, so an expired credential can remain listed as `active` until cleanup. Control-plane tokens are outside this retention policy.
+
 List metadata without retrieving secrets:
 
 ```bash

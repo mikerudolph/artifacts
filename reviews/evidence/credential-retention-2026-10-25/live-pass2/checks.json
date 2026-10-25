@@ -1,0 +1,103 @@
+{
+  "success": true,
+  "checks": [
+    {
+      "name": "zero disables cleanup at startup",
+      "passed": true
+    },
+    {
+      "name": "two independent startup batches delete at most 1000 each",
+      "passed": true,
+      "remaining": 408
+    },
+    {
+      "name": "valid credential reads through node 0",
+      "passed": true
+    },
+    {
+      "name": "removed credential 0 rejected by REST node 0",
+      "passed": true
+    },
+    {
+      "name": "removed credential 1 rejected by REST node 0",
+      "passed": true
+    },
+    {
+      "name": "removed credential 2 rejected by REST node 0",
+      "passed": true
+    },
+    {
+      "name": "removed credentials absent from listing node 0",
+      "passed": true
+    },
+    {
+      "name": "removing missing credential returns 404 on node 0",
+      "passed": true
+    },
+    {
+      "name": "valid credential reads through node 1",
+      "passed": true
+    },
+    {
+      "name": "removed credential 0 rejected by REST node 1",
+      "passed": true
+    },
+    {
+      "name": "removed credential 1 rejected by REST node 1",
+      "passed": true
+    },
+    {
+      "name": "removed credential 2 rejected by REST node 1",
+      "passed": true
+    },
+    {
+      "name": "removed credentials absent from listing node 1",
+      "passed": true
+    },
+    {
+      "name": "removing missing credential returns 404 on node 1",
+      "passed": true
+    },
+    {
+      "name": "valid credential accesses real Git",
+      "passed": true
+    },
+    {
+      "name": "removed credential 0 rejected by real Git",
+      "passed": true
+    },
+    {
+      "name": "removed credential 1 rejected by real Git",
+      "passed": true
+    },
+    {
+      "name": "removed credential 2 rejected by real Git",
+      "passed": true
+    },
+    {
+      "name": "REST Git REST harness completed",
+      "passed": true
+    },
+    {
+      "name": "later scheduled attempt drains remaining backlog",
+      "passed": true,
+      "elapsed_seconds": 60.2
+    },
+    {
+      "name": "neighboring application preserved",
+      "passed": true
+    },
+    {
+      "name": "runtime cannot create schema objects",
+      "passed": true
+    },
+    {
+      "name": "owned repository removed",
+      "passed": true
+    },
+    {
+      "name": "owned live database and roles removed",
+      "passed": true
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "owned_test_databases_remaining": 0,
+  "postgres_stopped": true,
+  "owned_database_data_removed": true,
+  "live_object_and_cache_directories_removed": true,
+  "live_services_stopped": true
+}

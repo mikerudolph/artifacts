@@ -1,0 +1,73 @@
+
+> artifacts-docs@0.0.0 check
+> npm run build && node scripts/check-links.mjs && node scripts/check-diagrams.mjs && node --test scripts/diagram-*.test.mjs
+
+
+> artifacts-docs@0.0.0 build
+> astro sync --force && astro build
+
+02:48:37 [WARN] [content] data store cleared (force)
+02:48:37 [content] Syncing content
+02:48:38 [content] Synced content
+02:48:38 [types] Generated 983ms
+02:48:39 [content] Syncing content
+02:48:39 [content] Synced content
+02:48:39 [types] Generated 502ms
+02:48:39 [build] output: "static"
+02:48:39 [build] mode: "static"
+02:48:39 [build] directory: /home/mike/Code/artifacts/docs-site/dist/
+02:48:39 [build] Collecting build info...
+02:48:39 [build] ✓ Completed in 636ms.
+02:48:39 [build] Building static entrypoints...
+02:48:39 [vite] ✓ built in 457ms
+02:48:39 [vite] ✓ built in 53ms
+02:48:39 [build] Rearranging server assets...
+
+ generating static routes
+02:48:39   ├─ /404.html (+9ms)
+02:48:39   ├─ /core/data-model/index.html (+1ms)
+02:48:39   ├─ /developer-tools/index.html (+1ms)
+02:48:39   ├─ /onboarding/index.html (+1ms)
+02:48:39   ├─ /core/api-reference/index.html (+13ms)
+02:48:39   ├─ /core/authentication/index.html (+4ms)
+02:48:39   ├─ /core/concepts/index.html (+7ms)
+02:48:39   ├─ /core/configuration/index.html (+4ms)
+02:48:39   ├─ /core/deployment/index.html (+3ms)
+02:48:39   ├─ /core/errors-and-limits/index.html (+3ms)
+02:48:39   ├─ /core/forks-and-imports/index.html (+7ms)
+02:48:39   ├─ /core/git/index.html (+3ms)
+02:48:39   ├─ /core/integration/index.html (+4ms)
+02:48:39   ├─ /core/reading-files/index.html (+7ms)
+02:48:39   ├─ /core/repositories/index.html (+3ms)
+02:48:39   ├─ /core/writing-files/index.html (+2ms)
+02:48:39   ├─ /developer-tools/local-development/index.html (+2ms)
+02:48:39   ├─ /developer-tools/web-ui/index.html (+3ms)
+02:48:39   ├─ /examples/index.html (+2ms)
+02:48:39   ├─ /examples/agent-sessions/index.html (+2ms)
+02:48:39   ├─ /examples/personal-memory/index.html (+2ms)
+02:48:39   ├─ /examples/snapshot-handoffs/index.html (+2ms)
+02:48:39   ├─ /getting-started/index.html (+2ms)
+02:48:39   ├─ /index.html (+4ms)
+02:48:39   ├─ /storage/index.html (+8ms)
+02:48:39 ✓ Completed in 129ms.
+
+02:48:39 [build] ✓ Completed in 674ms.
+02:48:39 [starlight:pagefind] Building search index with Pagefind...
+02:48:40 [starlight:pagefind] Found 25 HTML files.
+02:48:40 [starlight:pagefind] Finished building search index in 77ms.
+02:48:40 [@astrojs/sitemap] `sitemap-index.xml` created at `dist`
+02:48:40 [build] 22 page(s) built in 1.40s
+02:48:40 [build] Complete!
+Checked 25 HTML pages, 902 internal links, and 17 local assets; all targets, anchors, stylesheets, fonts, and page titles are valid.
+Checked 4 SVG explainers and 19 steps: motion tracks, responsive scenes, controls, static fallbacks, and SVG references are valid.
+✔ scripts/diagram-motion.test.mjs (107.408504ms)
+✔ scripts/diagram-timeline.test.mjs (104.554122ms)
+✔ scripts/diagram-workflow.test.mjs (103.231152ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 118.870163

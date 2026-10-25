@@ -40,21 +40,22 @@ func execSchema(t *testing.T, conn *pgx.Conn, query string) {
 
 func TestNamedSchemaIsolationAndPermissions(t *testing.T) {
 	dsn, admin := schemaAdmin(t)
+	ownerRole, runtimeRole := "schema_owner_"+newID(), "schema_runtime_"+newID()
+	ownerID, runtimeID := pgx.Identifier{ownerRole}.Sanitize(), pgx.Identifier{runtimeRole}.Sanitize()
 	execSchema(t, admin, `CREATE TABLE public.accounts(sentinel text); INSERT INTO public.accounts VALUES ('untouched');
-CREATE TABLE public.schema_migrations(version bigint, dirty boolean); INSERT INTO public.schema_migrations VALUES (999,false);
-CREATE ROLE schema_owner LOGIN PASSWORD 'local-test'; CREATE ROLE schema_runtime LOGIN PASSWORD 'local-test';
-CREATE SCHEMA artifacts AUTHORIZATION schema_owner`)
+CREATE TABLE public.schema_migrations(version bigint, dirty boolean); INSERT INTO public.schema_migrations VALUES (999,false)`)
+	execSchema(t, admin, "CREATE ROLE "+ownerID+" LOGIN PASSWORD 'local-test'; CREATE ROLE "+runtimeID+" LOGIN PASSWORD 'local-test'; CREATE SCHEMA artifacts AUTHORIZATION "+ownerID)
+	cleanupSchemaRoles(t, admin, ownerID+","+runtimeID)
 	owner, _ := url.Parse(dsn)
-	owner.User = url.UserPassword("schema_owner", "local-test")
+	owner.User = url.UserPassword(ownerRole, "local-test")
 	cfg := config.Postgres{DSN: owner.String(), Schema: "artifacts"}
 	for range 2 {
 		if err := MigrateConfigured(t.Context(), cfg, false); err != nil {
 			t.Fatal(err)
 		}
 	}
-	execSchema(t, admin, `GRANT USAGE ON SCHEMA artifacts TO schema_runtime;
-GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA artifacts TO schema_runtime`)
-	owner.User = url.UserPassword("schema_runtime", "local-test")
+	execSchema(t, admin, "GRANT USAGE ON SCHEMA artifacts TO "+runtimeID+"; GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA artifacts TO "+runtimeID)
+	owner.User = url.UserPassword(runtimeRole, "local-test")
 	cfg.DSN = owner.String()
 	metadata, err := OpenConfigured(t.Context(), cfg)
 	if err != nil {
@@ -93,6 +94,17 @@ GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA artifacts TO schema_ru
 	if _, err := OpenConfigured(t.Context(), cfg); err == nil {
 		t.Fatal("inaccessible schema accepted")
 	}
+}
+
+func cleanupSchemaRoles(t *testing.T, conn *pgx.Conn, roles string) {
+	t.Helper()
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if _, err := conn.Exec(ctx, "DROP OWNED BY "+roles+" CASCADE; DROP ROLE "+roles); err != nil {
+			t.Error("clean up test roles:", err)
+		}
+	})
 }
 
 func TestNamedSchemaConcurrentMigrationsAndLegacyUpgrade(t *testing.T) {

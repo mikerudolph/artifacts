@@ -19,8 +19,9 @@ func (s repoTokenStore) Create(ctx context.Context, tok types.RepoToken) (types.
 		tok.State = types.TokenActive
 	}
 	err := s.q.QueryRow(ctx, `
-		INSERT INTO repo_tokens (id, repo_id, hash, scope, state, created_at, expires_at)
-		SELECT $1,$2,$3,$4,$5,$6,$7 FROM repos WHERE id=$2 AND status='ready' FOR UPDATE
+		INSERT INTO repo_tokens (id, repo_id, hash, scope, state, created_at, expires_at, revoked_at)
+		SELECT $1,$2,$3,$4,$5,$6,$7,CASE WHEN $5='revoked' THEN statement_timestamp() END
+		FROM repos WHERE id=$2 AND status='ready' FOR UPDATE
 		RETURNING id, repo_id, hash, scope, state, created_at, expires_at`,
 		string(tok.ID), string(tok.RepoID), tok.Hash, string(tok.Scope), string(tok.State), tok.CreatedAt, tok.ExpiresAt,
 	).Scan(&tok.ID, &tok.RepoID, &tok.Hash, &tok.Scope, &tok.State, &tok.CreatedAt, &tok.ExpiresAt)
@@ -77,7 +78,8 @@ func (s repoTokenStore) List(ctx context.Context, repoID types.RepoID, state typ
 }
 
 func (s repoTokenStore) Revoke(ctx context.Context, id types.TokenID) error {
-	tag, err := s.q.Exec(ctx, `UPDATE repo_tokens SET state = $2 WHERE id = $1`, string(id), string(types.TokenRevoked))
+	tag, err := s.q.Exec(ctx, `UPDATE repo_tokens SET state = 'revoked',
+		revoked_at = COALESCE(revoked_at, statement_timestamp()) WHERE id = $1`, string(id))
 	if err != nil {
 		return err
 	}
@@ -85,6 +87,20 @@ func (s repoTokenStore) Revoke(ctx context.Context, id types.TokenID) error {
 		return meta.ErrNotFound
 	}
 	return nil
+}
+
+func (s repoTokenStore) RevokeAll(ctx context.Context, repoID types.RepoID) error {
+	_, err := s.q.Exec(ctx, `UPDATE repo_tokens SET state = 'revoked',
+		revoked_at = statement_timestamp() WHERE repo_id = $1 AND state <> 'revoked'`, string(repoID))
+	return err
+}
+
+func (s repoTokenStore) Prune(ctx context.Context, cutoff time.Time) (int64, error) {
+	tag, err := s.q.Exec(ctx, `WITH expired AS (
+		SELECT id FROM repo_tokens WHERE LEAST(expires_at, revoked_at) < $1
+		ORDER BY LEAST(expires_at, revoked_at) LIMIT 1000 FOR UPDATE SKIP LOCKED
+	) DELETE FROM repo_tokens WHERE id IN (SELECT id FROM expired)`, cutoff)
+	return tag.RowsAffected(), err
 }
 
 func (s apiTokenStore) Create(ctx context.Context, tok types.APIToken) (types.APIToken, error) {

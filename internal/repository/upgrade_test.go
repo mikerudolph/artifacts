@@ -36,6 +36,8 @@ func TestStorageV1MigrationConvertsAndRebuilds(t *testing.T) {
 		t.Fatal(err)
 	}
 	execMigration(t, db, "002_v2_storage.up.sql")
+	execMigration(t, db, "003_idempotency.up.sql")
+	execMigration(t, db, "004_credential_retention.up.sql")
 	metadata, err := postgres.Open(ctx, dsn)
 	if err != nil {
 		t.Fatal(err)

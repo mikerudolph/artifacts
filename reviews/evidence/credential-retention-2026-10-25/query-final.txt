@@ -1,0 +1,145 @@
+CREATE SCHEMA
+SET
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+ALTER TABLE
+UPDATE 0
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+CREATE INDEX
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE INDEX
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+CREATE TABLE
+ALTER TABLE
+UPDATE 0
+ALTER TABLE
+CREATE INDEX
+CREATE INDEX
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1000
+INSERT 0 100000
+ANALYZE
+PREPARE
+PREPARE
+                                                                    QUERY PLAN
+---------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=304.84..304.89 rows=20 width=46) (actual time=0.125..0.127 rows=20 loops=1)
+   Buffers: shared hit=102
+   ->  Sort  (cost=304.84..305.09 rows=100 width=46) (actual time=0.122..0.123 rows=20 loops=1)
+         Sort Key: created_at DESC
+         Sort Method: top-N heapsort  Memory: 26kB
+         Buffers: shared hit=102
+         ->  Bitmap Heap Scan on repo_tokens  (cost=5.07..302.18 rows=100 width=46) (actual time=0.020..0.097 rows=100 loops=1)
+               Recheck Cond: (repo_id = 'repo-1'::text)
+               Heap Blocks: exact=100
+               Buffers: shared hit=102
+               ->  Bitmap Index Scan on repo_tokens_repo_state_idx  (cost=0.00..5.04 rows=100 width=0) (actual time=0.009..0.009 rows=100 loops=1)
+                     Index Cond: (repo_id = 'repo-1'::text)
+                     Buffers: shared hit=2
+ Planning:
+   Buffers: shared hit=58
+ Planning Time: 0.177 ms
+ Execution Time: 0.143 ms
+(17 rows)
+
+                                                                    QUERY PLAN
+--------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=280.92..280.97 rows=20 width=46) (actual time=0.092..0.094 rows=20 loops=1)
+   Buffers: shared hit=102
+   ->  Sort  (cost=280.92..281.15 rows=90 width=46) (actual time=0.091..0.092 rows=20 loops=1)
+         Sort Key: created_at DESC
+         Sort Method: top-N heapsort  Memory: 26kB
+         Buffers: shared hit=102
+         ->  Bitmap Heap Scan on repo_tokens  (cost=5.22..278.53 rows=90 width=46) (actual time=0.018..0.068 rows=100 loops=1)
+               Recheck Cond: ((repo_id = 'repo-1'::text) AND (state = 'active'::text))
+               Heap Blocks: exact=100
+               Buffers: shared hit=102
+               ->  Bitmap Index Scan on repo_tokens_repo_state_idx  (cost=0.00..5.19 rows=90 width=0) (actual time=0.008..0.008 rows=100 loops=1)
+                     Index Cond: ((repo_id = 'repo-1'::text) AND (state = 'active'::text))
+                     Buffers: shared hit=2
+ Planning Time: 0.066 ms
+ Execution Time: 0.104 ms
+(15 rows)
+
+                                                                 QUERY PLAN
+---------------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=302.43..302.44 rows=1 width=8) (actual time=0.067..0.068 rows=1 loops=1)
+   Buffers: shared hit=102
+   ->  Bitmap Heap Scan on repo_tokens  (cost=5.07..302.18 rows=100 width=0) (actual time=0.021..0.062 rows=100 loops=1)
+         Recheck Cond: (repo_id = 'repo-1'::text)
+         Heap Blocks: exact=100
+         Buffers: shared hit=102
+         ->  Bitmap Index Scan on repo_tokens_repo_state_idx  (cost=0.00..5.04 rows=100 width=0) (actual time=0.006..0.006 rows=100 loops=1)
+               Index Cond: (repo_id = 'repo-1'::text)
+               Buffers: shared hit=2
+ Planning:
+   Buffers: shared hit=6
+ Planning Time: 0.049 ms
+ Execution Time: 0.077 ms
+(13 rows)
+
+                                                                 QUERY PLAN
+--------------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=278.75..278.76 rows=1 width=8) (actual time=0.055..0.056 rows=1 loops=1)
+   Buffers: shared hit=102
+   ->  Bitmap Heap Scan on repo_tokens  (cost=5.22..278.53 rows=90 width=0) (actual time=0.015..0.051 rows=100 loops=1)
+         Recheck Cond: ((repo_id = 'repo-1'::text) AND (state = 'active'::text))
+         Heap Blocks: exact=100
+         Buffers: shared hit=102
+         ->  Bitmap Index Scan on repo_tokens_repo_state_idx  (cost=0.00..5.19 rows=90 width=0) (actual time=0.007..0.007 rows=100 loops=1)
+               Index Cond: ((repo_id = 'repo-1'::text) AND (state = 'active'::text))
+               Buffers: shared hit=2
+ Planning Time: 0.053 ms
+ Execution Time: 0.064 ms
+(11 rows)
+
+BEGIN
+                                                                                    QUERY PLAN
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Delete on repo_tokens  (cost=69.58..1540.44 rows=0 width=0) (actual time=4.797..4.799 rows=0 loops=1)
+   Buffers: shared hit=6012
+   CTE expired
+     ->  Limit  (cost=0.30..46.66 rows=1000 width=19) (actual time=0.011..0.671 rows=1000 loops=1)
+           Buffers: shared hit=1012
+           ->  LockRows  (cost=0.30..2550.47 rows=55003 width=19) (actual time=0.011..0.618 rows=1000 loops=1)
+                 Buffers: shared hit=1012
+                 ->  Index Scan using repo_tokens_cleanup_idx on repo_tokens repo_tokens_1  (cost=0.30..2000.44 rows=55003 width=19) (actual time=0.008..0.227 rows=1000 loops=1)
+                       Index Cond: (LEAST(expires_at, revoked_at) < (now() - '7 days'::interval))
+                       Buffers: shared hit=12
+   ->  Nested Loop  (cost=22.92..1493.78 rows=1000 width=62) (actual time=1.287..4.376 rows=1000 loops=1)
+         Buffers: shared hit=5012
+         ->  HashAggregate  (cost=22.50..24.50 rows=200 width=88) (actual time=1.279..1.434 rows=1000 loops=1)
+               Group Key: expired.id
+               Batches: 1  Memory Usage: 209kB
+               Buffers: shared hit=1012
+               ->  CTE Scan on expired  (cost=0.00..20.00 rows=1000 width=88) (actual time=0.017..1.010 rows=1000 loops=1)
+                     Buffers: shared hit=1012
+         ->  Index Scan using repo_tokens_pkey on repo_tokens  (cost=0.42..7.41 rows=1 width=11) (actual time=0.003..0.003 rows=1 loops=1000)
+               Index Cond: (id = expired.id)
+               Buffers: shared hit=4000
+ Planning:
+   Buffers: shared hit=12
+ Planning Time: 0.115 ms
+ Execution Time: 4.841 ms
+(25 rows)
+
+ROLLBACK
+DROP SCHEMA
