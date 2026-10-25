@@ -37,3 +37,9 @@ The required [make verify run](evidence/credential-retention-2026-10-25/make-ver
 No AWS target, S3 deployment, or container image was used for the live retention run. The two processes shared a task-owned filesystem object store, so that run is evidence for cleanup/authentication behavior and independent caches, not qualification of a new serving topology. No production performance or maximum deletion-delay claim follows. No push was made, so remote CI has not run for these uncommitted changes.
 
 An [earlier live attempt](evidence/credential-retention-2026-10-25/live/checks.json) stopped after the verification driver sent `name` instead of `namespace` when creating a namespace. It received `400` and confirmed owned database/role cleanup; this was a driver error. The corrected attempt above passed. Earlier package runs also exposed a cleanup context error and legacy test fixtures missing migration 004; both were corrected before the final race run.
+
+## CI follow-up
+
+The first pushed revision, `c0aa304`, passed the documentation check and production container check. Its [verification job](https://github.com/mikerudolph/artifacts/actions/runs/40167705880/job/121092032131) passed the tests but failed package coverage. `internal/testkit` reached 82.6% against the required 85%. Total coverage reached 90.1%.
+
+The isolation test called the new helper directly. It did not test selection through `ARTIFACTS_TEST_POSTGRES_URL` on the Docker runner. The follow-up changes that test to set the environment variable and call `Postgres`, the public fixture entry point. The same isolation assertions remain in place. Coverage thresholds and exclusions remain unchanged. The PR contains the CI result for the latest pushed revision; the local evidence above remains a record of its original run.

@@ -18,8 +18,9 @@ func TestLocalPostgresIsolation(t *testing.T) {
 	query := parsed.Query()
 	query.Set("dbname", strings.TrimPrefix(parsed.Path, "/"))
 	parsed.RawQuery = query.Encode()
-	one := localPostgres(t, parsed.String())
-	two := localPostgres(t, parsed.String())
+	t.Setenv("ARTIFACTS_TEST_POSTGRES_URL", parsed.String())
+	one := Postgres(t)
+	two := Postgres(t)
 	if one == two || one == base {
 		t.Fatal("test databases share identity")
 	}
