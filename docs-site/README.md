@@ -17,6 +17,10 @@ npm run build
 
 Run `npm run check` to build and validate generated internal links, heading anchors, local assets (including stylesheets and fonts), and SVG explainer contracts. Builds refresh Astro's content cache so a highlighting-theme change cannot leave Markdown pointing to obsolete generated code stylesheets. Use `npm run preview` to inspect production search; Pagefind is not available in the development server.
 
+## Licensing
+
+Original site code and content use the repository's [MIT License](../LICENSE). The `prebuild` and `predev` scripts copy that license and the pinned Barlow Semi Condensed package's upstream SIL Open Font License into `public/licenses/`, which Astro includes in the published site. These generated files are ignored by Git; edit the root license or update the font package rather than editing the copies. The footer links to both texts. Third-party packages retain their own licenses.
+
 ## Content and navigation
 
 `src/navigation.mjs` defines the three sections and the order of the reading path. It supplies both Starlight's pagination and the custom section-aware navigation. Keep the greatest depth in Core: concepts, data modeling, integration, API behavior, and operations. Examples demonstrate application patterns; Developer tools covers local inspection and development.

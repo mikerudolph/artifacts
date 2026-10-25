@@ -2,11 +2,14 @@
   "name": "artifacts-docs",
   "version": "0.0.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "check": "npm run build && node scripts/check-links.mjs && node scripts/check-diagrams.mjs && node --test scripts/diagram-*.test.mjs",
     "brand:render": "node scripts/render-brand.mjs",
+    "prebuild": "node scripts/copy-licenses.mjs",
     "build": "astro sync --force && astro build",
+    "predev": "node scripts/copy-licenses.mjs",
     "dev": "astro dev",
     "preview": "astro preview"
   },

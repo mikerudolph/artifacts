@@ -1,4 +1,22 @@
 ---
 import Default from '@astrojs/starlight/components/Footer.astro';
+
+const licenses = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/licenses/`;
 ---
-<Default><slot /></Default>
+<Default />
+<p class="license-links">
+  <a href={`${licenses}artifacts-MIT.txt`}>MIT License</a>
+  · <a href={`${licenses}barlow-semi-condensed-OFL.txt`}>Font license</a>
+</p>
+
+<style>
+  .license-links {
+    margin-top: 1rem;
+    color: var(--sl-color-gray-3);
+    font-size: var(--sl-text-sm);
+  }
+
+  .license-links a {
+    color: inherit;
+  }
+</style>

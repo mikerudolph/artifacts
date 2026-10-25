@@ -124,3 +124,7 @@ make verify
 ```
 
 This runs formatting, vet, lint, race tests, coverage checks, and Go file-size checks, building the pinned [MinIO test fixture](test/minio/README.md) before tests. Before running focused Go tests that use S3, run `make test-deps` once. Read [AGENTS.md](AGENTS.md) for contributor guidance and [GOALS.md](GOALS.md) for product direction.
+
+## License
+
+Artifacts' original code, documentation, examples, and visual assets are licensed under the [MIT License](LICENSE). Third-party dependencies and bundled assets retain their own licenses, including the documentation's Barlow Semi Condensed font under the SIL Open Font License.
