@@ -103,6 +103,12 @@ Amends: D15 only for database TLS verification policy. Accept `require`, `verify
 
 The trade-off is deployment compatibility for environments that do not distribute RDS CA bundles: TLS encryption alone does not authenticate the server and cannot prevent server impersonation. Validate signed tokens over local TLS for both connectors and every database command, certificate and hostname rejection in verified modes, refusal of plaintext negotiation, environment/service-file mode selection, warning redaction, and renewed connections. Actual AWS login and workload renewal still require separate AWS evidence. See the [current deployment contract](docs/core/deployment.md#rds-and-aurora-iam-authentication).
 
+### D17 (2026-10-25): License original Artifacts work under MIT
+
+License Artifacts' original code, documentation, examples, and visual assets under the unmodified [MIT License](LICENSE). Permit commercial use, proprietary modifications, redistribution, and competing hosted offerings under those terms. Prefer this short, permissive license to make adoption and reuse straightforward; it does not include Apache 2.0's explicit contributor patent grant.
+
+Keep the copyright and permission notice with distributed copies or substantial portions. Include the project license in the production image and published documentation, and identify MIT in package and image metadata. Third-party dependencies and assets retain their own terms; the project grant does not relicense the Barlow font, MinIO fixtures, or other upstream material. Preserve D9 by keeping licensing prose in legal files and Markdown instead of adding comment headers throughout the code. Validate license text and metadata consistency, image packaging, generated documentation notices, and the applicable repository checks. This decision does not claim a complete audit of existing third-party redistribution obligations.
+
 ## Working rules
 
 1. Trace the current behavior and relevant tests before editing. Keep existing user work intact. Carry authorized work through implementation and verification; surface material ambiguity without stopping independent work.
